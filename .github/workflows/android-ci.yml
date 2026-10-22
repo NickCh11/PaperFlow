@@ -149,8 +149,11 @@ jobs:
           api-level: ${{ matrix.api }}
           target: google_apis
           arch: x86_64
+          profile: pixel_2
+          ram-size: 3072M
+          heap-size: 512M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader -noaudio -no-boot-anim -camera-back emulated
+          emulator-options: -no-window -no-snapshot -gpu swiftshader -feature -Vulkan -noaudio -no-boot-anim -camera-back emulated
           script: |
             bash gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PpaperflowAbi=x86_64 --stacktrace
             python3 tools/ci/prepare_models.py --install
@@ -189,4 +192,3 @@ jobs:
           test "$CHECKS" = success
           test "$BUILD" = success
           test "$DEVICES" = success
-
