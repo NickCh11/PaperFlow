@@ -81,9 +81,38 @@ def prepare(cache):
                 (folder / "installed").write_text(json.dumps(entry), encoding="utf-8")
 
 
+def wait_for_android(command, timeout=180):
+    """Boot completion can precede a ready package manager on a cold AVD."""
+    deadline = time.monotonic() + timeout
+    ready = 0
+    while time.monotonic() < deadline:
+        try:
+            result = subprocess.run(command + ["shell", "cmd", "package", "path", "android"],
+                                    capture_output=True, text=True, timeout=15)
+            ready = ready + 1 if result.returncode == 0 and "package:" in result.stdout else 0
+            if ready == 5:
+                return
+        except subprocess.TimeoutExpired:
+            ready = 0
+        time.sleep(2)
+    raise RuntimeError("Android package manager did not become ready within the boot timeout")
+
+
 def install(cache, adb, serial):
     command = [adb] + (["-s", serial] if serial else [])
-    subprocess.run(command + ["install", "-r", str(ROOT / "app/build/outputs/apk/debug/app-debug.apk")], check=True)
+    try:
+        wait_for_android(command)
+        subprocess.run(command + ["install", "-r", str(ROOT / "app/build/outputs/apk/debug/app-debug.apk")], check=True)
+    except (RuntimeError, subprocess.SubprocessError):
+        report = ROOT / "build/ci-device-reports/emulator-install-logcat.txt"
+        report.parent.mkdir(parents=True, exist_ok=True)
+        with report.open("w", encoding="utf-8") as output:
+            try:
+                subprocess.run(command + ["logcat", "-d", "-b", "all", "-t", "3000"],
+                               stdout=output, stderr=subprocess.STDOUT, timeout=30)
+            except subprocess.SubprocessError as error:
+                output.write(f"Could not collect emulator logcat: {error}\n")
+        raise
     # Camera integration tests supply generated captures. Resolve the runtime prompt
     # before launching activities, so it cannot obscure review/result callbacks.
     subprocess.run(command + ["shell", "pm", "grant", "com.example.myapplication", "android.permission.CAMERA"], check=True)

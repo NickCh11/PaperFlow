@@ -4,10 +4,25 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from check_test_results import check
-from prepare_models import safe_name, verify, fetch
+from prepare_models import safe_name, verify, fetch, wait_for_android
 
 
 class CiRegressionTest(unittest.TestCase):
+    def test_android_readiness_requires_consecutive_package_manager_responses(self):
+        import subprocess
+        ready = subprocess.CompletedProcess([], 0, "package:/system/framework/framework-res.apk\n", "")
+        missing = subprocess.CompletedProcess([], 0, "", "Can't find service: package")
+        with patch("prepare_models.subprocess.run", side_effect=[ready, missing] + [ready] * 5) as run, patch("prepare_models.time.sleep"):
+            wait_for_android(["adb", "-s", "emulator-5554"])
+        self.assertEqual(7, run.call_count)
+
+    def test_android_readiness_has_a_bounded_timeout(self):
+        import subprocess
+        missing = subprocess.CompletedProcess([], 1, "", "device offline")
+        with patch("prepare_models.time.monotonic", side_effect=[0, 0, 181]), patch("prepare_models.subprocess.run", return_value=missing), patch("prepare_models.time.sleep"):
+            with self.assertRaisesRegex(RuntimeError, "package manager"):
+                wait_for_android(["adb"])
+
     def test_vendored_cpuinfo_logging_sources_are_present(self):
         root = Path(__file__).resolve().parents[2]
         clog = root / "translation/third-party/slimt/3rd-party/ruy/third_party/cpuinfo/deps/clog"

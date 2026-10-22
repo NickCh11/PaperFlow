@@ -51,10 +51,23 @@ public class AppearanceTest {
             try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
                 setSystemMode(dark?UiModeManager.MODE_NIGHT_YES:UiModeManager.MODE_NIGHT_NO);
                 UiTestWait.until(()->AppTheme.isDark()==dark,"System night configuration did not update");
-                InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+                // The application configuration can update before the resumed
+                // Activity receives its replacement resources after recreation.
+                awaitActivityNightMode(scenario,dark);
                 scenario.onActivity(a->{assertEquals(dark?Configuration.UI_MODE_NIGHT_YES:Configuration.UI_MODE_NIGHT_NO,a.getResources().getConfiguration().uiMode&Configuration.UI_MODE_NIGHT_MASK);assertPalette(a);});
             }
         }
+    }
+    private static void awaitActivityNightMode(ActivityScenario<MainActivity> scenario,boolean dark){
+        int expected=dark?Configuration.UI_MODE_NIGHT_YES:Configuration.UI_MODE_NIGHT_NO;
+        long deadline=android.os.SystemClock.elapsedRealtime()+15000;
+        do{
+            java.util.concurrent.atomic.AtomicBoolean ready=new java.util.concurrent.atomic.AtomicBoolean();
+            scenario.onActivity(a->ready.set((a.getResources().getConfiguration().uiMode&Configuration.UI_MODE_NIGHT_MASK)==expected));
+            if(ready.get())return;
+            android.os.SystemClock.sleep(50);
+        }while(android.os.SystemClock.elapsedRealtime()<deadline);
+        fail("Activity did not receive the device night-mode configuration");
     }
     @Test public void navigationAndToolControlsStayInsideScreenInBothModes(){
         for(int mode:new int[]{AppCompatDelegate.MODE_NIGHT_NO,AppCompatDelegate.MODE_NIGHT_YES}){
