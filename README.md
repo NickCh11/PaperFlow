@@ -14,7 +14,7 @@
 
 Scan paper, create searchable PDFs and translate photos on your device
 
-[Features](#features) | [Screenshots](#screenshots) 
+[Download](https://github.com/NickCh11/PaperFlow/releases/latest) | [Features](#features) | [Screenshots](#screenshots)
 
 ## Screenshots
 

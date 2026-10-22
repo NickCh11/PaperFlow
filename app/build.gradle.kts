@@ -2,6 +2,16 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+val appVersion = java.util.Properties().apply {
+    rootProject.file("version.properties").inputStream().use { load(it) }
+}.getProperty("versionName") ?: error("Missing versionName in version.properties")
+require(appVersion.matches(Regex("(0|[1-9][0-9]{0,3})\\.(0|[1-9][0-9]{0,2})\\.(0|[1-9][0-9]{0,2})"))) {
+    "versionName must be major.minor.patch (minor/patch <= 999)"
+}
+val versionParts = appVersion.split('.').map(String::toInt)
+val appVersionCode = versionParts[0] * 1000000L + versionParts[1] * 1000L + versionParts[2]
+require(appVersionCode in 1..2100000000L) { "versionName exceeds Android's versionCode range" }
+
 val modelMirrorRepository = providers.gradleProperty("paperflowModelRepository")
     .orElse(providers.environmentVariable("PAPERFLOW_MODEL_REPOSITORY")).orElse("").get()
 require(modelMirrorRepository.isEmpty() || (modelMirrorRepository.matches(Regex("[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9_.-]+")) && modelMirrorRepository.substringAfter('/') !in setOf(".", ".."))) {
@@ -22,8 +32,8 @@ android {
         applicationId = "com.example.myapplication"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = appVersionCode.toInt()
+        versionName = appVersion
 
         testInstrumentationRunner = "com.example.myapplication.PaperFlowTestRunner"
         if (!providers.gradleProperty("paperflowAbi").isPresent) ndk { abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86_64")) }

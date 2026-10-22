@@ -1,0 +1,49 @@
+name: Publish Android release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: paperflow-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Sign and publish versioned APKs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the exact source commit to pass Android CI
+        run: python3 tools/ci/release_android.py prepare
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - name: Install APK signing tools
+        run: sdkmanager 'build-tools;36.0.0'
+      - name: Download, verify and sign tested release APKs
+        env:
+          PAPERFLOW_KEYSTORE_BASE64: ${{ secrets.PAPERFLOW_KEYSTORE_BASE64 }}
+          PAPERFLOW_STORE_PASSWORD: ${{ secrets.PAPERFLOW_STORE_PASSWORD }}
+          PAPERFLOW_KEY_ALIAS: ${{ secrets.PAPERFLOW_KEY_ALIAS }}
+          PAPERFLOW_KEY_PASSWORD: ${{ secrets.PAPERFLOW_KEY_PASSWORD }}
+        run: python3 tools/ci/release_android.py sign
+      - name: Publish complete GitHub Release
+        run: python3 tools/ci/release_android.py publish

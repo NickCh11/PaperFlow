@@ -41,6 +41,8 @@ jobs:
         run: python3 tools/localization/check_translations.py
       - name: Validate pinned model release tag
         run: python3 tools/ci/model_distribution.py
+      - name: Validate app release version
+        run: python3 tools/ci/release_android.py version
       - name: CI tooling regression tests
         run: python3 -m unittest discover -s tools/ci -p 'test_*.py' -v
       - name: JVM tests and lint across modules
