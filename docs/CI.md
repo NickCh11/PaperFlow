@@ -105,3 +105,9 @@ Android job. The Gradle API level remains 37; the SDK package path includes `.0`
 Device jobs free unused preinstalled .NET/Haskell toolchains and Android images/NDKs
 on disposable GitHub-hosted Ubuntu runners before installing the pinned Android tools.
 This leaves space for the API 37.0 system image and AVD data; it does not affect local builds.
+
+The emulator action uses Command-line Tools 22.0 through its `latest` path. Older
+runner tools can silently create an invalid `android-0` AVD target for API 37.0;
+CI checks the generated target before booting. Each AVD has 4 GB RAM and an 8 GB
+data partition. The language fixture installer waits for the package manager and
+collects emulator logcat on installation failures.
