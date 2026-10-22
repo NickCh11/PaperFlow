@@ -101,3 +101,7 @@ The workflow installs JDK 25, matching the repository's existing `gradle/gradle-
 
 SDK installation uses Google's exact package ID `platforms;android-37.0` in every
 Android job. The Gradle API level remains 37; the SDK package path includes `.0`.
+
+Device jobs free unused preinstalled .NET/Haskell toolchains and Android images/NDKs
+on disposable GitHub-hosted Ubuntu runners before installing the pinned Android tools.
+This leaves space for the API 37.0 system image and AVD data; it does not affect local builds.
