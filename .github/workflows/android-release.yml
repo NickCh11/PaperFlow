@@ -37,7 +37,7 @@ jobs:
           java-version: '25'
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
       - name: Install APK signing tools
-        run: sdkmanager 'build-tools;36.0.0'
+        run: bash tools/ci/install_android_tools.sh 'build-tools;36.0.0'
       - name: Download, verify and sign tested release APKs
         env:
           PAPERFLOW_KEYSTORE_BASE64: ${{ secrets.PAPERFLOW_KEYSTORE_BASE64 }}

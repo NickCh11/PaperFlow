@@ -1,8 +1,10 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
 }
 
-val appVersion = java.util.Properties().apply {
+val appVersion = Properties().apply {
     rootProject.file("version.properties").inputStream().use { load(it) }
 }.getProperty("versionName") ?: error("Missing versionName in version.properties")
 require(appVersion.matches(Regex("(0|[1-9][0-9]{0,3})\\.(0|[1-9][0-9]{0,2})\\.(0|[1-9][0-9]{0,2})"))) {
