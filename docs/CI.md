@@ -98,3 +98,6 @@ documents, change preferences temporarily and exercise downloads and permissions
 The build matrix now also includes `all`: a universal APK with ARMv8, ARMv7 and x86_64. All three build jobs are required by PR gate. The native APK validator checks each included ABI separately. See [Appearance and adaptable layouts](APPEARANCE.md) for the additional night-mode and compact-screen regression checks.
 
 The workflow installs JDK 25, matching the repository's existing `gradle/gradle-daemon-jvm.properties` criteria and the daemon used for local validation.
+
+SDK installation uses Google's exact package ID `platforms;android-37.0` in every
+Android job. The Gradle API level remains 37; the SDK package path includes `.0`.

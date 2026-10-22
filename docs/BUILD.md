@@ -1,6 +1,7 @@
 # Build PaperFlow
 
-Use JDK 25, Android SDK 37, Build Tools 36.0.0, NDK 27.2.12479018 and CMake 3.22.1.
+Use JDK 25, Android SDK Platform 37.0, Build Tools 36.0.0, NDK 27.2.12479018 and CMake 3.22.1.
+The SDK Manager package is `platforms;android-37.0`; `platforms;android-37` does not exist.
 Set `sdk.dir` in your own `local.properties`, then run:
 
 ```sh
