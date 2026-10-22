@@ -10,10 +10,12 @@ Downloaded working packs remain local and usable offline. No document or recogni
 
 ## Private archive
 
-`PaperFlow-models` is prepared as a separate private repository. It contains the
+[`NickCh11/PaperFlow-models`](https://github.com/NickCh11/PaperFlow-models) is a separate private repository. It contains the
 OCR/translation catalogs, model licenses, matching release tag and distribution
 scripts. Its manually triggered workflow requires a private repository and uploads
 the 305 verified files as release assets, rather than adding 1.73 GB to Git history.
+The current [private release](https://github.com/NickCh11/PaperFlow-models/releases/tag/language-models-030193707f84d9dea7ae)
+contains those models plus five license/checksum/manifest assets.
 
 Private releases require authenticated GitHub access. They preserve a maintainer
 copy but are **not an anonymous fallback endpoint for the Android app**. No personal
@@ -73,4 +75,4 @@ Model bytes are unchanged. The staged Release includes the Tesseract tessdata_fa
 - All 305 official endpoints passed the separate link health check.
 - Three isolated Android OCR/download integration tests passed on API 29, including real language downloads and searchable PDF output.
 - Translation validation and debug lint/build passed.
-- The private archive source and release files are prepared locally. GitHub upload still requires an authenticated repository creation/push connection. No configured public mirror is claimed to be active in local APKs.
+- The app and model repositories are private. All 305 model files and five metadata files were uploaded and checked against their sizes and SHA-256 digests. The private release is an authenticated archive; no public mirror is configured in local APKs.

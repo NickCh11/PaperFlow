@@ -2,9 +2,12 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from model_distribution import check_tag, repository
 
@@ -53,7 +56,8 @@ def publish(repo, folder, commit, private_archive=False):
     elif remote.get("private") or remote.get("visibility") != "public":
         raise ValueError("App language mirrors must be in a public repository")
     found = json.loads(gh("api", "--paginate", "--slurp", f"repos/{repo}/releases?per_page=100"))
-    release = next((item for page in found for item in page if item["tag_name"] == tag), None)
+    candidates = [item for page in found for item in page if item["tag_name"] == tag]
+    release = max(candidates, key=lambda item: len(item.get("assets", [])), default=None)
     if release is None:
         # Draft releases are not reliably returned by the tag lookup endpoint.
         # Keep the ID returned by creation instead of looking the draft up by tag.
@@ -67,13 +71,24 @@ def publish(repo, folder, commit, private_archive=False):
     missing = validate_assets(expected, assets())
     if not release["draft"] and missing:
         raise ValueError("Published release is incomplete; published assets are never modified")
-    for offset in range(0, len(missing), 25):
-        batch = sorted(missing)[offset:offset+25]
-        gh("release", "upload", tag, "--repo", repo, *[str(folder/name) for name in batch])
+    if missing:
+        # Address the exact release ID: tag-based CLI uploads can select another
+        # draft when multiple drafts share an unpublished tag.
+        token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or gh("auth", "token").strip()
+        for name in sorted(missing):
+            request = Request(
+                f"https://uploads.github.com/repos/{repo}/releases/{release['id']}/assets?name={quote(name, safe='')}",
+                data=(folder/name).read_bytes(), method="POST",
+                headers={"Authorization": "Bearer " + token,
+                    "Content-Type": "application/octet-stream", "Accept": "application/vnd.github+json",
+                    "User-Agent": "PaperFlow-Model-Publisher"})
+            with urlopen(request, timeout=180) as response:
+                asset = json.load(response)
+            validate_assets(expected, [asset])
     if validate_assets(expected, assets()):
         raise ValueError("Not all assets were uploaded")
     if release["draft"]:
-        gh("release", "edit", tag, "--repo", repo, "--draft=false", "--latest=false")
+        gh("api", "--method", "PATCH", f"repos/{repo}/releases/{release['id']}", "-F", "draft=false", "-f", "make_latest=false")
     kind = "private archive" if private_archive else "public mirror"
     print(f"Verified {kind} release: https://github.com/{repo}/releases/tag/{tag}")
 

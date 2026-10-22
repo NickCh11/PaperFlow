@@ -54,7 +54,7 @@ def prepare(output):
         "they can be downloaded independently of the app and used or modified under the included terms.\n",
         encoding="utf-8", newline="\n")
     sums = []
-    for file in sorted(folder.iterdir()):
+    for file in sorted(folder.iterdir(), key=lambda file: file.name):
         if not file.is_file() or file.name == "SHA256SUMS.txt" or file.suffix == ".part":
             continue
         digest = hashlib.sha256()
