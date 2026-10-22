@@ -2,7 +2,10 @@
 build.ninja
 
 # Build objects and artifacts
-deps/
+# Keep the bundled logging library required by Android CPU detection.
+deps/*
+!deps/clog/
+!deps/clog/**
 build/
 bin/
 lib/

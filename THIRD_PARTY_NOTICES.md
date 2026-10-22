@@ -31,6 +31,10 @@ slimt fork and contributors, GNU GPL version 2 as distributed; embedded Marian-d
 https://github.com/dominostars/slimt/tree/a0a486cf573c862c2f74eb32f068fec561ba0a08
 Complete pinned sources and dependency licenses are retained in translation/third-party. Exact source archives and hashes are recorded in translation/upstream-lock.json. Dependencies include SentencePiece (Apache-2.0), ruy (Apache-2.0), cpuinfo (BSD), gemmology (MPL-2.0), xsimd (BSD), intgemm (MIT), GoogleTest (BSD), and PCRE2 10.43 (BSD). Some vendored dependencies are not selected in the Android build.
 
+The cpuinfo dependency includes its bundled clog logging library (BSD-2-Clause),
+including its original license under `cpuinfo/deps/clog/LICENSE`. Its ignore rules
+are adapted so this required source is included in clean repository checkouts.
+
 PaperFlow's ARMv7 integration selects the existing ruy int8 backend because the
 vendored gemmology ARM kernels require ARM64. The model reader validates 64-bit
 on-disk sizes before converting them to the target's `size_t`, rejecting values

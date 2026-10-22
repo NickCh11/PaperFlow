@@ -8,6 +8,13 @@ from prepare_models import safe_name, verify, fetch
 
 
 class CiRegressionTest(unittest.TestCase):
+    def test_vendored_cpuinfo_logging_sources_are_present(self):
+        root = Path(__file__).resolve().parents[2]
+        clog = root / "translation/third-party/slimt/3rd-party/ruy/third_party/cpuinfo/deps/clog"
+        for name in ("CMakeLists.txt", "LICENSE", "include/clog.h", "src/clog.c"):
+            with self.subTest(file=name):
+                self.assertTrue((clog / name).is_file(), f"Missing vendored native source: {name}")
+
     def test_cached_download_is_reverified_before_use(self):
         import io
         data=b"verified model"
