@@ -1,0 +1,18 @@
+<resources>
+    <color name="paperflow_primary">#984321</color>
+    <color name="paperflow_primary_dark">#743118</color>
+    <color name="paperflow_on_primary">#ffffff</color>
+    <color name="paperflow_background">#faf7f2</color>
+    <color name="paperflow_surface">#fffdf9</color>
+    <color name="paperflow_soft">#f1e8de</color>
+    <color name="paperflow_ink">#30251f</color>
+    <color name="paperflow_muted">#746356</color>
+    <color name="paperflow_border">#ded1c4</color>
+    <color name="black">#000000</color>
+    <color name="white">#ffffff</color>
+    <color name="purple_200">#efad87</color>
+    <color name="purple_500">#984321</color>
+    <color name="purple_700">#743118</color>
+    <color name="teal_200">#efad87</color>
+    <color name="teal_700">#984321</color>
+</resources>

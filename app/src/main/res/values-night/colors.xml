@@ -1,0 +1,11 @@
+<resources>
+    <color name="paperflow_primary">#efad87</color>
+    <color name="paperflow_primary_dark">#d78e67</color>
+    <color name="paperflow_on_primary">#3b2013</color>
+    <color name="paperflow_background">#191613</color>
+    <color name="paperflow_surface">#24201c</color>
+    <color name="paperflow_soft">#322b25</color>
+    <color name="paperflow_ink">#f5eee6</color>
+    <color name="paperflow_muted">#c5b6a8</color>
+    <color name="paperflow_border">#51453a</color>
+</resources>

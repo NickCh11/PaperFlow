@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Register a language here once its values-*/strings.xml translation is ready.
+     System default is represented by an empty app locale list, never by a language tag. -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+</locale-config>

@@ -1,0 +1,164 @@
+{
+  "languages": [
+    {
+      "code": "en",
+      "name": "English",
+      "ocr": "eng"
+    },
+    {
+      "code": "el",
+      "name": "Greek",
+      "ocr": "ell"
+    },
+    {
+      "code": "bg",
+      "name": "Bulgarian",
+      "ocr": "bul"
+    },
+    {
+      "code": "bn",
+      "name": "Bengali",
+      "ocr": "ben"
+    },
+    {
+      "code": "ca",
+      "name": "Catalan",
+      "ocr": "cat"
+    },
+    {
+      "code": "cs",
+      "name": "Czech",
+      "ocr": "ces"
+    },
+    {
+      "code": "da",
+      "name": "Danish",
+      "ocr": "dan"
+    },
+    {
+      "code": "de",
+      "name": "German",
+      "ocr": "deu"
+    },
+    {
+      "code": "es",
+      "name": "Spanish",
+      "ocr": "spa"
+    },
+    {
+      "code": "et",
+      "name": "Estonian",
+      "ocr": "est"
+    },
+    {
+      "code": "fa",
+      "name": "Persian",
+      "ocr": "fas"
+    },
+    {
+      "code": "fi",
+      "name": "Finnish",
+      "ocr": "fin"
+    },
+    {
+      "code": "fr",
+      "name": "French",
+      "ocr": "fra"
+    },
+    {
+      "code": "gu",
+      "name": "Gujarati",
+      "ocr": "guj"
+    },
+    {
+      "code": "he",
+      "name": "Hebrew",
+      "ocr": "heb"
+    },
+    {
+      "code": "hi",
+      "name": "Hindi",
+      "ocr": "hin"
+    },
+    {
+      "code": "hr",
+      "name": "Croatian",
+      "ocr": "hrv"
+    },
+    {
+      "code": "id",
+      "name": "Indonesian",
+      "ocr": "ind"
+    },
+    {
+      "code": "it",
+      "name": "Italian",
+      "ocr": "ita"
+    },
+    {
+      "code": "kn",
+      "name": "Kannada",
+      "ocr": "kan"
+    },
+    {
+      "code": "ml",
+      "name": "Malayalam",
+      "ocr": "mal"
+    },
+    {
+      "code": "ms",
+      "name": "Malay",
+      "ocr": "msa"
+    },
+    {
+      "code": "nb",
+      "name": "Norwegian",
+      "ocr": "nor"
+    },
+    {
+      "code": "nl",
+      "name": "Dutch",
+      "ocr": "nld"
+    },
+    {
+      "code": "pl",
+      "name": "Polish",
+      "ocr": "pol"
+    },
+    {
+      "code": "pt",
+      "name": "Portuguese",
+      "ocr": "por"
+    },
+    {
+      "code": "ro",
+      "name": "Romanian",
+      "ocr": "ron"
+    },
+    {
+      "code": "sl",
+      "name": "Slovenian",
+      "ocr": "slv"
+    },
+    {
+      "code": "sq",
+      "name": "Albanian",
+      "ocr": "sqi"
+    },
+    {
+      "code": "sv",
+      "name": "Swedish",
+      "ocr": "swe"
+    },
+    {
+      "code": "te",
+      "name": "Telugu",
+      "ocr": "tel"
+    },
+    {
+      "code": "tr",
+      "name": "Turkish",
+      "ocr": "tur"
+    }
+  ]
+}

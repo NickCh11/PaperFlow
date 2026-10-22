@@ -1,0 +1,65 @@
+[
+  {
+    "repo": "dominostars/slimt",
+    "commit": "a0a486cf573c862c2f74eb32f068fec561ba0a08",
+    "archiveSha256": "1b1faa3a28c31608ae55bd479b27e9036c013fcca5efec609b0bedc79f828a1f",
+    "path": "translation\\third-party\\slimt"
+  },
+  {
+    "repo": "browsermt/sentencepiece",
+    "commit": "8cbdf13794284c30877936f91c6f31e2c1d5aef7",
+    "archiveSha256": "2584b0a5433cc84fb5840af6c3d5e4c60d097b293a3f2cc5e48a01e89cf14ee0",
+    "path": "translation\\third-party\\slimt\\3rd-party\\sentencepiece"
+  },
+  {
+    "repo": "kpu/intgemm",
+    "commit": "85f181e69831aeb02c0c11551df205ba1036b579",
+    "archiveSha256": "bc3f2f5c19407a446fb413b68d4b055b85413dd4b127b83f6db5764b04a20dd1",
+    "path": "translation\\third-party\\slimt\\3rd-party\\intgemm"
+  },
+  {
+    "repo": "google/ruy",
+    "commit": "c04e5e52ae6b144f74ac032652e3c538bda15c9b",
+    "archiveSha256": "554dddb892dd9892ee7bb9d5043e2a7022ef7946433809f2634bfbd21fe9b606",
+    "path": "translation\\third-party\\slimt\\3rd-party\\ruy"
+  },
+  {
+    "repo": "google/googletest",
+    "commit": "6c58c11d5497b6ee1df3cb400ce30deb72fc28c0",
+    "archiveSha256": "7f958f2f142e0733cf46437c0ae28e41c617950e4a6d5962319bb3876e41a24b",
+    "path": "translation\\third-party\\slimt\\3rd-party\\ruy\\third_party\\googletest"
+  },
+  {
+    "repo": "pytorch/cpuinfo",
+    "commit": "082deffc80ce517f81dc2f3aebe6ba671fcd09c9",
+    "archiveSha256": "cd4d4a7659581260f57f821c151826190813f2e3741e7edae4aef336d50d6496",
+    "path": "translation\\third-party\\slimt\\3rd-party\\ruy\\third_party\\cpuinfo"
+  },
+  {
+    "repo": "mozilla/gemmology",
+    "commit": "6497d9d3a50f3de62ec902efe0946d221f1f9095",
+    "archiveSha256": "b8ad42debbed0e52f74d4eb3af67dc0a0ba8215c20819a0263f307959940acc0",
+    "path": "translation\\third-party\\slimt\\3rd-party\\gemmology"
+  },
+  {
+    "repo": "xtensor-stack/xsimd",
+    "commit": "7bc4dd00c0df2c235e07bc3a2154159e2040e9f5",
+    "archiveSha256": "64f2666d6832ccd9d0db7027c839d3e26fc3e17a8a093836d8aad36c103b4578",
+    "path": "translation\\third-party\\slimt\\3rd-party\\xsimd"
+  },
+  {
+    "name": "PCRE2",
+    "version": "10.43",
+    "source": "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.43/pcre2-10.43.tar.gz",
+    "path": "translation/third-party/pcre2-10.43",
+    "sourceTreeSha256": "7fb98c7c28a07e5040d0d3518259dcf89eb1261eb143245a7bf9e82ca4810e86",
+    "treeHashFormat": "SHA-256 of UTF-8 JSON sorted relative POSIX paths to SHA-256 values, compact separators",
+    "files": 436
+  },
+  {
+    "repo": "dominostars/playtranslate",
+    "commit": "c797cafbe3347a1c6bce7ac57978d973b9211b20",
+    "path": "translation/src/main",
+    "adaptations": "See THIRD_PARTY_NOTICES.md"
+  }
+]

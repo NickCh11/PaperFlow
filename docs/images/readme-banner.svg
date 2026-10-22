@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340" role="img" aria-labelledby="title desc">
+<title id="title">PaperFlow</title><desc id="desc">An Android document workspace for scanning, searchable PDFs and local translation.</desc>
+<defs><clipPath id="icon-mask" clipPathUnits="objectBoundingBox"><rect width="1" height="1" rx="0.23"/></clipPath></defs>
+<rect x="1" y="1" width="1198" height="338" rx="28" fill="#FAF7F2" stroke="#E7D8C9" stroke-width="2"/>
+<circle cx="1160" cy="340" r="240" fill="#F1E6DC"/>
+<svg x="58" y="69" width="190" height="190" viewBox="18 18 72 72" clip-path="url(#icon-mask)"><defs><linearGradient id="brand" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#C06B44"/><stop offset="1" stop-color="#80371F"/></linearGradient></defs><path fill="url(#brand)" d="M0 0H108V108H0Z"/><path fill="#E8A478" d="M43 32 L69 32 C74 32 78 36 78 41 L78 74 C78 79 75 82 70 82 L44 82 C40 82 37 79 37 75 L37 39 C37 35 39 32 43 32 Z"/><path fill="#FFF9F0" d="M38 25 L58 25 C60 25 61 26 63 28 L70 35 C72 37 73 39 73 42 L73 66 C73 69 71 71 68 72 C60 75 56 79 47 79 L38 79 C33 79 30 76 30 71 L30 33 C30 28 33 25 38 25 Z"/><path fill="#ECC8A8" d="M59 26 L59 35 C59 39 61 41 65 41 L73 41 C72 38 71 37 69 35 L63 29 C62 28 60 26 59 26 Z"/><path fill="#984321" d="M41 46 L54 46 C55.2 46 56 46.8 56 48 C56 49.2 55.2 50 54 50 L41 50 C39.8 50 39 49.2 39 48 C39 46.8 39.8 46 41 46 Z"/><path fill="#984321" d="M41 55 L62 55 C63.2 55 64 55.8 64 57 C64 58.2 63.2 59 62 59 L41 59 C39.8 59 39 58.2 39 57 C39 55.8 39.8 55 41 55 Z"/><path fill="#984321" d="M40 67 C45 67 47 65 51 64 C55 62.5 59 63 63 63 C64.2 63 65 63.8 65 65 C65 66.2 64.2 67 63 67 C58 67 56 66.5 52 68 C48 69.5 45 71 40 71 C38.8 71 38 70.2 38 69 C38 67.8 38.8 67 40 67 Z"/></svg>
+
+<g font-family="Arial,Helvetica,sans-serif"><text x="300" y="113" font-size="66" font-weight="700" letter-spacing="-2" fill="#30251F">PaperFlow</text>
+<text x="302" y="160" font-size="25" fill="#30251F">Scan paper. Make it searchable. Keep it organized.</text>
+<text x="302" y="200" font-size="20" fill="#746356">On-device scanning, OCR and translation for Android.</text>
+<g fill="#EEDDCF"><rect x="300" y="230" width="130" height="38" rx="19"/><rect x="442" y="230" width="180" height="38" rx="19"/><rect x="634" y="230" width="185" height="38" rx="19"/></g>
+<g fill="#984321" font-size="16" font-weight="700" text-anchor="middle"><text x="365" y="255">Scan &amp; edit</text><text x="532" y="255">Searchable PDFs</text><text x="726" y="255">Local translation</text></g>
+</g></svg>

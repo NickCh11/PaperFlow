@@ -1,0 +1,19 @@
+* text=auto eol=lf
+*.sh text eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.jar binary
+*.onnx binary
+*.tflite binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.pptx binary

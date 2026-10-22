@@ -1,0 +1,1948 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Source/fallback UI text. Translate values; keep names and numbered placeholders unchanged. -->
+    <string name="ui_clarity_standard" formatted="false">Standard · up to 1000 px</string>
+    <string name="ui_clarity_high" formatted="false">High clarity · up to 1600 px</string>
+    <string name="app_name" translatable="false" formatted="false">PaperFlow</string>
+    <string name="app_language_title" formatted="false">App language</string>
+    <string name="app_language_system_default" formatted="false">System default</string>
+    <string name="app_language_summary">App language · %1$s</string>
+    <string name="app_language_help" formatted="false">System default follows your device language. Untranslated text falls back to English.</string>
+    <!-- MainActivity.java: categoryNames; SignatureEditorActivity.java:171 -->
+    <string name="ui_scan" formatted="false">Scan</string>
+    <!-- MainActivity.java: categoryNames; ScanImportOptions.java:13; SignatureEditorActivity.java:171 -->
+    <string name="ui_import" formatted="false">Import</string>
+    <!-- MainActivity.java: categoryNames; MainActivity.java:492 -->
+    <string name="ui_convert" formatted="false">Convert</string>
+    <!-- MainActivity.java: categoryNames -->
+    <string name="ui_edit" formatted="false">Edit</string>
+    <!-- MainActivity.java: categoryNames -->
+    <string name="ui_utilities" formatted="false">Utilities</string>
+    <!-- MainActivity.java: categoryTools; CameraCaptureActivity.java:85; MainActivity.java:211 -->
+    <string name="ui_id_cards" formatted="false">ID Cards</string>
+    <!-- MainActivity.java: categoryTools; IdPhotoMakerActivity.java:54 -->
+    <string name="ui_id_photo_maker" formatted="false">ID Photo Maker</string>
+    <!-- MainActivity.java: categoryTools; LocalTranslationActivity.java:220 -->
+    <string name="ui_photo_translation" formatted="false">Photo Translation</string>
+    <!-- MainActivity.java: categoryTools; CameraCaptureActivity.java:85 -->
+    <string name="ui_book" formatted="false">Book</string>
+    <!-- MainActivity.java: categoryTools; CameraCaptureActivity.java:85 -->
+    <string name="ui_slides" formatted="false">Slides</string>
+    <!-- MainActivity.java: categoryTools; CameraCaptureActivity.java:85 -->
+    <string name="ui_whiteboard" formatted="false">Whiteboard</string>
+    <!-- MainActivity.java: categoryTools; CameraCaptureActivity.java:85 -->
+    <string name="ui_timestamp" formatted="false">Timestamp</string>
+    <!-- MainActivity.java: categoryTools; EraseMarksActivity.java:64; IdPhotoMakerActivity.java:80 -->
+    <string name="ui_import_images" formatted="false">Import Images</string>
+    <!-- MainActivity.java: categoryTools; CameraCaptureActivity.java:89; MainActivity.java:211 -->
+    <string name="ui_import_files" formatted="false">Import Files</string>
+    <!-- MainActivity.java: categoryTools; CameraCaptureActivity.java:85; MainActivity.java:324 -->
+    <string name="ui_to_word" formatted="false">To Word</string>
+    <!-- MainActivity.java: categoryTools; PdfViewerActivity.java:230 -->
+    <string name="ui_to_excel" formatted="false">To Excel</string>
+    <!-- MainActivity.java: categoryTools; PdfViewerActivity.java:230 -->
+    <string name="ui_to_powerpoint" formatted="false">To PowerPoint</string>
+    <!-- MainActivity.java: categoryTools -->
+    <string name="ui_office_to_pdf" formatted="false">Office to PDF</string>
+    <!-- MainActivity.java: categoryTools; PdfViewerActivity.java:230; PdfViewerActivity.java:267 -->
+    <string name="ui_ocr_pdf" formatted="false">OCR PDF</string>
+    <!-- MainActivity.java: categoryTools; PdfViewerActivity.java:230 -->
+    <string name="ui_batch_ocr" formatted="false">Batch OCR</string>
+    <!-- MainActivity.java: categoryTools -->
+    <string name="ui_pdf_to_images" formatted="false">PDF to Images</string>
+    <!-- MainActivity.java: categoryTools; LongImageActivity.java:61; LongImageActivity.java:75 -->
+    <string name="ui_pdf_to_long_image" formatted="false">PDF to Long Image</string>
+    <!-- MainActivity.java: categoryTools; PdfViewerActivity.java:230 -->
+    <string name="ui_collage" formatted="false">Collage</string>
+    <!-- MainActivity.java: categoryTools; CameraCaptureActivity.java:85; ScanEditorActivity.java:117 -->
+    <string name="ui_sign" formatted="false">Sign</string>
+    <!-- MainActivity.java: categoryTools; PdfViewerActivity.java:230; ToolWorkflowActivity.java:358 -->
+    <string name="ui_add_watermark" formatted="false">Add Watermark</string>
+    <!-- MainActivity.java: categoryTools; EraseMarksActivity.java:47; PdfViewerActivity.java:230 -->
+    <string name="ui_erase_marks" formatted="false">Erase Marks</string>
+    <!-- MainActivity.java: categoryTools; PdfViewerActivity.java:230 -->
+    <string name="ui_merge_files" formatted="false">Merge Files</string>
+    <!-- MainActivity.java: categoryTools; PdfViewerActivity.java:230 -->
+    <string name="ui_extract_pdf_pages" formatted="false">Extract PDF Pages</string>
+    <!-- MainActivity.java: categoryTools; PdfViewerActivity.java:230 -->
+    <string name="ui_reorder_pages" formatted="false">Reorder Pages</string>
+    <!-- MainActivity.java: categoryTools; PdfViewerActivity.java:230 -->
+    <string name="ui_lock" formatted="false">Lock</string>
+    <!-- MainActivity.java: categoryTools; PdfViewerActivity.java:230 -->
+    <string name="ui_remove_pdf_password" formatted="false">Remove PDF password</string>
+    <!-- MainActivity.java: categoryTools; PdfViewerActivity.java:230; ToolWorkflowActivity.java:199 -->
+    <string name="ui_compress" formatted="false">Compress</string>
+    <!-- MainActivity.java: categoryTools; MainActivity.java:211; PdfViewerActivity.java:230 -->
+    <string name="ui_rotate_pdf" formatted="false">Rotate PDF</string>
+    <!-- MainActivity.java: categoryTools; ToolWorkflowActivity.java:199 -->
+    <string name="ui_print" formatted="false">Print</string>
+    <!-- MainActivity.java: categoryTools; ScanCodeActivity.java:100 -->
+    <string name="ui_scan_code" formatted="false">Scan Code</string>
+    <!-- PdfEditActivity.java: TOOLS -->
+    <string name="ui_select" formatted="false">Select</string>
+    <!-- PdfEditActivity.java: TOOLS -->
+    <string name="ui_highlight" formatted="false">Highlight</string>
+    <!-- PdfEditActivity.java: TOOLS -->
+    <string name="ui_underline" formatted="false">Underline</string>
+    <!-- PdfEditActivity.java: TOOLS -->
+    <string name="ui_strikeout" formatted="false">Strikeout</string>
+    <!-- PdfEditActivity.java: TOOLS -->
+    <string name="ui_rectangle" formatted="false">Rectangle</string>
+    <!-- PdfEditActivity.java: TOOLS -->
+    <string name="ui_pen" formatted="false">Pen</string>
+    <!-- PdfEditActivity.java: TOOLS; PdfEditActivity.java:54 -->
+    <string name="ui_comment" formatted="false">Comment</string>
+    <!-- PdfEditActivity.java: TOOLS -->
+    <string name="ui_replace_text" formatted="false">Replace text</string>
+    <!-- PdfEditActivity.java: TOOLS -->
+    <string name="ui_redact" formatted="false">Redact</string>
+    <!-- ScanEditorActivity.java: filterNames; ScanEditorActivity.java:114; ScanEditorActivity.java:121 -->
+    <string name="ui_default" formatted="false">Default</string>
+    <!-- ScanEditorActivity.java: filterNames; ScanEditorActivity.java:114; ScanEditorActivity.java:121 -->
+    <string name="ui_paperscan_pro" translatable="false" formatted="false">PaperScan Pro</string>
+    <!-- BookDraftStore.java:25 -->
+    <string name="ui_book_draft_points_outside_captures" formatted="false">Book draft points outside captures</string>
+    <!-- BookDraftStore.java:31 -->
+    <string name="ui_book_page_is_missing" formatted="false">Book page is missing</string>
+    <!-- BookDraftStore.java:36 -->
+    <string name="ui_could_not_save_book_draft" formatted="false">Could not save Book draft</string>
+    <!-- BookDraftStore.java:42 -->
+    <string name="ui_book_draft_index_is_too_large" formatted="false">Book draft index is too large</string>
+    <!-- BookDraftStore.java:44 -->
+    <string name="ui_unsupported_book_draft" formatted="false">Unsupported Book draft</string>
+    <!-- BookDraftStore.java:51 -->
+    <string name="ui_could_not_read_book_draft" formatted="false">Could not read Book draft</string>
+    <!-- BookDraftStore.java:56 -->
+    <string name="ui_could_not_delete_book_draft_page" formatted="false">Could not delete Book draft page</string>
+    <!-- CameraCaptureActivity.java:68; CameraCaptureActivity.java:99 -->
+    <string name="ui_hd" formatted="false">HD</string>
+    <!-- CameraCaptureActivity.java:75; CameraCaptureActivity.java:85; ToolWorkflowActivity.java:308 -->
+    <string name="ui_single" formatted="false">Single</string>
+    <!-- CameraCaptureActivity.java:75 -->
+    <string name="ui_double" formatted="false">Double</string>
+    <!-- CameraCaptureActivity.java:81; EraseMarksActivity.java:58; PdfEditActivity.java:38 -->
+    <string name="ui_undo" formatted="false">Undo</string>
+    <!-- CameraCaptureActivity.java:85 -->
+    <string name="ui_all_features" formatted="false">All Features</string>
+    <!-- CameraCaptureActivity.java:85 -->
+    <string name="ui_batch" formatted="false">Batch</string>
+    <!-- CameraCaptureActivity.java:85; MainActivity.java:553 -->
+    <string name="ui_capture_mode" formatted="false">Capture mode</string>
+    <!-- CameraCaptureActivity.java:88 -->
+    <string name="ui_capture_page" formatted="false">Capture page</string>
+    <!-- CameraCaptureActivity.java:89 -->
+    <string name="ui_import_images_ac61abc3" formatted="false">Import\nImages</string>
+    <!-- CameraCaptureActivity.java:99 -->
+    <string name="ui_sd" formatted="false">SD</string>
+    <!-- CameraCaptureActivity.java:99 -->
+    <string name="ui_high_resolution_on" formatted="false">High resolution on</string>
+    <!-- CameraCaptureActivity.java:99 -->
+    <string name="ui_standard_resolution_on" formatted="false">Standard resolution on</string>
+    <!-- CameraCaptureActivity.java:100 -->
+    <string name="ui_flash_value">Flash %1$s</string>
+    <!-- CameraCaptureActivity.java:101 -->
+    <string name="ui_value">%1$s  ›</string>
+    <!-- CameraCaptureActivity.java:101 -->
+    <string name="ui_review_value_pages">Review %1$s pages</string>
+    <!-- CameraCaptureActivity.java:103; ScanEditorActivity.java:93; ScanEditorActivity.java:195 -->
+    <string name="ui_processing" formatted="false">Processing…</string>
+    <!-- CameraCaptureActivity.java:108 -->
+    <string name="ui_review_or_undo_your_pages_before_changing_mode" formatted="false">Review or undo your pages before changing mode</string>
+    <!-- CameraCaptureActivity.java:123 -->
+    <string name="ui_camera_unavailable_import_images_or_files_below" formatted="false">Camera unavailable · Import images or files below</string>
+    <!-- CameraCaptureActivity.java:123 -->
+    <string name="ui_could_not_start_camera" formatted="false">Could not start camera</string>
+    <!-- CameraCaptureActivity.java:151 -->
+    <string name="ui_hold_steady" formatted="false">Hold steady…</string>
+    <!-- CameraCaptureActivity.java:151 -->
+    <string name="ui_page_unchanged_tap_shutter_to_capture_again" formatted="false">Page unchanged · tap shutter to capture again</string>
+    <!-- CameraCaptureActivity.java:153; ScanCodeActivity.java:145 -->
+    <string name="ui_this_camera_has_no_flash" formatted="false">This camera has no flash</string>
+    <!-- CameraCaptureActivity.java:153; MainActivity.java:551 -->
+    <string name="ui_off" formatted="false">Off</string>
+    <!-- CameraCaptureActivity.java:153 -->
+    <string name="ui_auto" formatted="false">Auto</string>
+    <!-- CameraCaptureActivity.java:153 -->
+    <string name="ui_on" formatted="false">On</string>
+    <!-- CameraCaptureActivity.java:153 -->
+    <string name="ui_flash" formatted="false">Flash</string>
+    <!-- CameraCaptureActivity.java:154 -->
+    <string name="ui_hide_alignment_grid" formatted="false">Hide alignment grid</string>
+    <!-- CameraCaptureActivity.java:154 -->
+    <string name="ui_show_alignment_grid" formatted="false">Show alignment grid</string>
+    <!-- CameraCaptureActivity.java:154 -->
+    <string name="ui_timer_off" formatted="false">Timer: Off</string>
+    <!-- CameraCaptureActivity.java:154 -->
+    <string name="ui_timer_3_seconds" formatted="false">Timer: 3 seconds</string>
+    <!-- CameraCaptureActivity.java:154 -->
+    <string name="ui_timer_5_seconds" formatted="false">Timer: 5 seconds</string>
+    <!-- CameraCaptureActivity.java:154 -->
+    <string name="ui_automatic_capture_on" formatted="false">Automatic capture: On</string>
+    <!-- CameraCaptureActivity.java:154 -->
+    <string name="ui_automatic_capture_off" formatted="false">Automatic capture: Off</string>
+    <!-- CameraCaptureActivity.java:154 -->
+    <string name="ui_camera_settings" formatted="false">Camera settings</string>
+    <!-- CameraCaptureActivity.java:155 -->
+    <string name="ui_allow_camera_access_to_scan_or_import_images_below" formatted="false">Allow camera access to scan, or import images below</string>
+    <!-- CameraCaptureActivity.java:155; MainActivity.java:523; ScanEditorActivity.java:87 -->
+    <string name="ui_continue" formatted="false">Continue</string>
+    <!-- CameraCaptureActivity.java:155; MainActivity.java:534 -->
+    <string name="ui_settings" formatted="false">Settings</string>
+    <!-- CameraCaptureActivity.java:155 -->
+    <string name="ui_allow_camera_access_in_app_settings_to_scan_documents_you_can_also_import_i" formatted="false">Allow camera access in app settings to scan documents. You can also import images or files.</string>
+    <!-- CameraCaptureActivity.java:155 -->
+    <string name="ui_camera_access" formatted="false">Camera access</string>
+    <!-- CameraCaptureActivity.java:165 -->
+    <string name="ui_save_for_later" formatted="false">Save for later</string>
+    <!-- CameraCaptureActivity.java:165; PdfEditActivity.java:119; ScanEditorActivity.java:127 -->
+    <string name="ui_discard" formatted="false">Discard</string>
+    <!-- CameraCaptureActivity.java:165 -->
+    <string name="ui_keep_capturing" formatted="false">Keep capturing</string>
+    <!-- CameraCaptureActivity.java:165 -->
+    <string name="ui_continue_capturing_keep_the_draft_for_later_or_discard_this_book" formatted="false">Continue capturing, keep the draft for later, or discard this book?</string>
+    <!-- CameraCaptureActivity.java:165 -->
+    <string name="ui_book_saved_as_a_draft" formatted="false">Book saved as a draft</string>
+    <!-- CameraCaptureActivity.java:166 -->
+    <string name="ui_please_wait_for_the_page_to_finish" formatted="false">Please wait for the page to finish</string>
+    <!-- CameraCaptureActivity.java:192 -->
+    <string name="ui_tap_preview_to_focus" formatted="false">Tap preview to focus</string>
+    <!-- CameraCaptureActivity.java:107 -->
+    <string name="ui_align_the_front_of_the_card_with_the_live_outline" formatted="false">Align the front of the card with the live outline</string>
+    <!-- CameraCaptureActivity.java:107 -->
+    <string name="ui_turn_the_card_over_and_capture_the_back" formatted="false">Turn the card over and capture the back</string>
+    <!-- CameraCaptureActivity.java:107 -->
+    <string name="ui_align_the_spine_with_the_center_line_saves_two_pages" formatted="false">Align the spine with the center line · Saves two pages</string>
+    <!-- CameraCaptureActivity.java:107 -->
+    <string name="ui_align_the_page_with_the_live_outline_saves_one_page" formatted="false">Align the page with the live outline · Saves one page</string>
+    <!-- CameraCaptureActivity.java:107 -->
+    <string name="ui_align_the_board_with_the_live_outline" formatted="false">Align the board with the live outline</string>
+    <!-- CameraCaptureActivity.java:107 -->
+    <string name="ui_align_the_slide_with_the_live_outline" formatted="false">Align the slide with the live outline</string>
+    <!-- CameraCaptureActivity.java:107 -->
+    <string name="ui_date_and_time_will_be_printed_on_the_image" formatted="false">Date and time will be printed on the image</string>
+    <!-- CameraCaptureActivity.java:107 -->
+    <string name="ui_scan_more_pages_then_tap_the_thumbnail_to_review" formatted="false">Scan more pages, then tap the thumbnail to review</string>
+    <!-- CameraCaptureSession.java:50 -->
+    <string name="ui_unreadable_input" formatted="false">Unreadable input</string>
+    <!-- CameraCaptureSession.java:115; CameraCaptureSession.java:118 -->
+    <string name="ui_unreadable_image" formatted="false">Unreadable image</string>
+    <!-- CameraCaptureSession.java:135 -->
+    <string name="ui_save_failed" formatted="false">Save failed</string>
+    <!-- CloudExportActivity.java:28; MainActivity.java:196; MainActivity.java:301 -->
+    <string name="ui_save_to_cloud" formatted="false">Save to cloud</string>
+    <!-- CloudExportActivity.java:29 -->
+    <string name="ui_value_document_s_selected_choose_google_drive_onedrive_or_another_destinati">%1$s document(s) selected. Choose Google Drive, OneDrive or another destination from the Android file picker. Available services depend on the apps installed and signed in on this device. This saves a copy; later changes are not uploaded automatically.</string>
+    <!-- CloudExportActivity.java:30; MainActivity.java:301 -->
+    <string name="ui_choose_destination" formatted="false">Choose destination</string>
+    <!-- CloudExportActivity.java:30 -->
+    <string name="ui_choose_destination_folder" formatted="false">Choose destination folder</string>
+    <!-- CloudExportActivity.java:31; MainActivity.java:517; PdfViewerActivity.java:209 -->
+    <string name="ui_done" formatted="false">Done</string>
+    <!-- CloudExportActivity.java:37 -->
+    <string name="ui_saving" formatted="false">Saving…</string>
+    <!-- CloudExportActivity.java:48 -->
+    <string name="ui_value_document_s_saved_to_the_selected_destination_your_cloud_app_handles_u">%1$s document(s) saved to the selected destination. Your cloud app handles uploading them.</string>
+    <!-- CloudExportActivity.java:49 -->
+    <string name="ui_value_document_s_saved_could_not_finish_value_check_the_destination_and_ava">%1$s document(s) saved. Could not finish: %2$s. Check the destination and available storage before retrying.</string>
+    <!-- CloudExportActivity.java:42 -->
+    <string name="ui_the_destination_could_not_create_a_file" formatted="false">The destination could not create a file</string>
+    <!-- CloudExportActivity.java:44 -->
+    <string name="ui_the_destination_is_unavailable" formatted="false">The destination is unavailable</string>
+    <!-- ConversionHistory.java:21 -->
+    <string name="ui_conversion_history_storage_unavailable" formatted="false">Conversion history storage unavailable</string>
+    <!-- ConversionHistory.java:29 -->
+    <string name="ui_cannot_delete_conversion" formatted="false">Cannot delete conversion</string>
+    <!-- ConversionHistoryActivity.java:20 -->
+    <string name="ui_back_conversion_history" formatted="false">Back · Conversion history</string>
+    <!-- ConversionHistoryActivity.java:25 -->
+    <string name="ui_your_converted_files_will_appear_here_save_to_device_or_share_them_whenever" formatted="false">Your converted files will appear here. Save to device or share them whenever you need.</string>
+    <!-- ConversionHistoryActivity.java:25 -->
+    <string name="ui_value_value">%1$s\n%2$s</string>
+    <!-- ConversionHistoryActivity.java:25 -->
+    <string name="ui_locked_conversion_tap_to_unlock" formatted="false">Locked conversion · tap to unlock</string>
+    <!-- ConversionHistoryActivity.java:25 -->
+    <string name="ui_cannot_load_history_value">Cannot load history: %1$s</string>
+    <!-- ConversionHistoryActivity.java:26; EraseMarksActivity.java:66; ExtendedToolsActivity.java:47 -->
+    <string name="ui_open" formatted="false">Open</string>
+    <!-- ConversionHistoryActivity.java:26; ExtendedToolsActivity.java:34; IdPhotoMakerActivity.java:63 -->
+    <string name="ui_save_to_device" formatted="false">Save to device</string>
+    <!-- ConversionHistoryActivity.java:26; ExtendedToolsActivity.java:35; IdPhotoMakerActivity.java:62 -->
+    <string name="ui_share" formatted="false">Share</string>
+    <!-- ConversionHistoryActivity.java:26; LanguageManagerActivity.java:34; MainActivity.java:300 -->
+    <string name="ui_delete" formatted="false">Delete</string>
+    <!-- ConversionHistoryActivity.java:26 -->
+    <string name="ui_share_conversion" formatted="false">Share conversion</string>
+    <!-- ConversionHistoryActivity.java:26; EraseMarksActivity.java:66; EraseMarksActivity.java:67 -->
+    <string name="ui_cancel" formatted="false">Cancel</string>
+    <!-- ConversionHistoryActivity.java:26 -->
+    <string name="ui_the_original_document_is_kept" formatted="false">The original document is kept.</string>
+    <!-- ConversionHistoryActivity.java:26 -->
+    <string name="ui_delete_converted_file" formatted="false">Delete converted file?</string>
+    <!-- ConversionHistoryActivity.java:26 -->
+    <string name="ui_install_an_app_that_can_open_this_file_or_save_it_to_device" formatted="false">Install an app that can open this file, or save it to device</string>
+    <!-- ConversionHistoryActivity.java:26 -->
+    <string name="ui_converted_file_is_unavailable" formatted="false">Converted file is unavailable</string>
+    <!-- ConversionHistoryActivity.java:27; ExtendedToolsActivity.java:83; LongImageActivity.java:199 -->
+    <string name="ui_destination_unavailable" formatted="false">Destination unavailable</string>
+    <!-- ConversionHistoryActivity.java:27; LocalTranslationActivity.java:195; PdfLayoutActivity.java:52 -->
+    <string name="ui_saved_to_device" formatted="false">Saved to device</string>
+    <!-- ConversionHistoryActivity.java:27; ExtendedToolsActivity.java:83; PdfEditActivity.java:100 -->
+    <string name="ui_could_not_save_value">Could not save: %1$s</string>
+    <!-- CurvedPaper.java:21 -->
+    <string name="ui_curved_paper_model_is_damaged" formatted="false">Curved paper model is damaged</string>
+    <!-- CurvedPaper.java:21 -->
+    <string name="ui_could_not_prepare_curved_paper_model" formatted="false">Could not prepare curved paper model</string>
+    <!-- CurvedPaper.java:26; ScanCleanup.java:11 -->
+    <string name="ui_image_processing_is_unavailable" formatted="false">Image processing is unavailable</string>
+    <!-- CurvedPaper.java:32 -->
+    <string name="ui_invalid_curved_paper_grid" formatted="false">Invalid curved paper grid</string>
+    <!-- CurvedPaper.java:32 -->
+    <string name="ui_could_not_estimate_this_page_s_curvature" formatted="false">Could not estimate this page\'s curvature</string>
+    <!-- DocumentEdgeLines.java:32 -->
+    <string name="ui_non_finite_line_endpoint" formatted="false">Non-finite line endpoint</string>
+    <!-- DocumentEdgeLines.java:36 -->
+    <string name="ui_coincident_line_endpoints" formatted="false">Coincident line endpoints</string>
+    <!-- DocumentEdgeLines.java:64 -->
+    <string name="ui_invalid_line_extraction_limits" formatted="false">Invalid line extraction limits</string>
+    <!-- DocumentEdgeLines.java:123 -->
+    <string name="ui_invalid_image_size" formatted="false">Invalid image size</string>
+    <!-- EraseMarksActivity.java:47; ExtendedToolsActivity.java:31; FolderLock.java:49 -->
+    <string name="ui_back" formatted="false">Back</string>
+    <!-- EraseMarksActivity.java:50 -->
+    <string name="ui_remove_small_marks" formatted="false">Remove small marks</string>
+    <!-- EraseMarksActivity.java:50 -->
+    <string name="ui_paint_over_a_scratch_or_mark_then_repair_it_using_nearby_pixels_small_areas" formatted="false">Paint over a scratch or mark, then repair it using nearby pixels. Small areas on simple backgrounds work best.</string>
+    <!-- EraseMarksActivity.java:52; EraseMarksActivity.java:53 -->
+    <string name="ui_after_repaired_on_this_device" formatted="false">After · repaired on this device</string>
+    <!-- EraseMarksActivity.java:52 -->
+    <string name="ui_repaired_image" formatted="false">Repaired image</string>
+    <!-- EraseMarksActivity.java:53; ScanEditorActivity.java:111 -->
+    <string name="ui_compare" formatted="false">Compare</string>
+    <!-- EraseMarksActivity.java:53 -->
+    <string name="ui_before_original_image" formatted="false">Before · original image</string>
+    <!-- EraseMarksActivity.java:54 -->
+    <string name="ui_share_png" formatted="false">Share PNG</string>
+    <!-- EraseMarksActivity.java:54 -->
+    <string name="ui_save_png_to_device" formatted="false">Save PNG to device</string>
+    <!-- EraseMarksActivity.java:55 -->
+    <string name="ui_save_pdf_to_documents" formatted="false">Save PDF to documents</string>
+    <!-- EraseMarksActivity.java:55 -->
+    <string name="ui_edit_mask" formatted="false">Edit mask</string>
+    <!-- EraseMarksActivity.java:57 -->
+    <string name="ui_brush_over_the_marks_to_remove" formatted="false">Brush over the marks to remove</string>
+    <!-- EraseMarksActivity.java:58 -->
+    <string name="ui_brush" formatted="false">Brush</string>
+    <!-- EraseMarksActivity.java:58 -->
+    <string name="ui_eraser" formatted="false">Eraser</string>
+    <!-- EraseMarksActivity.java:58; ScanEditorActivity.java:141; SignatureEditorActivity.java:128 -->
+    <string name="ui_clear" formatted="false">Clear</string>
+    <!-- EraseMarksActivity.java:59 -->
+    <string name="ui_brush_size_value_px">Brush size: %1$s px</string>
+    <!-- EraseMarksActivity.java:59 -->
+    <string name="ui_brush_size" formatted="false">Brush size</string>
+    <!-- EraseMarksActivity.java:60 -->
+    <string name="ui_process" formatted="false">Process</string>
+    <!-- EraseMarksActivity.java:64 -->
+    <string name="ui_import_pdf_page" formatted="false">Import PDF page</string>
+    <!-- EraseMarksActivity.java:64; IdPhotoMakerActivity.java:80; LocalTranslationActivity.java:254 -->
+    <string name="ui_camera" formatted="false">Camera</string>
+    <!-- EraseMarksActivity.java:66; ExtendedToolsActivity.java:47; LongImageActivity.java:98 -->
+    <string name="ui_pdf_password" formatted="false">PDF password</string>
+    <!-- EraseMarksActivity.java:67; SignatureEditorActivity.java:209; SignatureEditorActivity.java:212 -->
+    <string name="ui_choose_page" formatted="false">Choose page</string>
+    <!-- EraseMarksActivity.java:67 -->
+    <string name="ui_only_this_page_becomes_an_image_in_the_pdf_copy_its_old_text_and_annotation" formatted="false">Only this page becomes an image in the PDF copy. Its old text and annotations are removed; other pages stay unchanged. Erase Marks repairs appearances and is not a secure redaction tool.</string>
+    <!-- EraseMarksActivity.java:67 -->
+    <string name="ui_choose_a_page_to_repair" formatted="false">Choose a page to repair</string>
+    <!-- EraseMarksActivity.java:67 -->
+    <string name="ui_pdf_page" formatted="false">PDF page</string>
+    <!-- EraseMarksActivity.java:68 -->
+    <string name="ui_share_repaired_image" formatted="false">Share repaired image</string>
+    <!-- EraseMarksActivity.java:68 -->
+    <string name="ui_could_not_share_image" formatted="false">Could not share image</string>
+    <!-- EraseMarksActivity.java:69; IdPhotoMakerActivity.java:84; ToolWorkflowActivity.java:553 -->
+    <string name="ui_please_wait_for_processing_to_finish" formatted="false">Please wait for processing to finish</string>
+    <!-- EraseMarksActivity.java:87 -->
+    <string name="ui_brush_to_erase_pinch_to_zoom_two_fingers_to_pan" formatted="false">Brush to erase. Pinch to zoom; two fingers to pan.</string>
+    <!-- EraseMarksActivity.java:65; MainActivity.java:383; MainActivity.java:623 -->
+    <string name="ui_no_pdf_data" formatted="false">No PDF data</string>
+    <!-- EraseMarksActivity.java:66; EraseMarksActivity.java:141 -->
+    <string name="ui_this_pdf_does_not_permit_editing" formatted="false">This PDF does not permit editing</string>
+    <!-- EraseMarksActivity.java:130 -->
+    <string name="ui_brush_over_a_mark_first" formatted="false">Brush over a mark first</string>
+    <!-- EraseMarksActivity.java:130 -->
+    <string name="ui_not_enough_memory_to_process_this_image" formatted="false">Not enough memory to process this image</string>
+    <!-- EraseMarksActivity.java:137 -->
+    <string name="ui_png_saved" formatted="false">PNG saved</string>
+    <!-- ExtendedToolsActivity.java:31 -->
+    <string name="ui_cancelling_after_the_current_operation" formatted="false">Cancelling after the current operation…</string>
+    <!-- ExtendedToolsActivity.java:34 -->
+    <string name="ui_create_value">Create %1$s</string>
+    <!-- ExtendedToolsActivity.java:35; LanguageManagerActivity.java:32; ScanCodeActivity.java:152 -->
+    <string name="ui_value_value_c5cbdde4">%1$s · %2$s</string>
+    <!-- ExtendedToolsActivity.java:35 -->
+    <string name="ui_open_pdf_preview" formatted="false">Open PDF preview</string>
+    <!-- ExtendedToolsActivity.java:35; MainActivity.java:545; PdfViewerActivity.java:230 -->
+    <string name="ui_conversion_history" formatted="false">Conversion history</string>
+    <!-- ExtendedToolsActivity.java:35 -->
+    <string name="ui_save_to_document_library" formatted="false">Save to document library</string>
+    <!-- ExtendedToolsActivity.java:35 -->
+    <string name="ui_start_again" formatted="false">Start again</string>
+    <!-- ExtendedToolsActivity.java:36 -->
+    <string name="ui_choose_photos_set_the_grid_reorder_them_and_review_the_page_before_saving" formatted="false">Choose photos, set the grid, reorder them and review the page before saving.</string>
+    <!-- ExtendedToolsActivity.java:36 -->
+    <string name="ui_select_several_pdfs_each_source_has_its_own_page_selection_your_originals_s" formatted="false">Select several PDFs. Each source has its own page selection. Your originals stay unchanged.</string>
+    <!-- ExtendedToolsActivity.java:36 -->
+    <string name="ui_local_docx_xlsx_and_pptx_conversion_paragraphs_tables_cells_pictures_and_sl" formatted="false">Local DOCX, XLSX and PPTX conversion. Paragraphs, tables, cells, pictures and slide shapes are supported. Complex themes, charts, embedded objects and macros may differ or be omitted. Spreadsheet formulas use stored results. Review the PDF before sharing.</string>
+    <!-- ExtendedToolsActivity.java:36 -->
+    <string name="ui_text_is_grouped_into_rows_and_columns_by_position_scanned_pages_use_your_en" formatted="false">Text is grouped into rows and columns by position. Scanned pages use your enabled OCR languages. Review inferred table cells and numbers in Excel.</string>
+    <!-- ExtendedToolsActivity.java:36 -->
+    <string name="ui_choose_appearance_mode_for_page_images_or_editable_layout_for_positioned_te" formatted="false">Choose appearance mode for page images, or editable layout for positioned text. Fonts, complex layouts and OCR may differ; scanned text areas use a white background in editable mode.</string>
+    <!-- ExtendedToolsActivity.java:37 -->
+    <string name="ui_choose_photos" formatted="false">Choose photos</string>
+    <!-- ExtendedToolsActivity.java:37 -->
+    <string name="ui_choose_office_file" formatted="false">Choose Office file</string>
+    <!-- ExtendedToolsActivity.java:37 -->
+    <string name="ui_import_pdfvalue">Import PDF%1$s</string>
+    <!-- ExtendedToolsActivity.java:37 -->
+    <string name="ui_choose_from_library" formatted="false">Choose from library</string>
+    <!-- ExtendedToolsActivity.java:37 -->
+    <string name="ui_import_pdf_pages" formatted="false">Import PDF pages</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_page_value">Page: %1$s</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_a4_portrait" formatted="false">A4 portrait</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_a4_landscape" formatted="false">A4 landscape</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_square" formatted="false">Square</string>
+    <!-- ExtendedToolsActivity.java:38; MainActivity.java:553; MainActivity.java:554 -->
+    <string name="ui_letter" translatable="false" formatted="false">Letter</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_page_layout" formatted="false">Page layout</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_photos_per_page_fit_all" formatted="false">Photos per page: fit all</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_photos_per_page_value">Photos per page: %1$s</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_fit_all_on_one_page" formatted="false">Fit all on one page</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_photos_per_page" formatted="false">Photos per page</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_grid_value_column_s">Grid: %1$s column(s)</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_1_column" formatted="false">1 column</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_2_columns" formatted="false">2 columns</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_3_columns" formatted="false">3 columns</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_grid" formatted="false">Grid</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_photos_crop_to_fill" formatted="false">Photos: crop to fill</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_photos_fit_entirely" formatted="false">Photos: fit entirely</string>
+    <!-- ExtendedToolsActivity.java:38; ExtendedToolsActivity.java:39 -->
+    <string name="ui_output_value">Output: %1$s</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_pdf" translatable="false" formatted="false">PDF</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_jpeg" translatable="false" formatted="false">JPEG</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_png" translatable="false" formatted="false">PNG</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_output_format" formatted="false">Output format</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_preview_page_value_value">Preview page %1$s / %2$s</string>
+    <!-- ExtendedToolsActivity.java:38 -->
+    <string name="ui_each_page_is_exported_as_an_image_inside_one_zip_file" formatted="false">Each page is exported as an image inside one ZIP file.</string>
+    <!-- ExtendedToolsActivity.java:39 -->
+    <string name="ui_searchable_pdfs" formatted="false">Searchable PDFs</string>
+    <!-- ExtendedToolsActivity.java:39 -->
+    <string name="ui_text_files" formatted="false">Text files</string>
+    <!-- ExtendedToolsActivity.java:39 -->
+    <string name="ui_pdfs_and_text" formatted="false">PDFs and text</string>
+    <!-- ExtendedToolsActivity.java:39 -->
+    <string name="ui_batch_ocr_output" formatted="false">Batch OCR output</string>
+    <!-- ExtendedToolsActivity.java:40 -->
+    <string name="ui_mode_editable_layout" formatted="false">Mode: editable layout</string>
+    <!-- ExtendedToolsActivity.java:40 -->
+    <string name="ui_mode_keep_page_appearance" formatted="false">Mode: keep page appearance</string>
+    <!-- ExtendedToolsActivity.java:41 -->
+    <string name="ui_value_valuevalue">%1$s. %2$s%3$s</string>
+    <!-- ExtendedToolsActivity.java:43 -->
+    <string name="ui_no_unlocked_documents_available" formatted="false">No unlocked documents available</string>
+    <!-- ExtendedToolsActivity.java:43; PdfEditActivity.java:54; PdfViewerActivity.java:166 -->
+    <string name="ui_add" formatted="false">Add</string>
+    <!-- ExtendedToolsActivity.java:43 -->
+    <string name="ui_select_pdfs" formatted="false">Select PDFs</string>
+    <!-- ExtendedToolsActivity.java:43 -->
+    <string name="ui_select_pdf" formatted="false">Select PDF</string>
+    <!-- ExtendedToolsActivity.java:46; MainActivity.java:585 -->
+    <string name="ui_add_pages" formatted="false">Add pages</string>
+    <!-- ExtendedToolsActivity.java:46 -->
+    <string name="ui_pdf_pages_for_collage" formatted="false">PDF pages for collage</string>
+    <!-- ExtendedToolsActivity.java:51 -->
+    <string name="ui_select_1_30_photos_or_pages_in_total" formatted="false">Select 1–30 photos or pages in total</string>
+    <!-- ExtendedToolsActivity.java:52 -->
+    <string name="ui_could_not_add_pdf_pages_value">Could not add PDF pages: %1$s</string>
+    <!-- ExtendedToolsActivity.java:55 -->
+    <string name="ui_choose_one_source_file" formatted="false">Choose one source file</string>
+    <!-- ExtendedToolsActivity.java:55 -->
+    <string name="ui_choose_up_to_30_photos" formatted="false">Choose up to 30 photos</string>
+    <!-- ExtendedToolsActivity.java:55 -->
+    <string name="ui_importing" formatted="false">Importing…</string>
+    <!-- ExtendedToolsActivity.java:55 -->
+    <string name="ui_could_not_import_value">Could not import: %1$s</string>
+    <!-- ExtendedToolsActivity.java:56 -->
+    <string name="ui_remove_source" formatted="false">Remove source</string>
+    <!-- ExtendedToolsActivity.java:56 -->
+    <string name="ui_value_pdf_password">%1$s · PDF password</string>
+    <!-- ExtendedToolsActivity.java:56 -->
+    <string name="ui_could_not_open_value">Could not open %1$s</string>
+    <!-- ExtendedToolsActivity.java:57; IdPhotoMakerActivity.java:82; LocalTranslationActivity.java:305 -->
+    <string name="ui_apply" formatted="false">Apply</string>
+    <!-- ExtendedToolsActivity.java:57; PdfLayoutActivity.java:49 -->
+    <string name="ui_select_clear_all" formatted="false">Select / clear all</string>
+    <!-- ExtendedToolsActivity.java:57 -->
+    <string name="ui_pages_value">Pages · %1$s</string>
+    <!-- ExtendedToolsActivity.java:57; LongImageActivity.java:109; LongImageExporter.java:34 -->
+    <string name="ui_select_at_least_one_page" formatted="false">Select at least one page</string>
+    <!-- ExtendedToolsActivity.java:58 -->
+    <string name="ui_select_source_files_first" formatted="false">Select source files first</string>
+    <!-- ExtendedToolsActivity.java:58 -->
+    <string name="ui_languages" formatted="false">Languages</string>
+    <!-- ExtendedToolsActivity.java:58 -->
+    <string name="ui_download_and_enable_the_document_languages_in_settings_before_batch_ocr" formatted="false">Download and enable the document languages in Settings before batch OCR.</string>
+    <!-- ExtendedToolsActivity.java:58 -->
+    <string name="ui_ocr_languages" formatted="false">OCR languages</string>
+    <!-- ExtendedToolsActivity.java:59 -->
+    <string name="ui_preparing" formatted="false">Preparing…</string>
+    <!-- ExtendedToolsActivity.java:60 -->
+    <string name="ui_ready_review_the_result_before_sharing" formatted="false">Ready. Review the result before sharing.</string>
+    <!-- ExtendedToolsActivity.java:61; ExtendedToolsActivity.java:62; LongImageActivity.java:190 -->
+    <string name="ui_cancelled" formatted="false">Cancelled</string>
+    <!-- ExtendedToolsActivity.java:61 -->
+    <string name="ui_could_not_finish_value">Could not finish: %1$s</string>
+    <!-- ExtendedToolsActivity.java:63 -->
+    <string name="ui_page_value_value">Page %1$s / %2$s</string>
+    <!-- ExtendedToolsActivity.java:63; ExtendedToolsActivity.java:46; ExtendedToolsActivity.java:57 -->
+    <string name="ui_page_value_67f70d13">Page %1$s</string>
+    <!-- ExtendedToolsActivity.java:65 -->
+    <string name="ui_document_value_value_page_value_value">Document %1$s / %2$s · page %3$s / %4$s</string>
+    <!-- ExtendedToolsActivity.java:82 -->
+    <string name="ui_collage_page_value_preview">Collage page %1$s preview</string>
+    <!-- ExtendedToolsActivity.java:83 -->
+    <string name="ui_saved_to_the_selected_destination" formatted="false">Saved to the selected destination</string>
+    <!-- ExtendedToolsActivity.java:85 -->
+    <string name="ui_share_result" formatted="false">Share result</string>
+    <!-- ExtendedToolsActivity.java:85; ToolWorkflowActivity.java:482 -->
+    <string name="ui_could_not_share_result" formatted="false">Could not share result</string>
+    <!-- ExtendedToolsActivity.java:86; MainActivity.java:504; MainActivity.java:513 -->
+    <string name="ui_cancelling" formatted="false">Cancelling…</string>
+    <!-- ExtendedToolsActivity.java:46 -->
+    <string name="ui_this_pdf_does_not_allow_image_export" formatted="false">This PDF does not allow image export</string>
+    <!-- ExtendedToolsActivity.java:55 -->
+    <string name="ui_no_file_data" formatted="false">No file data</string>
+    <!-- ExtendedToolsActivity.java:56; MainActivity.java:383; PdfLayoutActivity.java:30 -->
+    <string name="ui_pdf_has_no_pages" formatted="false">PDF has no pages</string>
+    <!-- ExtendedToolsActivity.java:59; LanguageModels.java:41; LanguageModels.java:45 -->
+    <string name="ui_storage_unavailable" formatted="false">Storage unavailable</string>
+    <!-- ExtendedToolsActivity.java:65 -->
+    <string name="ui_value_does_not_allow_text_extraction">%1$s does not allow text extraction</string>
+    <!-- ExtendedToolsActivity.java:67 -->
+    <string name="ui_unreadable_photo" formatted="false">Unreadable photo</string>
+    <!-- ExtendedToolsActivity.java:79; ExtendedToolsActivity.java:80 -->
+    <string name="ui_could_not_encode_collage" formatted="false">Could not encode collage</string>
+    <!-- FolderLock.java:49 -->
+    <string name="ui_protected_document" formatted="false">Protected document</string>
+    <!-- FolderLock.java:49; FolderLock.java:58 -->
+    <string name="ui_unlock_folder" formatted="false">Unlock folder</string>
+    <!-- FolderLock.java:63 -->
+    <string name="ui_unlock" formatted="false">Unlock</string>
+    <!-- FolderLock.java:63 -->
+    <string name="ui_folder_pin" formatted="false">Folder PIN</string>
+    <!-- FolderLock.java:64 -->
+    <string name="ui_try_again_in_value_seconds">Try again in %1$s seconds</string>
+    <!-- FolderLock.java:65 -->
+    <string name="ui_incorrect_pin" formatted="false">Incorrect PIN</string>
+    <!-- FolderLock.java:69 -->
+    <string name="ui_change_pin" formatted="false">Change PIN</string>
+    <!-- FolderLock.java:69 -->
+    <string name="ui_disable_biometrics" formatted="false">Disable biometrics</string>
+    <!-- FolderLock.java:69 -->
+    <string name="ui_enable_biometrics" formatted="false">Enable biometrics</string>
+    <!-- FolderLock.java:69 -->
+    <string name="ui_remove_protection" formatted="false">Remove protection</string>
+    <!-- FolderLock.java:69 -->
+    <string name="ui_lock_all_folders_now" formatted="false">Lock all folders now</string>
+    <!-- FolderLock.java:69; MainActivity.java:280 -->
+    <string name="ui_folder_protection" formatted="false">Folder protection</string>
+    <!-- FolderLock.java:69 -->
+    <string name="ui_set_up_a_strong_device_biometric_in_android_settings_first" formatted="false">Set up a strong device biometric in Android settings first</string>
+    <!-- FolderLock.java:71 -->
+    <string name="ui_pin_at_least_6_digits" formatted="false">PIN · at least 6 digits</string>
+    <!-- FolderLock.java:71 -->
+    <string name="ui_repeat_pin" formatted="false">Repeat PIN</string>
+    <!-- FolderLock.java:72; MainActivity.java:280; MainActivity.java:462 -->
+    <string name="ui_save" formatted="false">Save</string>
+    <!-- FolderLock.java:72 -->
+    <string name="ui_protects_this_folder_and_its_subfolders_inside_paperflow_files_use_android" formatted="false">Protects this folder and its subfolders inside PaperFlow. Files use Android private storage; this is not a separately encrypted vault. Exports are outside this lock. Keep your PIN: there is no account recovery. Unlocked folders relock after five minutes or when you tap Lock folders.</string>
+    <!-- FolderLock.java:72 -->
+    <string name="ui_protect_folder" formatted="false">Protect folder</string>
+    <!-- FolderLock.java:72 -->
+    <string name="ui_enter_matching_pins_with_6_32_digits" formatted="false">Enter matching PINs with 6–32 digits</string>
+    <!-- FolderLock.java:72 -->
+    <string name="ui_could_not_save_folder_protection" formatted="false">Could not save folder protection</string>
+    <!-- FolderMoves.java:15 -->
+    <string name="ui_a_folder_cannot_be_moved_inside_itself_or_its_subfolders" formatted="false">A folder cannot be moved inside itself or its subfolders</string>
+    <!-- FolderMoves.java:16 -->
+    <string name="ui_folder_no_longer_exists" formatted="false">Folder no longer exists</string>
+    <!-- FolderMoves.java:17 -->
+    <string name="ui_destination_no_longer_exists" formatted="false">Destination no longer exists</string>
+    <!-- FolderMoves.java:18 -->
+    <string name="ui_unlock_the_source_and_destination_folders_first" formatted="false">Unlock the source and destination folders first</string>
+    <!-- GalleryExport.java:18 -->
+    <string name="ui_allow_gallery_storage_in_android_settings_first" formatted="false">Allow gallery storage in Android settings first</string>
+    <!-- GalleryExport.java:18 -->
+    <string name="ui_gallery_storage_unavailable" formatted="false">Gallery storage unavailable</string>
+    <!-- GalleryExport.java:19 -->
+    <string name="ui_could_not_create_a_gallery_image" formatted="false">Could not create a gallery image</string>
+    <!-- GalleryExport.java:24 -->
+    <string name="ui_image_unavailable" formatted="false">Image unavailable</string>
+    <!-- GalleryExport.java:26 -->
+    <string name="ui_could_not_save_the_scan_image" formatted="false">Could not save the scan image</string>
+    <!-- GalleryExport.java:27 -->
+    <string name="ui_could_not_publish_the_gallery_image" formatted="false">Could not publish the gallery image</string>
+    <!-- IdPhotoMakerActivity.java:44 -->
+    <string name="ui_choose_a_portrait_image" formatted="false">Choose a portrait image</string>
+    <!-- IdPhotoMakerActivity.java:64; LocalTranslationActivity.java:291; PdfLayoutActivity.java:42 -->
+    <string name="ui_save_to_documents" formatted="false">Save to documents</string>
+    <!-- IdPhotoMakerActivity.java:65 -->
+    <string name="ui_edit_photo" formatted="false">Edit photo</string>
+    <!-- IdPhotoMakerActivity.java:68; PdfLayoutActivity.java:34 -->
+    <string name="ui_size_value">Size: %1$s</string>
+    <!-- IdPhotoMakerActivity.java:69 -->
+    <string name="ui_zoom" formatted="false">Zoom</string>
+    <!-- IdPhotoMakerActivity.java:69 -->
+    <string name="ui_portrait_zoom" formatted="false">Portrait zoom</string>
+    <!-- IdPhotoMakerActivity.java:70; ToolWorkflowActivity.java:340 -->
+    <string name="ui_rotate" formatted="false">Rotate</string>
+    <!-- IdPhotoMakerActivity.java:71; LocalTranslationActivity.java:226; PdfLayoutActivity.java:34 -->
+    <string name="ui_original" formatted="false">Original</string>
+    <!-- IdPhotoMakerActivity.java:71; ToolWorkflowActivity.java:328 -->
+    <string name="ui_white" formatted="false">White</string>
+    <!-- IdPhotoMakerActivity.java:71; PdfEditActivity.java:51; ScanEditorActivity.java:139 -->
+    <string name="ui_blue" formatted="false">Blue</string>
+    <!-- IdPhotoMakerActivity.java:71; PdfEditActivity.java:51; ScanEditorActivity.java:139 -->
+    <string name="ui_red" formatted="false">Red</string>
+    <!-- IdPhotoMakerActivity.java:73 -->
+    <string name="ui_single_jpeg_300_dpi" formatted="false">Single JPEG · 300 DPI</string>
+    <!-- IdPhotoMakerActivity.java:73 -->
+    <string name="ui_4_6_inch_print_sheet_pdf" formatted="false">4 × 6 inch print sheet · PDF</string>
+    <!-- IdPhotoMakerActivity.java:73 -->
+    <string name="ui_a4_print_sheet_pdf" formatted="false">A4 print sheet · PDF</string>
+    <!-- IdPhotoMakerActivity.java:76 -->
+    <string name="ui_create_photo" formatted="false">Create photo</string>
+    <!-- IdPhotoMakerActivity.java:81 -->
+    <string name="ui_35_45_mm" formatted="false">35 × 45 mm</string>
+    <!-- IdPhotoMakerActivity.java:81 -->
+    <string name="ui_25_35_mm" formatted="false">25 × 35 mm</string>
+    <!-- IdPhotoMakerActivity.java:81 -->
+    <string name="ui_50_50_mm" formatted="false">50 × 50 mm</string>
+    <!-- IdPhotoMakerActivity.java:81 -->
+    <string name="ui_custom_size" formatted="false">Custom size</string>
+    <!-- IdPhotoMakerActivity.java:81 -->
+    <string name="ui_photo_size" formatted="false">Photo size</string>
+    <!-- IdPhotoMakerActivity.java:82 -->
+    <string name="ui_width_in_mm" formatted="false">Width in mm</string>
+    <!-- IdPhotoMakerActivity.java:82 -->
+    <string name="ui_height_in_mm" formatted="false">Height in mm</string>
+    <!-- IdPhotoMakerActivity.java:82 -->
+    <string name="ui_custom_photo_size" formatted="false">Custom photo size</string>
+    <!-- IdPhotoMakerActivity.java:82 -->
+    <string name="ui_use_dimensions_from_8_to_100_mm" formatted="false">Use dimensions from 8 to 100 mm</string>
+    <!-- IdPhotoMakerActivity.java:83 -->
+    <string name="ui_share_id_photo" formatted="false">Share ID photo</string>
+    <!-- IdPhotoMakerActivity.java:83 -->
+    <string name="ui_could_not_share_photo" formatted="false">Could not share photo</string>
+    <!-- IdPhotoMakerActivity.java:97 -->
+    <string name="ui_portrait_crop_drag_to_move_pinch_to_zoom" formatted="false">Portrait crop. Drag to move, pinch to zoom</string>
+    <!-- IdPhotoMakerActivity.java:103 -->
+    <string name="ui_id_photo_output_preview" formatted="false">ID photo output preview</string>
+    <!-- IdPhotoMakerActivity.java:159 -->
+    <string name="ui_invalid_jpeg" formatted="false">Invalid JPEG</string>
+    <!-- IdPhotoMakerActivity.java:161 -->
+    <string name="ui_invalid_jpeg_segment" formatted="false">Invalid JPEG segment</string>
+    <!-- IdPhotoMakerActivity.java:133 -->
+    <string name="ui_local_background_separation_check_hair_and_clothing_edges_before_exporting" formatted="false">Local background separation · Check hair and clothing edges before exporting.</string>
+    <!-- IdPhotoMakerActivity.java:156; ToolWorkflowActivity.java:483 -->
+    <string name="ui_file_saved" formatted="false">File saved</string>
+    <!-- IdPhotoMakerActivity.java:140 -->
+    <string name="ui_no_clear_person_mask_was_found_use_the_original_background_or_choose_anothe" formatted="false">No clear person mask was found. Use the original background or choose another portrait.</string>
+    <!-- IdPhotoMakerActivity.java:142 -->
+    <string name="ui_background_separation_could_not_finish_you_can_still_crop_and_export_the_or" formatted="false">Background separation could not finish. You can still crop and export the original photo.</string>
+    <!-- IdPhotoMakerActivity.java:156; ToolWorkflowActivity.java:483 -->
+    <string name="ui_could_not_save_file" formatted="false">Could not save file</string>
+    <!-- LanguageManagerActivity.java:23 -->
+    <string name="ui_value_bf1b9b3a">‹ %1$s</string>
+    <!-- LanguageManagerActivity.java:24 -->
+    <string name="ui_download_languages_then_enable_the_ones_to_recognize_active_languages_add_s" formatted="false">Download languages, then enable the ones to recognize. Active languages add searchable text to new scans.</string>
+    <!-- LanguageManagerActivity.java:24 -->
+    <string name="ui_download_the_translation_directions_you_need_after_download_translation_wor" formatted="false">Download the translation directions you need. After download, translation works offline.</string>
+    <!-- LanguageManagerActivity.java:25 -->
+    <string name="ui_cancel_download" formatted="false">Cancel download</string>
+    <!-- LanguageManagerActivity.java:34 -->
+    <string name="ui_download" formatted="false">Download</string>
+    <!-- LanguageManagerActivity.java:34 -->
+    <string name="ui_delete_value">Delete %1$s?</string>
+    <!-- LanguageManagerActivity.java:36 -->
+    <string name="ui_could_not_load_language_catalog_value">Could not load language catalog: %1$s</string>
+    <!-- LanguageManagerActivity.java:18 -->
+    <string name="ui_download_complete" formatted="false">Download complete</string>
+    <!-- LanguageModels.java:35 -->
+    <string name="ui_could_not_remove_language" formatted="false">Could not remove language</string>
+    <!-- LanguageModels.java:36 -->
+    <string name="ui_could_not_remove_translation_file" formatted="false">Could not remove translation file</string>
+    <!-- LanguageModels.java:36 -->
+    <string name="ui_could_not_remove_translation_language" formatted="false">Could not remove translation language</string>
+    <!-- LanguageModels.java:39; LanguageModels.java:52; LanguageModels.java:66 -->
+    <string name="ui_download_cancelled" formatted="false">Download cancelled</string>
+    <!-- LanguageModels.java:60 -->
+    <string name="ui_download_server_returned_value">Download server returned %1$s</string>
+    <!-- LanguageModels.java:66 -->
+    <string name="ui_language_file_is_larger_than_expected" formatted="false">Language file is larger than expected</string>
+    <!-- LanguageModels.java:71 -->
+    <string name="ui_language_download_integrity_check_failed" formatted="false">Language download integrity check failed</string>
+    <!-- LocalTranslationActivity.java:69 -->
+    <string name="ui_first_time_download_value_your_photo_stays_on_this_device">First-time download: %1$s. Your photo stays on this device.</string>
+    <!-- LocalTranslationActivity.java:70; TextTranslationActivity.java:32 -->
+    <string name="ui_downloading_value_value">Downloading %1$s · %2$s%%</string>
+    <!-- LocalTranslationActivity.java:121; LocalTranslationActivity.java:133 -->
+    <string name="ui_reading_value_text">Reading %1$s text…</string>
+    <!-- LocalTranslationActivity.java:130 -->
+    <string name="ui_reading_text_and_detecting_its_language" formatted="false">Reading text and detecting its language…</string>
+    <!-- LocalTranslationActivity.java:157 -->
+    <string name="ui_translating_value_value">Translating %1$s / %2$s…</string>
+    <!-- LocalTranslationActivity.java:164 -->
+    <string name="ui_preparing_your_translation" formatted="false">Preparing your translation…</string>
+    <!-- LocalTranslationActivity.java:221; LongImageActivity.java:63; PdfViewerActivity.java:99 -->
+    <string name="ui_more_options" formatted="false">More options</string>
+    <!-- LocalTranslationActivity.java:223; LocalTranslationActivity.java:242 -->
+    <string name="ui_auto_detect" formatted="false">Auto detect ▾</string>
+    <!-- LocalTranslationActivity.java:223; LocalTranslationActivity.java:276 -->
+    <string name="ui_photo_language" formatted="false">Photo language</string>
+    <!-- LocalTranslationActivity.java:224 -->
+    <string name="ui_to_english" formatted="false">To English ▾</string>
+    <!-- LocalTranslationActivity.java:226; LocalTranslationActivity.java:286 -->
+    <string name="ui_translation" formatted="false">Translation</string>
+    <!-- LocalTranslationActivity.java:232 -->
+    <string name="ui_translate_a_photo" formatted="false">Translate a photo</string>
+    <!-- LocalTranslationActivity.java:233 -->
+    <string name="ui_take_a_photo_or_choose_an_image_text_and_language_are_detected_automaticall" formatted="false">Take a photo or choose an image. Text and language are detected automatically.</string>
+    <!-- LocalTranslationActivity.java:242 -->
+    <string name="ui_value_7cd939c2">%1$s ▾</string>
+    <!-- LocalTranslationActivity.java:242 -->
+    <string name="ui_auto_translate" formatted="false">Auto translate ▾</string>
+    <!-- LocalTranslationActivity.java:242 -->
+    <string name="ui_to_value">To %1$s ▾</string>
+    <!-- LocalTranslationActivity.java:249 -->
+    <string name="ui_try_again" formatted="false">Try again</string>
+    <!-- LocalTranslationActivity.java:251; LocalTranslationActivity.java:281; LocalTranslationActivity.java:289 -->
+    <string name="ui_new_photo" formatted="false">New photo</string>
+    <!-- LocalTranslationActivity.java:251; LocalTranslationActivity.java:286 -->
+    <string name="ui_copy_text" formatted="false">Copy text</string>
+    <!-- LocalTranslationActivity.java:254; LocalTranslationActivity.java:281 -->
+    <string name="ui_import_photo" formatted="false">Import photo</string>
+    <!-- LocalTranslationActivity.java:263; LocalTranslationActivity.java:283; TextTranslationActivity.java:40 -->
+    <string name="ui_share_translation" formatted="false">Share translation</string>
+    <!-- LocalTranslationActivity.java:271; TextTranslationActivity.java:42; TextTranslationActivity.java:43 -->
+    <string name="ui_auto_detect_85cd1ac0" formatted="false">Auto detect</string>
+    <!-- LocalTranslationActivity.java:274 -->
+    <string name="ui_search_languages" formatted="false">Search languages</string>
+    <!-- LocalTranslationActivity.java:276; TextTranslationActivity.java:43 -->
+    <string name="ui_translate_to" formatted="false">Translate to</string>
+    <!-- LocalTranslationActivity.java:279 -->
+    <string name="ui_could_not_load_translation_languages" formatted="false">Could not load translation languages</string>
+    <!-- LocalTranslationActivity.java:283 -->
+    <string name="ui_pdf_selectable_text" formatted="false">PDF · selectable text</string>
+    <!-- LocalTranslationActivity.java:283 -->
+    <string name="ui_png_image" formatted="false">PNG image</string>
+    <!-- LocalTranslationActivity.java:286; MainActivity.java:433; MainActivity.java:531 -->
+    <string name="ui_close" formatted="false">Close</string>
+    <!-- LocalTranslationActivity.java:290 -->
+    <string name="ui_edit_recognized_text" formatted="false">Edit recognized text</string>
+    <!-- LocalTranslationActivity.java:290; LocalTranslationActivity.java:305 -->
+    <string name="ui_edit_translation" formatted="false">Edit translation</string>
+    <!-- LocalTranslationActivity.java:292 -->
+    <string name="ui_about_offline_translation" formatted="false">About offline translation</string>
+    <!-- LocalTranslationActivity.java:299 -->
+    <string name="ui_ok" formatted="false">OK</string>
+    <!-- LocalTranslationActivity.java:299 -->
+    <string name="ui_32_languages_are_supported_choose_the_photo_language_or_use_auto_detect_the" formatted="false">32 languages are supported. Choose the photo language or use Auto detect, then choose a target. The necessary language files download automatically the first time; this needs internet. Photos and text are processed on this device. Scan OCR language settings are unchanged. Automatic detection can need correction on short text or a new writing system: tap the photo language to choose it. If a translation cannot fit on the photo, a readable text layout is used instead.</string>
+    <!-- LocalTranslationActivity.java:299 -->
+    <string name="ui_offline_translation" formatted="false">Offline translation</string>
+    <!-- LocalTranslationActivity.java:305 -->
+    <string name="ui_correct_recognized_text" formatted="false">Correct recognized text</string>
+    <!-- LocalTranslationActivity.java:307 -->
+    <string name="ui_stop" formatted="false">Stop</string>
+    <!-- LocalTranslationActivity.java:307 -->
+    <string name="ui_keep_translating" formatted="false">Keep translating</string>
+    <!-- LocalTranslationActivity.java:307 -->
+    <string name="ui_stop_translation" formatted="false">Stop translation?</string>
+    <!-- LocalTranslationActivity.java:318 -->
+    <string name="ui_translation_preview_pinch_to_zoom_drag_to_move" formatted="false">Translation preview. Pinch to zoom, drag to move.</string>
+    <!-- LocalTranslationActivity.java:58; LocalTranslationActivity.java:91; LocalTranslationActivity.java:169 -->
+    <string name="ui_translation_cancelled" formatted="false">Translation cancelled</string>
+    <!-- LocalTranslationActivity.java:63 -->
+    <string name="ui_this_language_is_not_available" formatted="false">This language is not available</string>
+    <!-- LocalTranslationActivity.java:72 -->
+    <string name="ui_could_not_download_value_connect_to_the_internet_and_tap_try_again">Could not download %1$s. Connect to the internet and tap Try again.</string>
+    <!-- LocalTranslationActivity.java:83 -->
+    <string name="ui_could_not_open_this_photo_choose_another_image" formatted="false">Could not open this photo. Choose another image.</string>
+    <!-- LocalTranslationActivity.java:131; LocalTranslationActivity.java:146 -->
+    <string name="ui_no_readable_text_found_choose_the_photo_language_above_or_try_a_clearer_pho" formatted="false">No readable text found. Choose the photo language above, or try a clearer photo.</string>
+    <!-- LocalTranslationActivity.java:186; LongImageActivity.java:206 -->
+    <string name="ui_could_not_save_image" formatted="false">Could not save image</string>
+    <!-- LocalTranslationActivity.java:188 -->
+    <string name="ui_export_cancelled" formatted="false">Export cancelled</string>
+    <!-- LocalTranslationActivity.java:194 -->
+    <string name="ui_could_not_open_the_selected_location" formatted="false">Could not open the selected location</string>
+    <!-- LocalTranslationActivity.java:46 -->
+    <string name="ui_32_languages_works_offline_after_the_first_download" formatted="false">32 languages · works offline after the first download</string>
+    <!-- LocalTranslationActivity.java:59 -->
+    <string name="ui_could_not_translate_this_photo_try_again_or_choose_a_clearer_photo" formatted="false">Could not translate this photo. Try again or choose a clearer photo.</string>
+    <!-- LocalTranslationActivity.java:171 -->
+    <string name="ui_this_text_is_already_in_value_choose_another_target_to_translate_it">This text is already in %1$s. Choose another target to translate it.</string>
+    <!-- LocalTranslationActivity.java:171 -->
+    <string name="ui_ready_text_layout_keeps_the_full_translation_readable" formatted="false">Ready · text layout keeps the full translation readable</string>
+    <!-- LocalTranslationActivity.java:171 -->
+    <string name="ui_ready_translated_on_this_device" formatted="false">Ready · translated on this device</string>
+    <!-- LocalTranslationActivity.java:188 -->
+    <string name="ui_ready_to_save" formatted="false">Ready to save</string>
+    <!-- LocalTranslationActivity.java:198 -->
+    <string name="ui_stopping_after_the_current_step" formatted="false">Stopping after the current step…</string>
+    <!-- LongImageActivity.java:62 -->
+    <string name="ui_save_as_new" formatted="false">Save as New</string>
+    <!-- LongImageActivity.java:63; LongImageActivity.java:106 -->
+    <string name="ui_select_pages" formatted="false">Select pages</string>
+    <!-- LongImageActivity.java:64 -->
+    <string name="ui_long_image_preview" formatted="false">Long image preview</string>
+    <!-- LongImageActivity.java:65; MainActivity.java:512 -->
+    <string name="ui_opening_pdf" formatted="false">Opening PDF…</string>
+    <!-- LongImageActivity.java:68 -->
+    <string name="ui_standard_up_to_1000_px" formatted="false">Standard\nup to 1000 px</string>
+    <!-- LongImageActivity.java:68 -->
+    <string name="ui_high_clarity_up_to_1600_px" formatted="false">High clarity\nup to 1600 px</string>
+    <!-- LongImageActivity.java:70 -->
+    <string name="ui_standard_clarity" formatted="false">Standard clarity</string>
+    <!-- LongImageActivity.java:70 -->
+    <string name="ui_high_clarity" formatted="false">High clarity</string>
+    <!-- LongImageActivity.java:84 -->
+    <string name="ui_value_pages_value_value_px">%1$s pages · %2$s × %3$s px</string>
+    <!-- LongImageActivity.java:99; MainActivity.java:523; PdfViewerActivity.java:146 -->
+    <string name="ui_incorrect_password_try_again" formatted="false">Incorrect password. Try again.</string>
+    <!-- LongImageActivity.java:99; PdfViewerActivity.java:146 -->
+    <string name="ui_enter_the_password_to_open_this_document" formatted="false">Enter the password to open this document.</string>
+    <!-- LongImageActivity.java:99; MainActivity.java:523; PdfViewerActivity.java:146 -->
+    <string name="ui_password_protected_pdf" formatted="false">Password protected PDF</string>
+    <!-- LongImageActivity.java:100; SignatureEditorActivity.java:159; ToolWorkflowActivity.java:194 -->
+    <string name="ui_enter_password" formatted="false">Enter password</string>
+    <!-- LongImageActivity.java:106 -->
+    <string name="ui_select_all_clear" formatted="false">Select all / clear</string>
+    <!-- LongImageActivity.java:115 -->
+    <string name="ui_share_long_image" formatted="false">Share long image</string>
+    <!-- LongImageActivity.java:118 -->
+    <string name="ui_could_not_open_export_destination" formatted="false">Could not open export destination</string>
+    <!-- LongImageActivity.java:130 -->
+    <string name="ui_preview_page_value">Preview page %1$s</string>
+    <!-- LongImageActivity.java:162; ToolWorkflowActivity.java:186 -->
+    <string name="ui_the_pdf_has_no_pages" formatted="false">The PDF has no pages</string>
+    <!-- LongImageActivity.java:191 -->
+    <string name="ui_not_enough_memory_select_fewer_pages_or_standard_clarity" formatted="false">Not enough memory. Select fewer pages or Standard clarity.</string>
+    <!-- LongImageActivity.java:191 -->
+    <string name="ui_could_not_prepare_long_image_value">Could not prepare long image: %1$s</string>
+    <!-- LongImageActivity.java:203 -->
+    <string name="ui_image_saved" formatted="false">Image saved</string>
+    <!-- LongImageExporter.java:30 -->
+    <string name="ui_invalid_pdf_page_dimensions" formatted="false">Invalid PDF page dimensions</string>
+    <!-- LongImageExporter.java:38 -->
+    <string name="ui_select_fewer_pages_for_a_readable_long_image" formatted="false">Select fewer pages for a readable long image</string>
+    <!-- LongImageExporter.java:70 -->
+    <string name="ui_could_not_encode_jpeg" formatted="false">Could not encode JPEG</string>
+    <!-- LongImageExporter.java:72 -->
+    <string name="ui_empty_jpeg_output" formatted="false">Empty JPEG output</string>
+    <!-- MainActivity.java:131 -->
+    <string name="ui_word_document_saved" formatted="false">Word document saved</string>
+    <!-- MainActivity.java:131 -->
+    <string name="ui_could_not_save_word_document" formatted="false">Could not save Word document</string>
+    <!-- MainActivity.java:190 -->
+    <string name="ui_search" formatted="false">Search</string>
+    <!-- MainActivity.java:211 -->
+    <string name="ui_smart_scan" formatted="false">Smart Scan</string>
+    <!-- MainActivity.java:211 -->
+    <string name="ui_pdf_tools" formatted="false">PDF Tools</string>
+    <!-- MainActivity.java:211 -->
+    <string name="ui_merge_pdfs" formatted="false">Merge PDFs</string>
+    <!-- MainActivity.java:211 -->
+    <string name="ui_all_tools" formatted="false">All Tools</string>
+    <!-- MainActivity.java:217 -->
+    <string name="ui_recents" formatted="false">Recents</string>
+    <!-- MainActivity.java:218 -->
+    <string name="ui_view_all" formatted="false">View All</string>
+    <!-- MainActivity.java:224 -->
+    <string name="ui_no_recent_file" formatted="false">No Recent File</string>
+    <!-- MainActivity.java:224 -->
+    <string name="ui_no_files_found" formatted="false">No files found</string>
+    <!-- MainActivity.java:225 -->
+    <string name="ui_scan_new_docs" formatted="false">Scan new docs</string>
+    <!-- MainActivity.java:257; MainActivity.java:543; MainActivity.java:662 -->
+    <string name="ui_trash" formatted="false">Trash</string>
+    <!-- MainActivity.java:257; MainActivity.java:262; MainActivity.java:546 -->
+    <string name="ui_favorites" formatted="false">Favorites</string>
+    <!-- MainActivity.java:260; MainActivity.java:278; MainActivity.java:491 -->
+    <string name="ui_automatic_pdf_text_then_local_ocr" formatted="false">Automatic · PDF text, then local OCR</string>
+    <!-- MainActivity.java:260; MainActivity.java:278; MainActivity.java:491 -->
+    <string name="ui_pdf_text_only_includes_greek" formatted="false">PDF text only · includes Greek</string>
+    <!-- MainActivity.java:260; MainActivity.java:278; MainActivity.java:491 -->
+    <string name="ui_on_device_ocr_tesseract" formatted="false">On-device OCR · Tesseract</string>
+    <!-- MainActivity.java:260; MainActivity.java:278; MainActivity.java:491 -->
+    <string name="ui_google_cloud_ocr_greek" formatted="false">Google Cloud OCR · Greek</string>
+    <!-- MainActivity.java:260; MainActivity.java:278; MainActivity.java:491 -->
+    <string name="ui_editable_page_layout_local" formatted="false">Editable page layout · local</string>
+    <!-- MainActivity.java:260; MainActivity.java:278; MainActivity.java:491 -->
+    <string name="ui_keep_page_appearance_images" formatted="false">Keep page appearance · images</string>
+    <!-- MainActivity.java:262 -->
+    <string name="ui_show_all" formatted="false">Show all</string>
+    <!-- MainActivity.java:263 -->
+    <string name="ui_parent_folder" formatted="false">↑ Parent folder</string>
+    <!-- MainActivity.java:269 -->
+    <string name="ui_trash_is_empty_deleted_files_stay_here_until_you_remove_them_permanently" formatted="false">Trash is empty. Deleted files stay here until you remove them permanently.</string>
+    <!-- MainActivity.java:269 -->
+    <string name="ui_no_documents_in_this_folder" formatted="false">No documents in this folder</string>
+    <!-- MainActivity.java:272 -->
+    <string name="ui_value_restore_remove">%1$s · Restore / Remove</string>
+    <!-- MainActivity.java:278 -->
+    <string name="ui_sort_documents" formatted="false">Sort documents</string>
+    <!-- MainActivity.java:279 -->
+    <string name="ui_create_folder_here" formatted="false">Create folder here</string>
+    <!-- MainActivity.java:279; MainActivity.java:283; MainActivity.java:298 -->
+    <string name="ui_all_documents" formatted="false">All Documents</string>
+    <!-- MainActivity.java:279 -->
+    <string name="ui_folders" formatted="false">Folders</string>
+    <!-- MainActivity.java:279 -->
+    <string name="ui_create" formatted="false">Create</string>
+    <!-- MainActivity.java:279 -->
+    <string name="ui_new_folder" formatted="false">New folder</string>
+    <!-- MainActivity.java:280; MainActivity.java:356; PdfViewerActivity.java:221 -->
+    <string name="ui_rename" formatted="false">Rename</string>
+    <!-- MainActivity.java:280 -->
+    <string name="ui_remove_empty_folder" formatted="false">Remove empty folder</string>
+    <!-- MainActivity.java:280 -->
+    <string name="ui_move_folder" formatted="false">Move folder</string>
+    <!-- MainActivity.java:280 -->
+    <string name="ui_rename_folder" formatted="false">Rename folder</string>
+    <!-- MainActivity.java:280 -->
+    <string name="ui_move_the_folder_s_documents_and_subfolders_first" formatted="false">Move the folder\'s documents and subfolders first</string>
+    <!-- MainActivity.java:285 -->
+    <string name="ui_move_folder_to" formatted="false">Move folder to</string>
+    <!-- MainActivity.java:298; MainActivity.java:356 -->
+    <string name="ui_move_to_folder" formatted="false">Move to folder</string>
+    <!-- MainActivity.java:300 -->
+    <string name="ui_restore" formatted="false">Restore</string>
+    <!-- MainActivity.java:300 -->
+    <string name="ui_delete_permanently" formatted="false">Delete permanently</string>
+    <!-- MainActivity.java:300 -->
+    <string name="ui_this_cannot_be_undone" formatted="false">This cannot be undone.</string>
+    <!-- MainActivity.java:300 -->
+    <string name="ui_delete_permanently_afd1aa16" formatted="false">Delete permanently?</string>
+    <!-- MainActivity.java:300 -->
+    <string name="ui_could_not_remove_the_file" formatted="false">Could not remove the file</string>
+    <!-- MainActivity.java:301 -->
+    <string name="ui_scan_or_import_a_document_first" formatted="false">Scan or import a document first</string>
+    <!-- MainActivity.java:301 -->
+    <string name="ui_select_at_least_one_document" formatted="false">Select at least one document</string>
+    <!-- MainActivity.java:311 -->
+    <string name="ui_locked_pdf" formatted="false">Locked PDF</string>
+    <!-- MainActivity.java:315; ToolWorkflowActivity.java:152 -->
+    <string name="ui_select_value">Select %1$s</string>
+    <!-- MainActivity.java:324 -->
+    <string name="ui_view" formatted="false">View</string>
+    <!-- MainActivity.java:356 -->
+    <string name="ui_move_to_trash" formatted="false">Move to trash</string>
+    <!-- MainActivity.java:365 -->
+    <string name="ui_text" formatted="false">Όνομα εγγράφου</string>
+    <!-- MainActivity.java:367 -->
+    <string name="ui_text_bd46c2b2" formatted="false">Αναζήτηση</string>
+    <!-- MainActivity.java:367; MainActivity.java:373 -->
+    <string name="ui_text_65ff4130" formatted="false">Άκυρο</string>
+    <!-- MainActivity.java:366 -->
+    <string name="ui_text_904bb000" formatted="false">Αναζήτηση εγγράφων</string>
+    <!-- MainActivity.java:373 -->
+    <string name="ui_text_886b95e5" formatted="false">Αποθήκευση</string>
+    <!-- MainActivity.java:372 -->
+    <string name="ui_text_519f5578" formatted="false">Μετονομασία εγγράφου</string>
+    <!-- MainActivity.java:383 -->
+    <string name="ui_could_not_import_pdf_value">Could not import PDF: %1$s</string>
+    <!-- MainActivity.java:398 -->
+    <string name="ui_tools" formatted="false">Tools</string>
+    <!-- MainActivity.java:399; MainActivity.java:433 -->
+    <string name="ui_search_tools" formatted="false">Search tools</string>
+    <!-- MainActivity.java:402 -->
+    <string name="ui_smart_document_workflows_for_work_and_life" formatted="false">Smart document workflows for work and life.</string>
+    <!-- MainActivity.java:456 -->
+    <string name="ui_could_not_open_pdf" formatted="false">Could not open PDF</string>
+    <!-- MainActivity.java:459 -->
+    <string name="ui_google_cloud_api_key" formatted="false">Google Cloud API key</string>
+    <!-- MainActivity.java:462 -->
+    <string name="ui_google_cloud_vision_is_available_for_the_optional_cloud_word_ocr_route_enab" formatted="false">Google Cloud Vision is available for the optional cloud Word OCR route. Enable the required APIs and billing in your Google project. Saving settings does not upload documents.</string>
+    <!-- MainActivity.java:462 -->
+    <string name="ui_google_api_settings" formatted="false">Google API settings</string>
+    <!-- MainActivity.java:464 -->
+    <string name="ui_enter_your_google_cloud_api_key" formatted="false">Enter your Google Cloud API key</string>
+    <!-- MainActivity.java:466 -->
+    <string name="ui_could_not_save_google_cloud_settings" formatted="false">Could not save Google Cloud settings</string>
+    <!-- MainActivity.java:490 -->
+    <string name="ui_automatic_uses_embedded_pdf_text_including_greek_and_on_device_ocr_for_scan" formatted="false">Automatic uses embedded PDF text, including Greek, and on-device OCR for scanned pages. Local OCR uses Tesseract with your enabled downloaded languages. Google Cloud OCR is optional and requires an API key. Editable layout keeps text in positioned boxes with the page graphics; appearance mode keeps page images. Complex fonts and layouts may change. Text-only routes remain available.</string>
+    <!-- MainActivity.java:490; MainActivity.java:538; ToolWorkflowActivity.java:207 -->
+    <string name="ui_ocr_languages_84fba977" formatted="false">OCR Languages</string>
+    <!-- MainActivity.java:492 -->
+    <string name="ui_convert_to_word" formatted="false">Convert to Word</string>
+    <!-- MainActivity.java:495 -->
+    <string name="ui_could_not_read_google_api_settings" formatted="false">Could not read Google API settings</string>
+    <!-- MainActivity.java:497 -->
+    <string name="ui_upload_and_convert" formatted="false">Upload and convert</string>
+    <!-- MainActivity.java:497 -->
+    <string name="ui_each_pdf_page_will_be_rendered_and_sent_to_google_cloud_vision_for_ocr_incl" formatted="false">Each PDF page will be rendered and sent to Google Cloud Vision for OCR, including any personal or confidential content. Your Google project may be charged. Continue only if you want to upload this document.</string>
+    <!-- MainActivity.java:497 -->
+    <string name="ui_upload_pages_to_google_cloud" formatted="false">Upload pages to Google Cloud?</string>
+    <!-- MainActivity.java:506; OfficeExport.java:40; OfficeImport.java:56 -->
+    <string name="ui_conversion_cancelled" formatted="false">Conversion cancelled</string>
+    <!-- MainActivity.java:506 -->
+    <string name="ui_to_word_failed_value">To Word failed: %1$s</string>
+    <!-- MainActivity.java:517 -->
+    <string name="ui_conversion_complete" formatted="false">Conversion complete</string>
+    <!-- MainActivity.java:523 -->
+    <string name="ui_enter_the_password_to_convert_this_document" formatted="false">Enter the password to convert this document.</string>
+    <!-- MainActivity.java:527; PdfViewerActivity.java:147 -->
+    <string name="ui_enter_the_password" formatted="false">Enter the password</string>
+    <!-- MainActivity.java:530 -->
+    <string name="ui_share_word_document" formatted="false">Share Word document</string>
+    <!-- MainActivity.java:531; MainActivity.java:544 -->
+    <string name="ui_open_source_licenses" formatted="false">Open source licenses</string>
+    <!-- MainActivity.java:531 -->
+    <string name="ui_could_not_load_licenses" formatted="false">Could not load licenses</string>
+    <!-- MainActivity.java:536 -->
+    <string name="ui_paperflow_local_storage" formatted="false">PaperFlow | Local storage</string>
+    <!-- MainActivity.java:537 -->
+    <string name="ui_documents_are_saved_locally_use_save_to_cloud_to_export_copies_to_your_own" formatted="false">Documents are saved locally. Use Save to cloud to export copies to your own storage service. Android system backup follows your device settings.</string>
+    <!-- MainActivity.java:539 -->
+    <string name="ui_translation_languages" formatted="false">Translation Languages</string>
+    <!-- MainActivity.java:540 -->
+    <string name="ui_lock_folders_now" formatted="false">Lock folders now</string>
+    <!-- MainActivity.java:541; MainActivity.java:548 -->
+    <string name="ui_scan_and_export_preferences" formatted="false">Scan and export preferences</string>
+    <!-- MainActivity.java:548 -->
+    <string name="ui_default_capture_mode" formatted="false">Default capture mode</string>
+    <!-- MainActivity.java:548; MainActivity.java:554 -->
+    <string name="ui_default_filter" formatted="false">Default filter</string>
+    <!-- MainActivity.java:548; MainActivity.java:555 -->
+    <string name="ui_pdf_page_size" formatted="false">PDF page size</string>
+    <!-- MainActivity.java:548; ScanNaming.java:14 -->
+    <string name="ui_new_document_naming" formatted="false">New document naming</string>
+    <!-- MainActivity.java:548; MainActivity.java:557 -->
+    <string name="ui_default_library_folder" formatted="false">Default library folder</string>
+    <!-- MainActivity.java:548 -->
+    <string name="ui_curved_paper" formatted="false">Curved paper</string>
+    <!-- MainActivity.java:548 -->
+    <string name="ui_automatic_cleanup" formatted="false">Automatic cleanup</string>
+    <!-- MainActivity.java:548 -->
+    <string name="ui_gallery_copies" formatted="false">Gallery copies</string>
+    <!-- MainActivity.java:548; MainActivity.java:550 -->
+    <string name="ui_open_camera_on_launch" formatted="false">Open camera on launch</string>
+    <!-- MainActivity.java:550 -->
+    <string name="ui_show_home" formatted="false">Show Home</string>
+    <!-- MainActivity.java:550 -->
+    <string name="ui_open_camera" formatted="false">Open camera</string>
+    <!-- MainActivity.java:551 -->
+    <string name="ui_book_pages" formatted="false">Book pages</string>
+    <!-- MainActivity.java:551 -->
+    <string name="ui_all_paperscan_pro_pages" formatted="false">All PaperScan Pro pages</string>
+    <!-- MainActivity.java:551 -->
+    <string name="ui_curved_paper_paperscan_pro" formatted="false">Curved paper · PaperScan Pro</string>
+    <!-- MainActivity.java:552 -->
+    <string name="ui_review_the_preview_edge_detection_can_confuse_colored_illustrations_with_fi" formatted="false">Review the preview: edge detection can confuse colored illustrations with fingers, and moiré reduction can soften color detail. Default keeps the original cropped image.</string>
+    <!-- MainActivity.java:552 -->
+    <string name="ui_detect_fingers_at_paper_edges" formatted="false">Detect fingers at paper edges</string>
+    <!-- MainActivity.java:552 -->
+    <string name="ui_reduce_color_moire" formatted="false">Reduce color moiré</string>
+    <!-- MainActivity.java:552 -->
+    <string name="ui_automatic_cleanup_paperscan_pro" formatted="false">Automatic cleanup · PaperScan Pro</string>
+    <!-- MainActivity.java:553; MainActivity.java:554; MainActivity.java:555 -->
+    <string name="ui_original_proportions" formatted="false">Original proportions</string>
+    <!-- MainActivity.java:553; MainActivity.java:554; MainActivity.java:555 -->
+    <string name="ui_a4" translatable="false" formatted="false">A4</string>
+    <!-- MainActivity.java:561 -->
+    <string name="ui_photos_are_saved_in_pictures_paperflow_after_a_successful_scan_export_galle" formatted="false">Photos are saved in Pictures/PaperFlow after a successful scan export. Gallery copies are outside PDF passwords and folder locks.</string>
+    <!-- MainActivity.java:561 -->
+    <string name="ui_keep_original_photos" formatted="false">Keep original photos</string>
+    <!-- MainActivity.java:561 -->
+    <string name="ui_save_processed_scan_images" formatted="false">Save processed scan images</string>
+    <!-- MainActivity.java:561 -->
+    <string name="ui_save_photos_to_gallery" formatted="false">Save photos to gallery</string>
+    <!-- MainActivity.java:563 -->
+    <string name="ui_gallery_copies_remain_off_because_storage_access_was_not_allowed" formatted="false">Gallery copies remain off because storage access was not allowed</string>
+    <!-- MainActivity.java:585 -->
+    <string name="ui_import_pdf" formatted="false">Import PDF</string>
+    <!-- MainActivity.java:591 -->
+    <string name="ui_open_one_office_file_at_a_time" formatted="false">Open one Office file at a time</string>
+    <!-- MainActivity.java:623; ScanEditorActivity.java:244 -->
+    <string name="ui_could_not_add_pdf_value">Could not add PDF: %1$s</string>
+    <!-- MainActivity.java:627 -->
+    <string name="ui_separate_tags_with_commas" formatted="false">Separate tags with commas</string>
+    <!-- MainActivity.java:628; PdfViewerActivity.java:97 -->
+    <string name="ui_tags" formatted="false">Tags</string>
+    <!-- MainActivity.java:634 -->
+    <string name="ui_pdf_7439090a" formatted="false">Κοινή χρήση PDF</string>
+    <!-- MainActivity.java:662 -->
+    <string name="ui_move" formatted="false">Move</string>
+    <!-- MainActivity.java:663 -->
+    <string name="ui_share_documents" formatted="false">Share documents</string>
+    <!-- MainActivity.java:664 -->
+    <string name="ui_move_value_selected_document_s_to_trash">Move %1$s selected document(s) to Trash?</string>
+    <!-- MainActivity.java:666 -->
+    <string name="ui_value_selected">%1$s selected</string>
+    <!-- MainActivity.java:517 -->
+    <string name="ui_value_docx_value_pages_value_value">%1$s.docx\n%2$s pages · %3$s\n%4$s</string>
+    <!-- OfficeExport.java:26; ScanEditorActivity.java:152 -->
+    <string name="ui_could_not_encode_page" formatted="false">Could not encode page</string>
+    <!-- OfficeExport.java:32 -->
+    <string name="ui_page_value_has_no_text_enable_ocr_languages_for_scanned_pages">Page %1$s has no text. Enable OCR languages for scanned pages.</string>
+    <!-- OfficeExport.java:32 -->
+    <string name="ui_too_many_detected_columns" formatted="false">Too many detected columns</string>
+    <!-- OfficeExport.java:39 -->
+    <string name="ui_choose_between_1_and_1000_pages" formatted="false">Choose between 1 and 1000 pages</string>
+    <!-- OfficeExport.java:39 -->
+    <string name="ui_page_selection_is_out_of_range" formatted="false">Page selection is out of range</string>
+    <!-- OfficeImport.java:15 -->
+    <string name="ui_choose_a_docx_xlsx_or_pptx_file_legacy_doc_xls_ppt_must_be_saved_in_a_moder" formatted="false">Choose a DOCX, XLSX or PPTX file. Legacy DOC/XLS/PPT must be saved in a modern Office format first.</string>
+    <!-- OfficeImport.java:15 -->
+    <string name="ui_the_document_has_no_printable_content" formatted="false">The document has no printable content</string>
+    <!-- OfficeImport.java:16 -->
+    <string name="ui_unsupported_office_page_size" formatted="false">Unsupported Office page size</string>
+    <!-- OfficeImport.java:16 -->
+    <string name="ui_the_document_exceeds_1000_printable_pages" formatted="false">The document exceeds 1000 printable pages</string>
+    <!-- OfficeImport.java:23 -->
+    <string name="ui_unsupported_page_margins" formatted="false">Unsupported page margins</string>
+    <!-- OfficeImport.java:43 -->
+    <string name="ui_spreadsheet_exceeds_printable_limits" formatted="false">Spreadsheet exceeds printable limits</string>
+    <!-- OfficePackage.java:14 -->
+    <string name="ui_office_package_has_too_many_parts" formatted="false">Office package has too many parts</string>
+    <!-- OfficePackage.java:15 -->
+    <string name="ui_office_part_is_too_large" formatted="false">Office part is too large</string>
+    <!-- OfficePackage.java:15 -->
+    <string name="ui_office_package_expands_beyond_the_supported_size" formatted="false">Office package expands beyond the supported size</string>
+    <!-- OfficePackage.java:16 -->
+    <string name="ui_unsupported_xml_declaration" formatted="false">Unsupported XML declaration</string>
+    <!-- OfflineTranslator.java:16 -->
+    <string name="ui_download_the_value_translation_language_first">Download the %1$s translation language first</string>
+    <!-- OfflineTranslator.java:19 -->
+    <string name="ui_could_not_start_offline_translation" formatted="false">Could not start offline translation</string>
+    <!-- OfflineTranslator.java:21 -->
+    <string name="ui_could_not_load_the_downloaded_translation_model" formatted="false">Could not load the downloaded translation model</string>
+    <!-- OfflineTranslator.java:25 -->
+    <string name="ui_translator_is_closed" formatted="false">Translator is closed</string>
+    <!-- OfflineTranslator.java:26 -->
+    <string name="ui_offline_translation_failed" formatted="false">Offline translation failed</string>
+    <!-- PdfEditActivity.java:31 -->
+    <string name="ui_could_not_restore_edits_the_original_pdf_is_unchanged" formatted="false">Could not restore edits; the original PDF is unchanged</string>
+    <!-- PdfEditActivity.java:34 -->
+    <string name="ui_save_copy" formatted="false">Save copy</string>
+    <!-- PdfEditActivity.java:35 -->
+    <string name="ui_select_to_move_or_edit_existing_marks_drag_with_a_marking_tool_to_add_one_p" formatted="false">Select to move or edit existing marks. Drag with a marking tool to add one. Pinch to zoom; use two fingers to pan. Your original PDF is kept.</string>
+    <!-- PdfEditActivity.java:37 -->
+    <string name="ui_color" formatted="false">Color</string>
+    <!-- PdfEditActivity.java:37 -->
+    <string name="ui_width" formatted="false">Width</string>
+    <!-- PdfEditActivity.java:37 -->
+    <string name="ui_delete_selected" formatted="false">Delete selected</string>
+    <!-- PdfEditActivity.java:37; PdfEditActivity.java:53 -->
+    <string name="ui_edit_comment" formatted="false">Edit comment</string>
+    <!-- PdfEditActivity.java:37; PdfEditActivity.java:80 -->
+    <string name="ui_redact_keywords" formatted="false">Redact keywords</string>
+    <!-- PdfEditActivity.java:37; PdfEditActivity.java:46 -->
+    <string name="ui_page_value_value_value">Page %1$s / %2$s · %3$s</string>
+    <!-- PdfEditActivity.java:38; ToolWorkflowActivity.java:466 -->
+    <string name="ui_previous" formatted="false">Previous</string>
+    <!-- PdfEditActivity.java:38 -->
+    <string name="ui_redo" formatted="false">Redo</string>
+    <!-- PdfEditActivity.java:38; ScanEditorActivity.java:116; ToolWorkflowActivity.java:147 -->
+    <string name="ui_next" formatted="false">Next</string>
+    <!-- PdfEditActivity.java:47 -->
+    <string name="ui_could_not_open_page_value">Could not open page: %1$s</string>
+    <!-- PdfEditActivity.java:50 -->
+    <string name="ui_cannot_restore_this_edit" formatted="false">Cannot restore this edit</string>
+    <!-- PdfEditActivity.java:51; ScanEditorActivity.java:139; SignatureEditorActivity.java:130 -->
+    <string name="ui_black" formatted="false">Black</string>
+    <!-- PdfEditActivity.java:51; ScanEditorActivity.java:139; ToolWorkflowActivity.java:328 -->
+    <string name="ui_green" formatted="false">Green</string>
+    <!-- PdfEditActivity.java:51; ScanEditorActivity.java:139 -->
+    <string name="ui_yellow" formatted="false">Yellow</string>
+    <!-- PdfEditActivity.java:51 -->
+    <string name="ui_annotation_color" formatted="false">Annotation color</string>
+    <!-- PdfEditActivity.java:52 -->
+    <string name="ui_width_value_pt">Width: %1$s pt</string>
+    <!-- PdfEditActivity.java:52 -->
+    <string name="ui_line_width" formatted="false">Line width</string>
+    <!-- PdfEditActivity.java:53 -->
+    <string name="ui_select_a_comment_first" formatted="false">Select a comment first</string>
+    <!-- PdfEditActivity.java:61 -->
+    <string name="ui_edit_the_recognized_text_or_type_a_replacement_the_selected_area_gets_a_whi" formatted="false">Edit the recognized text or type a replacement. The selected area gets a white background. Only pages with text corrections become images; their old annotations and links are flattened. Enabled OCR languages restore text elsewhere on those pages. This is not secure redaction.</string>
+    <!-- PdfEditActivity.java:61 -->
+    <string name="ui_replace_text_in_selected_area" formatted="false">Replace text in selected area</string>
+    <!-- PdfEditActivity.java:79; PdfViewerActivity.java:242 -->
+    <string name="ui_word_or_phrase" formatted="false">Word or phrase</string>
+    <!-- PdfEditActivity.java:79 -->
+    <string name="ui_match_whole_words" formatted="false">Match whole words</string>
+    <!-- PdfEditActivity.java:80; PdfViewerActivity.java:242 -->
+    <string name="ui_find" formatted="false">Find</string>
+    <!-- PdfEditActivity.java:80 -->
+    <string name="ui_find_every_occurrence_using_pdf_text_or_your_enabled_local_ocr_languages_re" formatted="false">Find every occurrence using PDF text or your enabled local OCR languages. Review the selected areas before saving a redacted copy.</string>
+    <!-- PdfEditActivity.java:80 -->
+    <string name="ui_enter_1_256_characters" formatted="false">Enter 1–256 characters</string>
+    <!-- PdfEditActivity.java:84 -->
+    <string name="ui_searching_value_value">Searching %1$s / %2$s</string>
+    <!-- PdfEditActivity.java:84; PdfViewerActivity.java:246 -->
+    <string name="ui_no_matches" formatted="false">No matches</string>
+    <!-- PdfEditActivity.java:85 -->
+    <string name="ui_mark_selected" formatted="false">Mark selected</string>
+    <!-- PdfEditActivity.java:85 -->
+    <string name="ui_value_matches_value">%1$s matches · %2$s</string>
+    <!-- PdfEditActivity.java:86; PdfViewerActivity.java:247 -->
+    <string name="ui_could_not_search_value">Could not search: %1$s</string>
+    <!-- PdfEditActivity.java:88 -->
+    <string name="ui_add_a_mark_first" formatted="false">Add a mark first</string>
+    <!-- PdfEditActivity.java:88 -->
+    <string name="ui_save_redacted_copy" formatted="false">Save redacted copy</string>
+    <!-- PdfEditActivity.java:88 -->
+    <string name="ui_black_areas_permanently_remove_the_covered_content_from_the_exported_copy_f" formatted="false">Black areas permanently remove the covered content from the exported copy. For reliable removal, this export converts every page to an image and removes all selectable text, links, attachments and metadata. Your original is kept separately and still contains that information.</string>
+    <!-- PdfEditActivity.java:88 -->
+    <string name="ui_save_redacted_copy_ccd66b90" formatted="false">Save redacted copy?</string>
+    <!-- PdfEditActivity.java:104 -->
+    <string name="ui_pdf_annotation_canvas_pinch_to_zoom_and_use_two_fingers_to_pan" formatted="false">PDF annotation canvas. Pinch to zoom and use two fingers to pan.</string>
+    <!-- PdfEditActivity.java:119; ScanEditorActivity.java:127 -->
+    <string name="ui_keep_editing" formatted="false">Keep editing</string>
+    <!-- PdfEditActivity.java:119 -->
+    <string name="ui_discard_unsaved_marks" formatted="false">Discard unsaved marks?</string>
+    <!-- PdfEditActivity.java:44 -->
+    <string name="ui_this_pdf_does_not_permit_annotations" formatted="false">This PDF does not permit annotations</string>
+    <!-- PdfEditActivity.java:45; SignatureEditorActivity.java:107 -->
+    <string name="ui_page_unavailable" formatted="false">Page unavailable</string>
+    <!-- PdfEditActivity.java:90 -->
+    <string name="ui_this_pdf_does_not_permit_this_edit" formatted="false">This PDF does not permit this edit</string>
+    <!-- PdfEditActivity.java:84 -->
+    <string name="ui_value_image_only_page_s_could_not_be_searched_download_and_enable_ocr_langu">%1$s image-only page(s) could not be searched. Download and enable OCR languages in Settings, then search again.</string>
+    <!-- PdfEditActivity.java:84 -->
+    <string name="ui_select_the_matches_to_cover_then_review_each_marked_page_before_save_copy" formatted="false">Select the matches to cover, then review each marked page before Save copy.</string>
+    <!-- PdfEditActivity.java:85 -->
+    <string name="ui_page_value_match_value">Page %1$s · match %2$s</string>
+    <!-- PdfKeywordSearch.java:18; PdfLayout.java:16; PdfViewerActivity.java:243 -->
+    <string name="ui_this_pdf_does_not_allow_text_extraction" formatted="false">This PDF does not allow text extraction</string>
+    <!-- PdfKeywordSearch.java:19 -->
+    <string name="ui_enter_a_word_or_phrase" formatted="false">Enter a word or phrase</string>
+    <!-- PdfKeywordSearch.java:28 -->
+    <string name="ui_too_many_matches_use_a_more_specific_phrase" formatted="false">Too many matches. Use a more specific phrase</string>
+    <!-- PdfLayoutActivity.java:30 -->
+    <string name="ui_cannot_open_pdf_value">Cannot open PDF: %1$s</string>
+    <!-- PdfLayoutActivity.java:32 -->
+    <string name="ui_back_pdf_page_settings" formatted="false">Back · PDF page settings</string>
+    <!-- PdfLayoutActivity.java:33 -->
+    <string name="ui_pages_value_value">Pages: %1$s / %2$s</string>
+    <!-- PdfLayoutActivity.java:34 -->
+    <string name="ui_a3" translatable="false" formatted="false">A3</string>
+    <!-- PdfLayoutActivity.java:34 -->
+    <string name="ui_a5" translatable="false" formatted="false">A5</string>
+    <!-- PdfLayoutActivity.java:34 -->
+    <string name="ui_custom_mm" formatted="false">Custom (mm)</string>
+    <!-- PdfLayoutActivity.java:34 -->
+    <string name="ui_page_size" formatted="false">Page size</string>
+    <!-- PdfLayoutActivity.java:36 -->
+    <string name="ui_orientation_value">Orientation: %1$s</string>
+    <!-- PdfLayoutActivity.java:36 -->
+    <string name="ui_keep" formatted="false">Keep</string>
+    <!-- PdfLayoutActivity.java:36 -->
+    <string name="ui_portrait" formatted="false">Portrait</string>
+    <!-- PdfLayoutActivity.java:36 -->
+    <string name="ui_landscape" formatted="false">Landscape</string>
+    <!-- PdfLayoutActivity.java:36 -->
+    <string name="ui_orientation" formatted="false">Orientation</string>
+    <!-- PdfLayoutActivity.java:37 -->
+    <string name="ui_add_page_numbers" formatted="false">Add page numbers</string>
+    <!-- PdfLayoutActivity.java:38 -->
+    <string name="ui_position_value">Position: %1$s</string>
+    <!-- PdfLayoutActivity.java:38; ScanEditorActivity.java:116; ScanEditorActivity.java:117 -->
+    <string name="ui_left" formatted="false">Left</string>
+    <!-- PdfLayoutActivity.java:38 -->
+    <string name="ui_center" formatted="false">Center</string>
+    <!-- PdfLayoutActivity.java:38; ScanEditorActivity.java:116 -->
+    <string name="ui_right" formatted="false">Right</string>
+    <!-- PdfLayoutActivity.java:38 -->
+    <string name="ui_footer_position" formatted="false">Footer position</string>
+    <!-- PdfLayoutActivity.java:38 -->
+    <string name="ui_first_document_page_number" formatted="false">First document page number</string>
+    <!-- PdfLayoutActivity.java:38 -->
+    <string name="ui_show_final_page_number_x_total" formatted="false">Show final page number (x / total)</string>
+    <!-- PdfLayoutActivity.java:39 -->
+    <string name="ui_a_new_copy_keeps_every_page_changes_apply_only_to_selected_pages_numbers_fo" formatted="false">A new copy keeps every page. Changes apply only to selected pages. Numbers follow document page order. Content is fitted without stretching; footer numbers cover a small area at the bottom.</string>
+    <!-- PdfLayoutActivity.java:42 -->
+    <string name="ui_open_result" formatted="false">Open result</string>
+    <!-- PdfLayoutActivity.java:43 -->
+    <string name="ui_creating_pdf" formatted="false">Creating PDF…</string>
+    <!-- PdfLayoutActivity.java:43; PdfLayoutActivity.java:48 -->
+    <string name="ui_create_pdf" formatted="false">Create PDF</string>
+    <!-- PdfLayoutActivity.java:49 -->
+    <string name="ui_apply_changes_to_pages" formatted="false">Apply changes to pages</string>
+    <!-- PdfLayoutActivity.java:50; PdfLayoutActivity.java:51 -->
+    <string name="ui_select_pages_and_valid_dimensions_numbering" formatted="false">Select pages and valid dimensions / numbering</string>
+    <!-- PdfLayoutActivity.java:50 -->
+    <string name="ui_page_value_valuevalue">Page %1$s / %2$s%3$s</string>
+    <!-- PdfLayoutActivity.java:50 -->
+    <string name="ui_preview_unavailable_value">Preview unavailable: %1$s</string>
+    <!-- PdfLayoutActivity.java:51 -->
+    <string name="ui_could_not_create_pdf_value">Could not create PDF: %1$s</string>
+    <!-- PdfLayoutActivity.java:54 -->
+    <string name="ui_please_wait_for_saving_to_finish" formatted="false">Please wait for saving to finish</string>
+    <!-- PdfLayoutActivity.java:51; ScanEditorActivity.java:204; ToolWorkflowActivity.java:424 -->
+    <string name="ui_this_pdf_does_not_allow_changes" formatted="false">This PDF does not allow changes</string>
+    <!-- PdfOcr.java:17 -->
+    <string name="ui_download_and_enable_ocr_languages_first" formatted="false">Download and enable OCR languages first</string>
+    <!-- PdfOcr.java:20; ToolWorkflowActivity.java:417 -->
+    <string name="ui_ocr_cancelled" formatted="false">OCR cancelled</string>
+    <!-- PdfOcr.java:30 -->
+    <string name="ui_no_text_was_recognized_on_the_selected_pages_check_the_ocr_languages_and_sc" formatted="false">No text was recognized on the selected pages. Check the OCR languages and scan clarity.</string>
+    <!-- PdfPageSelection.java:13 -->
+    <string name="ui_select_text_on_pdf_page_drag_text_or_selection_handles_pinch_to_zoom" formatted="false">Select text on PDF page. Drag text or selection handles; pinch to zoom.</string>
+    <!-- PdfPageSelection.java:18; ScanCodeActivity.java:154; TextTranslationActivity.java:40 -->
+    <string name="ui_copy" formatted="false">Copy</string>
+    <!-- PdfPageSelection.java:18; PdfViewerActivity.java:255; PdfViewerActivity.java:271 -->
+    <string name="ui_translate" formatted="false">Translate</string>
+    <!-- PdfPageSelection.java:18; PdfViewerActivity.java:248; ToolWorkflowActivity.java:231 -->
+    <string name="ui_select_all" formatted="false">Select all</string>
+    <!-- PdfTextSelectionActivity.java:21 -->
+    <string name="ui_copy_selection" formatted="false">Copy selection</string>
+    <!-- PdfTextSelectionActivity.java:22 -->
+    <string name="ui_loading_selectable_text" formatted="false">Loading selectable text…</string>
+    <!-- PdfTextSelectionActivity.java:28 -->
+    <string name="ui_no_selectable_text_run_ocr_pdf_first" formatted="false">No selectable text. Run OCR PDF first.</string>
+    <!-- PdfTextSelectionActivity.java:28 -->
+    <string name="ui_drag_across_text_to_select_pinch_to_zoom_two_fingers_to_pan" formatted="false">Drag across text to select. Pinch to zoom; two fingers to pan.</string>
+    <!-- PdfTextSelectionActivity.java:29; PdfViewerActivity.java:228 -->
+    <string name="ui_could_not_select_text_value">Could not select text: %1$s</string>
+    <!-- PdfTextSelectionActivity.java:34 -->
+    <string name="ui_drag_across_the_page_to_select_pdf_text" formatted="false">Drag across the page to select PDF text</string>
+    <!-- PdfTextSelectionActivity.java:24; PdfViewerActivity.java:261 -->
+    <string name="ui_this_pdf_does_not_allow_text_copying" formatted="false">This PDF does not allow text copying</string>
+    <!-- PdfViewerActivity.java:97 -->
+    <string name="ui_tags_47f5e443" formatted="false">Tags +</string>
+    <!-- PdfViewerActivity.java:97 -->
+    <string name="ui_tags_value">Tags: %1$s</string>
+    <!-- PdfViewerActivity.java:113 -->
+    <string name="ui_opening_document" formatted="false">Opening document…</string>
+    <!-- PdfViewerActivity.java:150 -->
+    <string name="ui_unable_to_open_document" formatted="false">Unable to open document</string>
+    <!-- PdfViewerActivity.java:174; ScanEditorActivity.java:110 -->
+    <string name="ui_value_value_41ed6226">%1$s/%2$s</string>
+    <!-- PdfViewerActivity.java:195 -->
+    <string name="ui_page_could_not_be_rendered" formatted="false">Page could not be rendered</string>
+    <!-- PdfViewerActivity.java:209 -->
+    <string name="ui_page_value_pinch_to_zoom">Page %1$s · pinch to zoom</string>
+    <!-- PdfViewerActivity.java:211 -->
+    <string name="ui_could_not_open_page_preview" formatted="false">Could not open page preview</string>
+    <!-- PdfViewerActivity.java:216 -->
+    <string name="ui_rename_document" formatted="false">Rename document</string>
+    <!-- PdfViewerActivity.java:217 -->
+    <string name="ui_enter_a_name" formatted="false">Enter a name</string>
+    <!-- PdfViewerActivity.java:221; PdfViewerActivity.java:230 -->
+    <string name="ui_document_tools" formatted="false">Document tools</string>
+    <!-- PdfViewerActivity.java:221 -->
+    <string name="ui_select_text_on_page" formatted="false">Select text on page</string>
+    <!-- PdfViewerActivity.java:221 -->
+    <string name="ui_select_text" formatted="false">Select text</string>
+    <!-- PdfViewerActivity.java:221; PdfViewerActivity.java:242 -->
+    <string name="ui_find_in_document" formatted="false">Find in document</string>
+    <!-- PdfViewerActivity.java:221 -->
+    <string name="ui_extract_text_txt" formatted="false">Extract text / TXT</string>
+    <!-- PdfViewerActivity.java:221; PdfViewerActivity.java:283 -->
+    <string name="ui_share_pdf" formatted="false">Share PDF</string>
+    <!-- PdfViewerActivity.java:221 -->
+    <string name="ui_document_info" formatted="false">Document info</string>
+    <!-- PdfViewerActivity.java:222 -->
+    <string name="ui_value_pages_value">%1$s pages\n%2$s</string>
+    <!-- PdfViewerActivity.java:228 -->
+    <string name="ui_run_ocr_pdf_first_to_add_selectable_text" formatted="false">Run OCR PDF first to add selectable text</string>
+    <!-- PdfViewerActivity.java:230 -->
+    <string name="ui_edit_scan_pages" formatted="false">Edit scan pages</string>
+    <!-- PdfViewerActivity.java:230 -->
+    <string name="ui_pdf_page_settings" formatted="false">PDF page settings</string>
+    <!-- PdfViewerActivity.java:238 -->
+    <string name="ui_cannot_reopen_original_scans_value">Cannot reopen original scans: %1$s</string>
+    <!-- PdfViewerActivity.java:239 -->
+    <string name="ui_edit_copy" formatted="false">Edit copy</string>
+    <!-- PdfViewerActivity.java:239 -->
+    <string name="ui_the_original_uncropped_photos_are_unavailable_for_this_pdf_edit_a_rendered" formatted="false">The original uncropped photos are unavailable for this PDF. Edit a rendered copy of its pages, or retake a page. Existing text and annotations become part of the image; enabled local OCR can create a new text layer. The original PDF is kept.</string>
+    <!-- PdfViewerActivity.java:239 -->
+    <string name="ui_edit_pdf_pages_as_images" formatted="false">Edit PDF pages as images</string>
+    <!-- PdfViewerActivity.java:241 -->
+    <string name="ui_cannot_prepare_pages_value">Cannot prepare pages: %1$s</string>
+    <!-- PdfViewerActivity.java:245 -->
+    <string name="ui_page_value_value_fb9f3900">Page %1$s · %2$s</string>
+    <!-- PdfViewerActivity.java:246 -->
+    <string name="ui_no_matching_embedded_text_was_found_scanned_pages_need_ocr_pdf_before_they" formatted="false">No matching embedded text was found. Scanned pages need OCR PDF before they can be searched.</string>
+    <!-- PdfViewerActivity.java:246 -->
+    <string name="ui_value_matching_page_s">%1$s matching page(s)</string>
+    <!-- PdfViewerActivity.java:248 -->
+    <string name="ui_extract" formatted="false">Extract</string>
+    <!-- PdfViewerActivity.java:248 -->
+    <string name="ui_extract_text_selected_pages" formatted="false">Extract text · selected pages</string>
+    <!-- PdfViewerActivity.java:252; TextTranslationActivity.java:40 -->
+    <string name="ui_save_txt" formatted="false">Save TXT</string>
+    <!-- PdfViewerActivity.java:252 -->
+    <string name="ui_text_from_value_page_s">Text from %1$s page(s)</string>
+    <!-- PdfViewerActivity.java:253 -->
+    <string name="ui_could_not_extract_text_value">Could not extract text: %1$s</string>
+    <!-- PdfViewerActivity.java:255 -->
+    <string name="ui_copy_all" formatted="false">Copy all</string>
+    <!-- PdfViewerActivity.java:256 -->
+    <string name="ui_text_saved" formatted="false">Text saved</string>
+    <!-- PdfViewerActivity.java:256 -->
+    <string name="ui_could_not_save_text" formatted="false">Could not save text</string>
+    <!-- PdfViewerActivity.java:267 -->
+    <string name="ui_convert_this_document_with_ocr_pdf_to_add_text_you_can_select_copy_and_sear" formatted="false">Convert this document with OCR PDF to add text you can select, copy and search.</string>
+    <!-- PdfViewerActivity.java:267 -->
+    <string name="ui_no_selectable_text" formatted="false">No selectable text</string>
+    <!-- PdfViewerActivity.java:271 -->
+    <string name="ui_copy_page_text" formatted="false">Copy page text</string>
+    <!-- PdfViewerActivity.java:271 -->
+    <string name="ui_page_value_text">Page %1$s text</string>
+    <!-- PdfViewerActivity.java:276 -->
+    <string name="ui_could_not_read_page_text_value">Could not read page text: %1$s</string>
+    <!-- PdfViewerActivity.java:280 -->
+    <string name="ui_pdf_saved" formatted="false">PDF saved</string>
+    <!-- PdfViewerActivity.java:280 -->
+    <string name="ui_could_not_save_pdf" formatted="false">Could not save PDF</string>
+    <!-- PdfViewerActivity.java:284 -->
+    <string name="ui_could_not_share_this_document" formatted="false">Could not share this document</string>
+    <!-- PdfViewerActivity.java:132 -->
+    <string name="ui_the_pdf_has_no_pages_ce04a739" formatted="false">The PDF has no pages.</string>
+    <!-- PdfViewerActivity.java:228 -->
+    <string name="ui_this_pdf_does_not_allow_copying" formatted="false">This PDF does not allow copying</string>
+    <!-- PdfViewerActivity.java:241 -->
+    <string name="ui_this_pdf_does_not_allow_image_editing" formatted="false">This PDF does not allow image editing</string>
+    <!-- PdfViewerActivity.java:241 -->
+    <string name="ui_cannot_prepare_page" formatted="false">Cannot prepare page</string>
+    <!-- PdfViewerActivity.java:251 -->
+    <string name="ui_download_and_enable_ocr_languages_in_settings_for_scanned_pages" formatted="false">Download and enable OCR languages in Settings for scanned pages</string>
+    <!-- PdfViewerActivity.java:252 -->
+    <string name="ui_no_text_found_in_the_selected_pages" formatted="false">No text found in the selected pages</string>
+    <!-- PdfWatermark.java:65 -->
+    <string name="ui_invalid_page_dimensions" formatted="false">Invalid page dimensions</string>
+    <!-- ScanArchive.java:22 -->
+    <string name="ui_cannot_retain_original_photos" formatted="false">Cannot retain original photos</string>
+    <!-- ScanArchive.java:26; ScanArchive.java:49 -->
+    <string name="ui_original_photo_unavailable" formatted="false">Original photo unavailable</string>
+    <!-- ScanArchive.java:42 -->
+    <string name="ui_cannot_retain_combined_scan_originals" formatted="false">Cannot retain combined scan originals</string>
+    <!-- ScanArchive.java:43 -->
+    <string name="ui_original_scan_photo_unavailable" formatted="false">Original scan photo unavailable</string>
+    <!-- ScanArchive.java:44 -->
+    <string name="ui_cannot_retain_pdf_page" formatted="false">Cannot retain PDF page</string>
+    <!-- ScanCodeActivity.java:101; ScanCodeActivity.java:118 -->
+    <string name="ui_flash_off" formatted="false">Flash off</string>
+    <!-- ScanCodeActivity.java:108 -->
+    <string name="ui_scan_again" formatted="false">Scan again</string>
+    <!-- ScanCodeActivity.java:118 -->
+    <string name="ui_flash_on" formatted="false">Flash on</string>
+    <!-- ScanCodeActivity.java:149 -->
+    <string name="ui_code_found" formatted="false">Code found</string>
+    <!-- ScanCodeActivity.java:149 -->
+    <string name="ui_value_codes_found">%1$s codes found</string>
+    <!-- ScanCodeActivity.java:155 -->
+    <string name="ui_copied" formatted="false">Copied</string>
+    <!-- ScanCodeActivity.java:156 -->
+    <string name="ui_share_scanned_code" formatted="false">Share scanned code</string>
+    <!-- ScanCodeActivity.java:158 -->
+    <string name="ui_open_link" formatted="false">Open link</string>
+    <!-- ScanCodeActivity.java:159 -->
+    <string name="ui_no_app_can_open_this_link" formatted="false">No app can open this link</string>
+    <!-- ScanCodeActivity.java:174 -->
+    <string name="ui_qr_and_barcode_scan_frame" formatted="false">QR and barcode scan frame</string>
+    <!-- ScanCodeActivity.java:195; ScanCodeActivity.java:82; ScanCodeActivity.java:200 -->
+    <string name="ui_align_a_qr_code_or_barcode_inside_the_frame" formatted="false">Align a QR code or barcode inside the frame</string>
+    <!-- ScanCodeActivity.java:83 -->
+    <string name="ui_camera_access_is_unavailable_you_can_still_import_an_image" formatted="false">Camera access is unavailable. You can still import an image.</string>
+    <!-- ScanCodeActivity.java:135 -->
+    <string name="ui_camera_could_not_start_import_an_image_to_scan_instead" formatted="false">Camera could not start. Import an image to scan instead.</string>
+    <!-- ScanCodeActivity.java:201; ScanCodeActivity.java:206; ScanCodeActivity.java:218 -->
+    <string name="ui_code_decoded_on_this_device" formatted="false">Code decoded on this device</string>
+    <!-- ScanCodeActivity.java:208 -->
+    <string name="ui_reading_codes_from_image" formatted="false">Reading codes from image…</string>
+    <!-- ScanEditorActivity.java:82 -->
+    <string name="ui_could_not_restore_scan_settings" formatted="false">Could not restore scan settings</string>
+    <!-- ScanEditorActivity.java:87 -->
+    <string name="ui_original_scan_photos_are_retained_where_available_imported_pdf_pages_are_ed" formatted="false">Original scan photos are retained where available. Imported PDF pages are edited as images; saving this copy rebuilds their text layer only when local OCR is enabled. The original PDF is kept.</string>
+    <!-- ScanEditorActivity.java:87 -->
+    <string name="ui_some_pages_have_no_original_photo" formatted="false">Some pages have no original photo</string>
+    <!-- ScanEditorActivity.java:105 -->
+    <string name="ui_crop" formatted="false">Crop</string>
+    <!-- ScanEditorActivity.java:106 -->
+    <string name="ui_more_page_options" formatted="false">More page options</string>
+    <!-- ScanEditorActivity.java:112 -->
+    <string name="ui_applying_paperscan_pro" formatted="false">Applying PaperScan Pro?</string>
+    <!-- ScanEditorActivity.java:112 -->
+    <string name="ui_preparing_page" formatted="false">Preparing page?</string>
+    <!-- ScanEditorActivity.java:116 -->
+    <string name="ui_auto_detect_5bcdddc4" formatted="false">Auto Detect</string>
+    <!-- ScanEditorActivity.java:117; ScanEditorActivity.java:136 -->
+    <string name="ui_markup" formatted="false">Markup</string>
+    <!-- ScanEditorActivity.java:121 -->
+    <string name="ui_filter_for_all_pages" formatted="false">Filter for all pages</string>
+    <!-- ScanEditorActivity.java:122; ScanEditorActivity.java:195 -->
+    <string name="ui_document_name" formatted="false">Document name</string>
+    <!-- ScanEditorActivity.java:124 -->
+    <string name="ui_pages" formatted="false">Pages</string>
+    <!-- ScanEditorActivity.java:126 -->
+    <string name="ui_delete_this_page" formatted="false">Delete this page?</string>
+    <!-- ScanEditorActivity.java:127 -->
+    <string name="ui_continue_capture" formatted="false">Continue capture</string>
+    <!-- ScanEditorActivity.java:127 -->
+    <string name="ui_return_to_book_capture" formatted="false">Return to book capture?</string>
+    <!-- ScanEditorActivity.java:127 -->
+    <string name="ui_discard_these_unsaved_pages" formatted="false">Discard these unsaved pages?</string>
+    <!-- ScanEditorActivity.java:138 -->
+    <string name="ui_applying_markup" formatted="false">Applying markup…</string>
+    <!-- ScanEditorActivity.java:138 -->
+    <string name="ui_preparing_page_ab0bec4f" formatted="false">Preparing page…</string>
+    <!-- ScanEditorActivity.java:139 -->
+    <string name="ui_value_brush">%1$s brush</string>
+    <!-- ScanEditorActivity.java:140 -->
+    <string name="ui_brush_width_value">Brush width: %1$s</string>
+    <!-- ScanEditorActivity.java:150 -->
+    <string name="ui_draw_on_the_page_first" formatted="false">Draw on the page first</string>
+    <!-- ScanEditorActivity.java:167 -->
+    <string name="ui_markup_drawing_canvas" formatted="false">Markup drawing canvas</string>
+    <!-- ScanEditorActivity.java:177 -->
+    <string name="ui_could_not_process_page" formatted="false">Could not process page</string>
+    <!-- ScanEditorActivity.java:177 -->
+    <string name="ui_could_not_apply_paperscan_pro_please_select_default" formatted="false">Could not apply PaperScan Pro. Please select Default.</string>
+    <!-- ScanEditorActivity.java:177 -->
+    <string name="ui_could_not_read_page" formatted="false">Could not read page</string>
+    <!-- ScanEditorActivity.java:195 -->
+    <string name="ui_enter_a_document_name" formatted="false">Enter a document name</string>
+    <!-- ScanEditorActivity.java:200 -->
+    <string name="ui_processing_value_value">Processing %1$s / %2$s</string>
+    <!-- ScanEditorActivity.java:236 -->
+    <string name="ui_apply_current_filter_and_adjustments" formatted="false">Apply current filter and adjustments</string>
+    <!-- ScanEditorActivity.java:237 -->
+    <string name="ui_reset" formatted="false">Reset</string>
+    <!-- ScanEditorActivity.java:237 -->
+    <string name="ui_brightness_contrast" formatted="false">Brightness / contrast</string>
+    <!-- ScanEditorActivity.java:152 -->
+    <string name="ui_no_image_memory_available" formatted="false">No image memory available</string>
+    <!-- ScanEditorActivity.java:182 -->
+    <string name="ui_invalid_image" formatted="false">Invalid image</string>
+    <!-- ScanEditorActivity.java:189 -->
+    <string name="ui_could_not_flatten_this_page_turn_off_curved_paper_in_scan_preferences_to_ke" formatted="false">Could not flatten this page. Turn off Curved paper in scan preferences to keep perspective correction.</string>
+    <!-- ScanEditorActivity.java:177 -->
+    <string name="ui_not_enough_memory_to_process_this_page" formatted="false">Not enough memory to process this page.</string>
+    <!-- ScanEditorActivity.java:124 -->
+    <string name="ui_move_current_page_left" formatted="false">Move current page left</string>
+    <!-- ScanEditorActivity.java:124 -->
+    <string name="ui_move_current_page_right" formatted="false">Move current page right</string>
+    <!-- ScanImportOptions.java:11 -->
+    <string name="ui_detect_and_crop_every_page_automatically" formatted="false">Detect and crop every page automatically</string>
+    <!-- ScanImportOptions.java:12 -->
+    <string name="ui_filter_for_all_imported_pages" formatted="false">Filter for all imported pages</string>
+    <!-- ScanImportOptions.java:13 -->
+    <string name="ui_import_images_6d78400e" formatted="false">Import images</string>
+    <!-- ScanNaming.java:13 -->
+    <string name="ui_automatic_document_naming" formatted="false">Automatic document naming</string>
+    <!-- ScanNaming.java:13 -->
+    <string name="ui_prefix" formatted="false">Prefix</string>
+    <!-- ScanNaming.java:13 -->
+    <string name="ui_use_prefix_date_time_n_example_prefix_n_with_automatic_naming_off_you_choos" formatted="false">Use {prefix}, {date}, {time}, {n}. Example: {prefix}-{n}. With automatic naming off, you choose a name before saving. The counter continues across app launches.</string>
+    <!-- ScanNaming.java:14 -->
+    <string name="ui_use_up_to_120_characters_and_the_supported_placeholders" formatted="false">Use up to 120 characters and the supported placeholders</string>
+    <!-- SignatureEditorActivity.java:114 -->
+    <string name="ui_choose_an_image_to_scan_a_signature" formatted="false">Choose an image to scan a signature</string>
+    <!-- SignatureEditorActivity.java:124 -->
+    <string name="ui_create_a_signature" formatted="false">Create a Signature</string>
+    <!-- SignatureEditorActivity.java:129 -->
+    <string name="ui_please_sign_your_name_clearly" formatted="false">Please sign your name clearly</string>
+    <!-- SignatureEditorActivity.java:130 -->
+    <string name="ui_ink" formatted="false">Ink</string>
+    <!-- SignatureEditorActivity.java:130 -->
+    <string name="ui_ink_color" formatted="false">Ink color</string>
+    <!-- SignatureEditorActivity.java:134 -->
+    <string name="ui_previous_page" formatted="false">Previous page</string>
+    <!-- SignatureEditorActivity.java:134; ToolWorkflowActivity.java:466 -->
+    <string name="ui_next_page" formatted="false">Next page</string>
+    <!-- SignatureEditorActivity.java:145 -->
+    <string name="ui_sign_stamp" formatted="false">Sign &amp; Stamp</string>
+    <!-- SignatureEditorActivity.java:145; SignatureEditorActivity.java:197 -->
+    <string name="ui_date" formatted="false">Date</string>
+    <!-- SignatureEditorActivity.java:145; SignatureEditorActivity.java:209 -->
+    <string name="ui_more" formatted="false">More</string>
+    <!-- SignatureEditorActivity.java:146; SignatureEditorActivity.java:209 -->
+    <string name="ui_save_signed_copy" formatted="false">Save signed copy</string>
+    <!-- SignatureEditorActivity.java:160 -->
+    <string name="ui_value_value_65c5dbb0">%1$s / %2$s</string>
+    <!-- SignatureEditorActivity.java:167 -->
+    <string name="ui_signature" formatted="false">Signature</string>
+    <!-- SignatureEditorActivity.java:167 -->
+    <string name="ui_stamp" formatted="false">Stamp</string>
+    <!-- SignatureEditorActivity.java:167 -->
+    <string name="ui_close_signature_library" formatted="false">Close signature library</string>
+    <!-- SignatureEditorActivity.java:169 -->
+    <string name="ui_no_stamps_yet_add_one" formatted="false">No stamps yet. Add one:</string>
+    <!-- SignatureEditorActivity.java:169 -->
+    <string name="ui_no_signatures_yet_add_one" formatted="false">No signatures yet. Add one:</string>
+    <!-- SignatureEditorActivity.java:170 -->
+    <string name="ui_use_saved_stamp" formatted="false">Use saved stamp</string>
+    <!-- SignatureEditorActivity.java:170 -->
+    <string name="ui_use_saved_signature" formatted="false">Use saved signature</string>
+    <!-- SignatureEditorActivity.java:170 -->
+    <string name="ui_delete_saved_mark" formatted="false">Delete saved mark?</string>
+    <!-- SignatureEditorActivity.java:171 -->
+    <string name="ui_draw" formatted="false">Draw</string>
+    <!-- SignatureEditorActivity.java:187 -->
+    <string name="ui_this_saved_mark_is_unavailable" formatted="false">This saved mark is unavailable</string>
+    <!-- SignatureEditorActivity.java:190 -->
+    <string name="ui_draw_a_signature_first" formatted="false">Draw a signature first</string>
+    <!-- SignatureEditorActivity.java:192 -->
+    <string name="ui_could_not_save_signature" formatted="false">Could not save signature</string>
+    <!-- SignatureEditorActivity.java:197 -->
+    <string name="ui_date_text" formatted="false">Date text</string>
+    <!-- SignatureEditorActivity.java:201 -->
+    <string name="ui_could_not_add_date" formatted="false">Could not add date</string>
+    <!-- SignatureEditorActivity.java:204 -->
+    <string name="ui_rotate_left" formatted="false">Rotate left</string>
+    <!-- SignatureEditorActivity.java:204 -->
+    <string name="ui_rotate_right" formatted="false">Rotate right</string>
+    <!-- SignatureEditorActivity.java:204 -->
+    <string name="ui_smaller" formatted="false">Smaller</string>
+    <!-- SignatureEditorActivity.java:204 -->
+    <string name="ui_larger" formatted="false">Larger</string>
+    <!-- SignatureEditorActivity.java:204 -->
+    <string name="ui_replace" formatted="false">Replace</string>
+    <!-- SignatureEditorActivity.java:204 -->
+    <string name="ui_apply_to_all_pages" formatted="false">Apply to all pages</string>
+    <!-- SignatureEditorActivity.java:204 -->
+    <string name="ui_apply_to_selected_pages" formatted="false">Apply to selected pages</string>
+    <!-- SignatureEditorActivity.java:204 -->
+    <string name="ui_edit_signature" formatted="false">Edit signature</string>
+    <!-- SignatureEditorActivity.java:206 -->
+    <string name="ui_copies_keep_the_same_relative_position_and_width_existing_marks_are_kept_re" formatted="false">Copies keep the same relative position and width. Existing marks are kept; review each page before saving.</string>
+    <!-- SignatureEditorActivity.java:206 -->
+    <string name="ui_apply_signature_stamp" formatted="false">Apply signature / stamp</string>
+    <!-- SignatureEditorActivity.java:206 -->
+    <string name="ui_use_at_most_1000_marks_per_document" formatted="false">Use at most 1000 marks per document</string>
+    <!-- SignatureEditorActivity.java:206 -->
+    <string name="ui_signature_stamp_applied_to_selected_pages" formatted="false">Signature / stamp applied to selected pages</string>
+    <!-- SignatureEditorActivity.java:209 -->
+    <string name="ui_manage_signatures" formatted="false">Manage Signatures</string>
+    <!-- SignatureEditorActivity.java:209 -->
+    <string name="ui_date_format" formatted="false">Date format</string>
+    <!-- SignatureEditorActivity.java:209 -->
+    <string name="ui_apply_selected_mark_to_all_pages" formatted="false">Apply selected mark to all pages</string>
+    <!-- SignatureEditorActivity.java:209 -->
+    <string name="ui_apply_selected_mark_to_chosen_pages" formatted="false">Apply selected mark to chosen pages</string>
+    <!-- SignatureEditorActivity.java:211 -->
+    <string name="ui_there_are_no_marks_to_delete" formatted="false">There are no marks to delete</string>
+    <!-- SignatureEditorActivity.java:211 -->
+    <string name="ui_delete_all_marks_on_this_page" formatted="false">Delete all marks on this page?</string>
+    <!-- SignatureEditorActivity.java:213 -->
+    <string name="ui_select_a_signature_or_stamp_first" formatted="false">Select a signature or stamp first</string>
+    <!-- SignatureEditorActivity.java:217 -->
+    <string name="ui_add_a_signature_stamp_or_date_first" formatted="false">Add a signature, stamp or date first</string>
+    <!-- SignatureEditorActivity.java:243 -->
+    <string name="ui_signature_drawing_area" formatted="false">Signature drawing area</string>
+    <!-- SignatureEditorActivity.java:250 -->
+    <string name="ui_signature_limit_reached_use_undo_or_clear_to_continue" formatted="false">Signature limit reached. Use Undo or Clear to continue.</string>
+    <!-- SignatureEditorActivity.java:258 -->
+    <string name="ui_signature_page_preview_drag_to_position_use_corner_handles_to_resize_rotate" formatted="false">Signature page preview. Drag to position; use corner handles to resize, rotate or delete.</string>
+    <!-- SignatureEditorActivity.java:275 -->
+    <string name="ui_please_wait_for_processing" formatted="false">Please wait for processing</string>
+    <!-- SignatureEditorActivity.java:275 -->
+    <string name="ui_going_back_will_discard_the_signature" formatted="false">Going back will discard the signature.</string>
+    <!-- SignatureEditorActivity.java:97 -->
+    <string name="ui_this_pdf_has_no_pages" formatted="false">This PDF has no pages.</string>
+    <!-- SignatureEditorActivity.java:196 -->
+    <string name="ui_custom_date" formatted="false">Custom date…</string>
+    <!-- SignatureStore.java:34 -->
+    <string name="ui_unable_to_save_mark" formatted="false">Unable to save mark</string>
+    <!-- SignatureStore.java:42 -->
+    <string name="ui_unable_to_save_date" formatted="false">Unable to save date</string>
+    <!-- SignatureStore.java:62 -->
+    <string name="ui_select_an_image" formatted="false">Select an image</string>
+    <!-- SignatureStore.java:67 -->
+    <string name="ui_could_not_read_image" formatted="false">Could not read image</string>
+    <!-- SignatureStore.java:112 -->
+    <string name="ui_no_signature_found_use_dark_ink_on_a_plain_white_background" formatted="false">No signature found. Use dark ink on a plain white background.</string>
+    <!-- TextTranslationActivity.java:23 -->
+    <string name="ui_cannot_open_translation_value">Cannot open translation: %1$s</string>
+    <!-- TextTranslationActivity.java:32 -->
+    <string name="ui_first_time_language_download_value_document_text_stays_on_this_device">First-time language download: %1$s. Document text stays on this device.</string>
+    <!-- TextTranslationActivity.java:33 -->
+    <string name="ui_translating_value_value_value">Translating %1$s · %2$s / %3$s</string>
+    <!-- TextTranslationActivity.java:40 -->
+    <string name="ui_back_text_translation" formatted="false">Back · Text translation</string>
+    <!-- TextTranslationActivity.java:40 -->
+    <string name="ui_recognized_text_edit_before_translating" formatted="false">Recognized text · edit before translating</string>
+    <!-- TextTranslationActivity.java:42 -->
+    <string name="ui_to_value_bce8190c">To %1$s</string>
+    <!-- TextTranslationActivity.java:43 -->
+    <string name="ui_source_language" formatted="false">Source language</string>
+    <!-- TextTranslationActivity.java:45 -->
+    <string name="ui_translation_saved" formatted="false">Translation saved</string>
+    <!-- TextTranslationActivity.java:32 -->
+    <string name="ui_this_language_pair_is_unavailable" formatted="false">This language pair is unavailable</string>
+    <!-- TextTranslationActivity.java:30 -->
+    <string name="ui_restored" formatted="false">Restored</string>
+    <!-- TextTranslationActivity.java:30 -->
+    <string name="ui_cannot_open_ocr_text_value">Cannot open OCR text: %1$s</string>
+    <!-- TextTranslationActivity.java:31 -->
+    <string name="ui_select_readable_text_from_fewer_pages_up_to_1_000_000_characters" formatted="false">Select readable text from fewer pages (up to 1,000,000 characters)</string>
+    <!-- TextTranslationActivity.java:31 -->
+    <string name="ui_preparing_local_translation" formatted="false">Preparing local translation…</string>
+    <!-- TextTranslationActivity.java:34 -->
+    <string name="ui_ready_value_value">Ready · %1$s → %2$s</string>
+    <!-- TextTranslationActivity.java:35 -->
+    <string name="ui_could_not_translate_value">Could not translate: %1$s</string>
+    <!-- TextTranslationActivity.java:40 -->
+    <string name="ui_cancelling_after_the_current_step" formatted="false">Cancelling after the current step…</string>
+    <!-- ToolWorkflowActivity.java:145; ToolWorkflowActivity.java:270 -->
+    <string name="ui_save_a_copy" formatted="false">Save a Copy</string>
+    <!-- ToolWorkflowActivity.java:152 -->
+    <string name="ui_choose_two_or_more_files_then_arrange_them_in_the_next_step" formatted="false">Choose two or more files, then arrange them in the next step.</string>
+    <!-- ToolWorkflowActivity.java:152 -->
+    <string name="ui_choose_a_document_from_your_library_or_import_a_pdf" formatted="false">Choose a document from your library or import a PDF.</string>
+    <!-- ToolWorkflowActivity.java:153 -->
+    <string name="ui_import_pdf_files" formatted="false">Import PDF files</string>
+    <!-- ToolWorkflowActivity.java:154 -->
+    <string name="ui_your_document_library_is_empty_import_a_pdf_to_get_started" formatted="false">Your document library is empty. Import a PDF to get started.</string>
+    <!-- ToolWorkflowActivity.java:169 -->
+    <string name="ui_value_file_s_could_not_be_imported">%1$s file(s) could not be imported</string>
+    <!-- ToolWorkflowActivity.java:177 -->
+    <string name="ui_select_a_pdf_first" formatted="false">Select a PDF first</string>
+    <!-- ToolWorkflowActivity.java:178 -->
+    <string name="ui_select_at_least_two_pdfs" formatted="false">Select at least two PDFs</string>
+    <!-- ToolWorkflowActivity.java:189 -->
+    <string name="ui_could_not_open_pdf_value">Could not open PDF: %1$s</string>
+    <!-- ToolWorkflowActivity.java:194 -->
+    <string name="ui_enter_the_password_for_this_pdf" formatted="false">Enter the password for this PDF.</string>
+    <!-- ToolWorkflowActivity.java:199 -->
+    <string name="ui_choose_your_settings_and_review_the_selected_pages" formatted="false">Choose your settings and review the selected pages.</string>
+    <!-- ToolWorkflowActivity.java:201 -->
+    <string name="ui_a_source_is_protected_set_a_password_for_the_merged_pdf" formatted="false">A source is protected. Set a password for the merged PDF.</string>
+    <!-- ToolWorkflowActivity.java:202 -->
+    <string name="ui_press_and_hold_to_drag_a_page_or_use_the_arrows_to_reorder" formatted="false">Press and hold to drag a page, or use the arrows to reorder.</string>
+    <!-- ToolWorkflowActivity.java:203 -->
+    <string name="ui_save_an_unlocked_copy_your_original_pdf_stays_unchanged_the_new_copy_will_h" formatted="false">Save an unlocked copy. Your original PDF stays unchanged. The new copy will have no opening password.</string>
+    <!-- ToolWorkflowActivity.java:207 -->
+    <string name="ui_create_searchable_pdf" formatted="false">Create searchable PDF</string>
+    <!-- ToolWorkflowActivity.java:207 -->
+    <string name="ui_convert_scanned_pages_into_a_pdf_with_selectable_copyable_and_searchable_te" formatted="false">Convert scanned pages into a PDF with selectable, copyable and searchable text. The new PDF includes only the selected pages, in their original order. Their appearance stays the same. Pages that already contain text are kept unchanged.</string>
+    <!-- ToolWorkflowActivity.java:210 -->
+    <string name="ui_clarity" formatted="false">Clarity</string>
+    <!-- ToolWorkflowActivity.java:210 -->
+    <string name="ui_selected_pages_are_stacked_in_order_long_documents_are_scaled_to_fit_a_16_0" formatted="false">Selected pages are stacked in order. Long documents are scaled to fit a 16,000 pixel image.</string>
+    <!-- ToolWorkflowActivity.java:211 -->
+    <string name="ui_only_the_selected_pages_will_be_included_in_the_new_pdf" formatted="false">Only the selected pages will be included in the new PDF.</string>
+    <!-- ToolWorkflowActivity.java:212 -->
+    <string name="ui_select_pages_here_then_choose_printer_and_paper_settings_in_the_print_previ" formatted="false">Select pages here, then choose printer and paper settings in the print preview.</string>
+    <!-- ToolWorkflowActivity.java:213 -->
+    <string name="ui_this_tool_is_unavailable" formatted="false">This tool is unavailable.</string>
+    <!-- ToolWorkflowActivity.java:230 -->
+    <string name="ui_value_value_selected">%1$s / %2$s selected</string>
+    <!-- ToolWorkflowActivity.java:231 -->
+    <string name="ui_clear_selection" formatted="false">Clear selection</string>
+    <!-- ToolWorkflowActivity.java:232 -->
+    <string name="ui_ocr_value_selected_pagevalue">OCR %1$s selected page%2$s</string>
+    <!-- ToolWorkflowActivity.java:235 -->
+    <string name="ui_files_merge_from_top_to_bottom_hold_a_file_to_drag_it_into_order" formatted="false">Files merge from top to bottom. Hold a file to drag it into order.</string>
+    <!-- ToolWorkflowActivity.java:237 -->
+    <string name="ui_move_up" formatted="false">Move up</string>
+    <!-- ToolWorkflowActivity.java:237 -->
+    <string name="ui_move_down" formatted="false">Move down</string>
+    <!-- ToolWorkflowActivity.java:255 -->
+    <string name="ui_create_a_password_protected_copy_keep_the_password_somewhere_safe" formatted="false">Create a password protected copy. Keep the password somewhere safe.</string>
+    <!-- ToolWorkflowActivity.java:255 -->
+    <string name="ui_password_at_least_6_characters" formatted="false">Password (at least 6 characters)</string>
+    <!-- ToolWorkflowActivity.java:255 -->
+    <string name="ui_confirm_password" formatted="false">Confirm password</string>
+    <!-- ToolWorkflowActivity.java:255 -->
+    <string name="ui_show_password" formatted="false">Show password</string>
+    <!-- ToolWorkflowActivity.java:255 -->
+    <string name="ui_value_pages_will_be_protected">%1$s pages will be protected.</string>
+    <!-- ToolWorkflowActivity.java:259 -->
+    <string name="ui_select_compression_level" formatted="false">Select compression level:</string>
+    <!-- ToolWorkflowActivity.java:262 -->
+    <string name="ui_reduces_photograph_size_while_keeping_searchable_text_vector_detail_links_a" formatted="false">Reduces photograph size while keeping searchable text, vector detail, links and annotations. Some PDFs are already optimized.</string>
+    <!-- ToolWorkflowActivity.java:265 -->
+    <string name="ui_value_compression">%1$s compression</string>
+    <!-- ToolWorkflowActivity.java:280 -->
+    <string name="ui_copy_saved" formatted="false">Copy saved</string>
+    <!-- ToolWorkflowActivity.java:280 -->
+    <string name="ui_could_not_save_the_copy_you_can_still_share_or_export_it" formatted="false">Could not save the copy. You can still share or export it.</string>
+    <!-- ToolWorkflowActivity.java:283 -->
+    <string name="ui_image_format" formatted="false">Image format</string>
+    <!-- ToolWorkflowActivity.java:283 -->
+    <string name="ui_jpeg_quality" formatted="false">JPEG quality</string>
+    <!-- ToolWorkflowActivity.java:283 -->
+    <string name="ui_page_images_will_be_saved_together_in_a_zip_file_png_uses_lossless_compress" formatted="false">Page images will be saved together in a ZIP file. PNG uses lossless compression.</string>
+    <!-- ToolWorkflowActivity.java:285 -->
+    <string name="ui_remove_paperflow_watermark_from_selected_pages" formatted="false">Remove PaperFlow watermark from selected pages</string>
+    <!-- ToolWorkflowActivity.java:285 -->
+    <string name="ui_edits_replace_our_editable_watermark_on_selected_pages_watermarks_already_b" formatted="false">Edits replace our editable watermark on selected pages. Watermarks already burned into an image or made by an older version cannot be removed here.</string>
+    <!-- ToolWorkflowActivity.java:288 -->
+    <string name="ui_watermark_preview" formatted="false">Watermark preview</string>
+    <!-- ToolWorkflowActivity.java:292 -->
+    <string name="ui_previous_preview_page" formatted="false">Previous preview page</string>
+    <!-- ToolWorkflowActivity.java:292 -->
+    <string name="ui_next_preview_page" formatted="false">Next preview page</string>
+    <!-- ToolWorkflowActivity.java:303 -->
+    <string name="ui_edit_watermark_text" formatted="false">Edit watermark text</string>
+    <!-- ToolWorkflowActivity.java:308 -->
+    <string name="ui_tile" formatted="false">Tile</string>
+    <!-- ToolWorkflowActivity.java:328 -->
+    <string name="ui_gray" formatted="false">Gray</string>
+    <!-- ToolWorkflowActivity.java:328 -->
+    <string name="ui_value_watermark">%1$s watermark</string>
+    <!-- ToolWorkflowActivity.java:338 -->
+    <string name="ui_opacity" formatted="false">Opacity</string>
+    <!-- ToolWorkflowActivity.java:339 -->
+    <string name="ui_size" formatted="false">Size</string>
+    <!-- ToolWorkflowActivity.java:341 -->
+    <string name="ui_spacing" formatted="false">Spacing</string>
+    <!-- ToolWorkflowActivity.java:349 -->
+    <string name="ui_enter_text_for_your_watermark" formatted="false">Enter text for your watermark</string>
+    <!-- ToolWorkflowActivity.java:352; ToolWorkflowActivity.java:355 -->
+    <string name="ui_value_50">%1$s / 50</string>
+    <!-- ToolWorkflowActivity.java:359 -->
+    <string name="ui_confirm" formatted="false">Confirm</string>
+    <!-- ToolWorkflowActivity.java:363 -->
+    <string name="ui_enter_text_to_insert" formatted="false">Enter text to insert</string>
+    <!-- ToolWorkflowActivity.java:373 -->
+    <string name="ui_preview_value_of_valuevalue">Preview %1$s of %2$s%3$s</string>
+    <!-- ToolWorkflowActivity.java:381 -->
+    <string name="ui_value_value_edd9f856">%1$s: %2$s</string>
+    <!-- ToolWorkflowActivity.java:388 -->
+    <string name="ui_live_rotation_preview" formatted="false">Live rotation preview</string>
+    <!-- ToolWorkflowActivity.java:391 -->
+    <string name="ui_apply_this_rotation_to_selected_pages" formatted="false">Apply this rotation to selected pages</string>
+    <!-- ToolWorkflowActivity.java:394 -->
+    <string name="ui_page_value_value_value_fff4ffc6">Page %1$s / %2$s · %3$s°</string>
+    <!-- ToolWorkflowActivity.java:399 -->
+    <string name="ui_download_and_enable_a_language_in_settings_ocr_languages_first" formatted="false">Download and enable a language in Settings → OCR Languages first</string>
+    <!-- ToolWorkflowActivity.java:401 -->
+    <string name="ui_use_at_least_6_characters" formatted="false">Use at least 6 characters</string>
+    <!-- ToolWorkflowActivity.java:401 -->
+    <string name="ui_passwords_do_not_match" formatted="false">Passwords do not match</string>
+    <!-- ToolWorkflowActivity.java:403 -->
+    <string name="ui_enter_watermark_text" formatted="false">Enter watermark text</string>
+    <!-- ToolWorkflowActivity.java:438 -->
+    <string name="ui_could_not_complete_value_value">Could not complete %1$s: %2$s</string>
+    <!-- ToolWorkflowActivity.java:463 -->
+    <string name="ui_searchable_pdf_ready" formatted="false">Searchable PDF ready</string>
+    <!-- ToolWorkflowActivity.java:463 -->
+    <string name="ui_ready" formatted="false">Ready</string>
+    <!-- ToolWorkflowActivity.java:463 -->
+    <string name="ui_save_or_share_this_pdf_to_select_copy_and_search_its_recognized_text_in_pap" formatted="false">Save or share this PDF to select, copy and search its recognized text. In PaperFlow, open More options → Select text to copy a page.</string>
+    <!-- ToolWorkflowActivity.java:466 -->
+    <string name="ui_page_1_of_value">Page 1 of %1$s</string>
+    <!-- ToolWorkflowActivity.java:467 -->
+    <string name="ui_value_pages">%1$s pages</string>
+    <!-- ToolWorkflowActivity.java:467 -->
+    <string name="ui_value_value_saving_value">%1$s → %2$s (saving %3$s)</string>
+    <!-- ToolWorkflowActivity.java:467 -->
+    <string name="ui_this_document_is_already_at_an_ideal_size" formatted="false">This document is already at an ideal size.</string>
+    <!-- ToolWorkflowActivity.java:467 -->
+    <string name="ui_file_size_value">File size: %1$s</string>
+    <!-- ToolWorkflowActivity.java:477 -->
+    <string name="ui_page_value_of_value">Page %1$s of %2$s</string>
+    <!-- ToolWorkflowActivity.java:477 -->
+    <string name="ui_could_not_display_result_page" formatted="false">Could not display result page</string>
+    <!-- ToolWorkflowActivity.java:482 -->
+    <string name="ui_share_value">Share %1$s</string>
+    <!-- ToolWorkflowActivity.java:510 -->
+    <string name="ui_cancel_ocr" formatted="false">Cancel OCR</string>
+    <!-- ToolWorkflowActivity.java:510; ToolWorkflowActivity.java:553 -->
+    <string name="ui_cancelling_after_the_current_page" formatted="false">Cancelling after the current page…</string>
+    <!-- ToolWorkflowActivity.java:511 -->
+    <string name="ui_compressing_value_value">Compressing...\n%1$s / %2$s</string>
+    <!-- ToolWorkflowActivity.java:511 -->
+    <string name="ui_processing_value_of_value">Processing %1$s of %2$s…</string>
+    <!-- ToolWorkflowActivity.java:545 -->
+    <string name="ui_could_not_restore_the_result_preview" formatted="false">Could not restore the result preview</string>
+    <!-- ToolWorkflowActivity.java:422 -->
+    <string name="ui_this_pdf_does_not_permit_watermark_annotations" formatted="false">This PDF does not permit watermark annotations</string>
+    <!-- ToolWorkflowActivity.java:429 -->
+    <string name="ui_unsupported_tool" formatted="false">Unsupported tool</string>
+    <!-- ToolWorkflowActivity.java:459 -->
+    <string name="ui_not_enough_memory_select_fewer_pages" formatted="false">Not enough memory. Select fewer pages.</string>
+    <!-- TranslationCatalog.java:27 -->
+    <string name="ui_this_translation_language_is_not_available" formatted="false">This translation language is not available</string>
+    <!-- TranslationRenderer.java:33 -->
+    <string name="ui_translation_missing_in_block_value">Translation missing in block %1$s</string>
+    <!-- TranslationRenderer.java:36 -->
+    <string name="ui_block_value_does_not_fit_edit_its_translation_before_exporting">Block %1$s does not fit. Edit its translation before exporting.</string>
+    <!-- TranslationRenderer.java:59 -->
+    <string name="ui_too_much_text_in_one_photo_choose_a_smaller_section" formatted="false">Too much text in one photo. Choose a smaller section.</string>
+    <!-- WordConversion.java:47 -->
+    <string name="ui_this_pdf_has_no_pages_b4f57307" formatted="false">This PDF has no pages</string>
+    <!-- WordConversion.java:62 -->
+    <string name="ui_no_embedded_pdf_text_found_choose_on_device_or_google_cloud_ocr" formatted="false">No embedded PDF text found. Choose on-device or Google Cloud OCR.</string>
+    <!-- WordConversion.java:62 -->
+    <string name="ui_no_readable_text_found_check_the_active_ocr_languages_and_image_clarity" formatted="false">No readable text found. Check the active OCR languages and image clarity.</string>
+    <!-- WordConversion.java:73 -->
+    <string name="ui_download_and_enable_ocr_languages_in_ocr_languages_first" formatted="false">Download and enable OCR languages in OCR Languages first</string>
+    <!-- WordConversion.java:76 -->
+    <string name="ui_configure_a_google_cloud_api_key_first" formatted="false">Configure a Google Cloud API key first</string>
+    <!-- WordConversion.java:82 -->
+    <string name="ui_google_cloud_returned_http_value">Google Cloud returned HTTP %1$s</string>
+    <!-- WordConversion.java:83 -->
+    <string name="ui_google_cloud_http_value">Google Cloud HTTP %1$s</string>
+    <!-- WordConversion.java:84 -->
+    <string name="ui_google_cloud_returned_no_ocr_response" formatted="false">Google Cloud returned no OCR response</string>
+    <string name="ui_me" formatted="false">Me</string>
+    <string name="ui_sign_by_value">Sign by: %1$s</string>
+    <string name="ui_close_camera" formatted="false">Close camera</string>
+    <string name="ui_remove" formatted="false">Remove</string>
+    <string name="ui_page_value_2">Page %1$s</string>
+    <string name="ui_searching_library" formatted="false">Searching library…</string>
+    <string name="ui_importing_pdf" formatted="false">Importing PDF?</string>
+    <string name="ui_adding_pages" formatted="false">Adding pages…</string>
+    <string name="ui_page_grid" formatted="false">Page grid</string>
+    <string name="ui_preparing_pages" formatted="false">Preparing pages…</string>
+    <string name="ui_searching" formatted="false">Searching…</string>
+    <string name="ui_extracting_text" formatted="false">Extracting text…</string>
+    <string name="ui_sign_here" formatted="false">Sign here</string>
+    <string name="ui_writing_word_layout" formatted="false">Writing Word layout…</string>
+    <string name="ui_reading_pdf_text_page_value_of_value">Reading PDF text · page %1$s of %2$s</string>
+    <string name="ui_value_page_value_of_value">%1$s · page %2$s of %3$s</string>
+    <string name="ui_completed_page_value_of_value">Completed page %1$s of %2$s</string>
+    <string name="ui_writing_word_document" formatted="false">Writing Word document…</string>
+    <string name="ui_preparing_image" formatted="false">Preparing image…</string>
+    <string name="ui_importing_pdf_2" formatted="false">Importing PDF…</string>
+    <string name="ui_preparing_photo" formatted="false">Preparing photo…</string>
+    <string name="ui_background_separation_runs_on_this_device" formatted="false">Background separation runs on this device.</string>
+    <string name="ui_could_not_prepare_markup_page" formatted="false">Could not prepare markup page</string>
+    <string name="ui_could_not_save_signed_pdf_your_marks_are_still_available" formatted="false">Could not save signed PDF. Your marks are still available.</string>
+    <string name="ui_pdf_no_assembly">This PDF does not allow page assembly</string>
+    <string name="ui_pdf_no_print">This PDF does not allow printing</string>
+    <string name="ui_appearance_title">Appearance</string>
+    <string name="ui_appearance_summary">Appearance: %1$s</string>
+    <string name="ui_appearance_light">Light</string>
+    <string name="ui_appearance_dark">Dark</string>
+    <string name="ui_appearance_help">System default follows the light or dark appearance of your device.</string>
+</resources>

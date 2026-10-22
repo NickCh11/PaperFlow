@@ -1,0 +1,22 @@
+{
+  "fairscan": {
+    "commit": "c1517c52bf10eeeea8aef6710c7fad94d4edcc67",
+    "repo": "https://github.com/pynicolas/FairScan"
+  },
+  "unmark": {
+    "commit": "b757a9b4273d9078749f57f430b09bab8df89047",
+    "repo": "https://github.com/EmreO33/unmark"
+  },
+  "models": [
+    {
+      "path": "scanengine/src/main/assets/scanner/page-segmentation.tflite",
+      "size": 4921040,
+      "sha256": "96e14d7e610dd0c27b768b228fbc553b4ec119ebe68f3a3594029a25400691d2"
+    },
+    {
+      "path": "scanengine/src/main/assets/portrait/selfie_segmenter.tflite",
+      "size": 249537,
+      "sha256": "191ac9529ae506ee0beefa6b2c945a172dab9d07d1e802a290a4e4038226658b"
+    }
+  ]
+}

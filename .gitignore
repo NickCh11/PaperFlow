@@ -1,0 +1,43 @@
+# Local research, reports and machine-specific files
+/.local-work/
+/.idea/
+/.kotlin/
+*.iml
+local.properties
+.DS_Store
+Thumbs.db
+
+# Generated Android / native build output
+.gradle/
+**/build/
+**/.cxx/
+**/.externalNativeBuild/
+/captures/
+/artifacts/
+*.apk
+*.aab
+*.idsig
+
+# Credentials and signing material
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+secrets.properties
+keystore.properties
+
+# Developer caches and downloaded dependencies
+__pycache__/
+*.pyc
+.venv/
+venv/
+node_modules/
+*.part
+
+# Model conversion input; runtime models under src are committed
+/app/model-tools/uvdoc/uvdoc-model.pkl
