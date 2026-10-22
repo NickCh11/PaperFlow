@@ -12,7 +12,7 @@
 
 **An open-source Android app for scanning, editing and organizing documents.**
 
-Scan paper, create searchable PDFs and translate photos on your device, with light and dark themes.
+Scan paper, create searchable PDFs and translate photos on your device
 
 [Features](#features) | [Screenshots](#screenshots) 
 
