@@ -1,0 +1,45 @@
+name: Language model availability
+
+on:
+  schedule:
+    - cron: '17 7 * * 1'
+    - cron: '37 7 1 * *'
+  workflow_dispatch:
+    inputs:
+      verify_bytes:
+        description: Download all models and verify pinned hashes
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: language-model-health
+  cancel-in-progress: false
+
+jobs:
+  availability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Check official and optionally configured public mirror endpoints
+        env:
+          REPOSITORY: ${{ vars.MODEL_MIRROR_REPOSITORY || '' }}
+          VERIFY_BYTES: ${{ inputs.verify_bytes || github.event.schedule == '37 7 1 * *' }}
+        run: |
+          TAG=$(python3 tools/ci/model_distribution.py | cut -d: -f1)
+          EXTRA=()
+          if [ "$VERIFY_BYTES" = true ]; then EXTRA+=(--verify); fi
+          if [ -n "$REPOSITORY" ]; then EXTRA+=(--repository "$REPOSITORY"); fi
+          python3 tools/ci/check_model_links.py "${EXTRA[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: model-health-report
+          path: build/model-health.json
+          retention-days: 30
+
