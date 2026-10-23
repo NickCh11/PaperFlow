@@ -1,0 +1,30 @@
+[package]
+name = "paperflow-runtime"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+
+[lib]
+name = "paperflow_runtime"
+crate-type = ["cdylib"]
+
+[features]
+default = ["planar-tracker", "gpu"]
+planar-tracker = ["translator/planar-tracker"]
+gpu = ["translator/gpu"]
+
+[dependencies]
+translator = { git = "https://github.com/DavidVentura/translator-rs.git", rev = "a1e232488007cfe28b9198da1a3351cf32078ef9", default-features = false, features = ["ppocr", "doc-align", "image-render"] }
+translator-ocr = { git = "https://github.com/DavidVentura/translator-rs.git", rev = "a1e232488007cfe28b9198da1a3351cf32078ef9" }
+jni = { version = "0.21", default-features = false }
+serde_json = "1"
+log = "0.4"
+xml5ever = "0.38"
+markup5ever = "0.38"
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = { version = "0.14", default-features = false }
+
+[profile.release]
+lto = "thin"
+strip = "debuginfo"

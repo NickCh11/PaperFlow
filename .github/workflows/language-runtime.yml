@@ -1,0 +1,40 @@
+name: Offline language runtime
+on:
+  push:
+    branches: [feature/offline-translator]
+    paths: ['translation/native/**', 'tools/ci/build_language_runtime.sh', '.github/workflows/language-runtime.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, armeabi-v7a, x86_64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
+      - name: Install native toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake clang libclang-dev pkg-config
+          sdkmanager 'ndk;28.0.13004108'
+          rustup toolchain install 1.88.0 --profile minimal
+          rustup default 1.88.0
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+          cargo install cargo-ndk --version 4.1.2 --locked
+      - name: Compile the pinned offline-translator runtime
+        run: bash tools/ci/build_language_runtime.sh '${{ matrix.abi }}'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: language-runtime-${{ matrix.abi }}
+          path: |
+            translation/src/main/jniLibs/${{ matrix.abi }}/
+            translation/native/Cargo.lock
+          if-no-files-found: error
+          retention-days: 14
