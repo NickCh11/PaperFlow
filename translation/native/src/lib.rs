@@ -75,6 +75,14 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_call(mut env
             "refresh" => {session.refresh_snapshot();Ok(json!({}))},
             "plan" => Ok(plan_json(session.plan_download(arg("language"),Feature::Core,None).ok_or("Language pack is unavailable")?)),
             "deletePlan" => Ok(delete_json(&session.prepare_delete(arg("language"),Feature::Core))),
+            "zipPlan" => {
+                let marker=req["marker"].as_object().map(|m|translator::InstallMarker{
+                    path:m.get("path").and_then(Value::as_str).unwrap_or("").into(),
+                    version:m.get("version").and_then(Value::as_i64).unwrap_or(0) as i32});
+                let entries:Vec<String>=req["entries"].as_array().ok_or("Missing archive entries")?.iter().filter_map(Value::as_str).map(str::to_string).collect();
+                let plan=translator::plan_zip_extraction(arg("extractTo"),marker.as_ref(),&entries)?;
+                Ok(json!({"replacePaths":plan.replace_paths,"entries":plan.entries.into_iter().map(|e|json!({"name":e.entry_name,"path":e.install_path,"directory":e.is_directory})).collect::<Vec<_>>()}))
+            },
             "translate" => session.translate_text(arg("source"),arg("target"),arg("text")).map(|text|json!({"text":text})).map_err(|e|e.to_string()),
             "detect" => Ok(json!({"code":translator::language_detect::detect_language_robust_code(
                 arg("text"),None,&session.available_languages()).map(|c|c.as_str().to_string())})),
@@ -88,6 +96,16 @@ fn word_json(word: &translator::ocr::PositionedWord, height: f32, baseline: u32)
     let rect=word.bounds.to_aabb();
     json!({"text":word.text,"left":rect.left,"top":rect.top,"right":rect.right,"bottom":rect.bottom,
         "lineHeight":height.round() as u32,"baseline":baseline,"line":word.line_index})
+}
+
+// From translator-ocr/ppocr.rs (MIT). The upstream helper is crate-private.
+fn reverse_visual_to_logical(text: &str) -> String {
+    let mut units=Vec::new();let mut run=String::new();
+    for c in text.chars() {
+        if c.is_ascii_alphanumeric() || matches!(c,' '|':'|'*'|'.'|'/'|'%'|'+'|'-') {run.push(c);continue}
+        if !run.is_empty(){units.push(std::mem::take(&mut run));}units.push(c.to_string());
+    }
+    if !run.is_empty(){units.push(run);}units.into_iter().rev().collect()
 }
 
 #[unsafe(no_mangle)]
@@ -112,7 +130,10 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut en
             let signed:Vec<i8>=rendered.rgba_bytes.iter().map(|b|*b as i8).collect();
             env.set_byte_array_region(&output,0,&signed).map_err(|e|e.to_string())?;
             return Ok(json!({"text":prepared.extracted_text,"translation":prepared.translated_text,
-                "words":prepared.source_words.iter().map(|w|word_json(w,w.bounds.height,w.bounds.to_aabb().bottom)).collect::<Vec<_>>()}));
+                "words":prepared.source_words.iter().map(|w|word_json(w,w.bounds.height,w.bounds.to_aabb().bottom)).collect::<Vec<_>>(),
+                "translatedWords":rendered.translated_words.iter().map(|w|word_json(w,w.bounds.height,w.bounds.to_aabb().bottom)).collect::<Vec<_>>(),
+                "blocks":prepared.blocks.iter().map(|b|json!({"source":b.source_text,"translation":b.translated_text,
+                    "left":b.bounding_box.left,"top":b.bounding_box.top,"right":b.bounding_box.right,"bottom":b.bounding_box.bottom})).collect::<Vec<_>>()}));
         }
         // OCR alone uses exactly the same Paddle detector/recognizers, without translating.
         let snap=r.session.snapshot();
@@ -130,10 +151,10 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut en
             let firings:Vec<_>=line.visual_firings.iter().map(|f|(char::from_u32(f.ch).unwrap_or('\u{fffd}'),f.at)).collect();
             let script=scripts.get(i).copied();
             let rtl=script.is_some_and(|s|s.is_rtl());
-            let text=if rtl {translator::ppocr::reverse_visual_to_logical(&line.text)} else {line.text.clone()};
+            let text=if rtl {reverse_visual_to_logical(&line.text)} else {line.text.clone()};
             let mut line_words=translator::text_metrics::firing_word_boxes(&text,&firings,script==Some(translator::PpocrScript::Cj),&line.oriented_box,i as u32);
             for word in &mut line_words {
-                if rtl {word.text=translator::ppocr::reverse_visual_to_logical(&word.text)}
+                if rtl {word.text=reverse_visual_to_logical(&word.text)}
                 words.push(word_json(word,line.oriented_box.height,line.rect.bottom));
             }
         }
@@ -148,7 +169,7 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_createLive(m
         let r=runtime()?;
         let source=str_arg(&mut env,&source)?;let target=str_arg(&mut env,&target)?;
         let pipeline=LiveTrackerPipeline::new(r.session.clone(),Arc::new(android_font_provider::AndroidFontProvider));
-        pipeline.set_languages(&source,&target,source=="auto");
+        pipeline.set_languages(if source=="auto" {"en"} else {&source},&target,source=="auto");
         Ok::<_,String>(Arc::into_raw(pipeline) as jlong)
     })();
     match result {Ok(ptr)=>ptr,Err(e)=>{let _=env.throw_new("java/io/IOException",e);0}}
