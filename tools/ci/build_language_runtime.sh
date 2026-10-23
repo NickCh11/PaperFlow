@@ -20,4 +20,4 @@ esac
 runtime_lib="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/19/lib/linux/libclang_rt.builtins-$runtime_arch.a"
 export RUSTFLAGS="${RUSTFLAGS:-} -C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=$runtime_lib"
 cd "$root/translation/native"
-cargo ndk --target "$target" --platform 26 --link-libcxx-shared --output-dir ../src/main/jniLibs build --release --lib
+cargo ndk --target "$target" --platform 26 --link-libcxx-shared --output-dir ../src/main/jniLibs build --locked --release --lib

@@ -27,7 +27,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             translation/native/target
-          key: offline-runtime-v1-${{ matrix.abi }}-${{ hashFiles('translation/native/Cargo.toml', 'tools/ci/build_language_runtime.sh') }}
+          key: offline-runtime-v2-${{ matrix.abi }}-${{ hashFiles('translation/native/Cargo.toml', 'translation/native/Cargo.lock', 'tools/ci/build_language_runtime.sh') }}
+          restore-keys: |
+            offline-runtime-v2-${{ matrix.abi }}-
+            offline-runtime-v1-${{ matrix.abi }}-
       - name: Install native toolchain
         run: |
           sudo apt-get update

@@ -11,7 +11,7 @@ use translator::{TranslatorSession, FsPackInstallChecker, Feature, TaskInstall, 
 use translator::live_tracker_pipeline::LiveTrackerPipeline;
 use translator_ocr::engine::OcrEngine;
 
-struct Runtime { session: Arc<TranslatorSession>, ocr: OcrEngine }
+struct Runtime { session: Arc<TranslatorSession>, ocr: OcrEngine, bundled: String }
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 fn runtime() -> Result<&'static Runtime, String> {
     RUNTIME.get().ok_or_else(|| "Language runtime is not initialized".into())
@@ -52,8 +52,9 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_open(mut env
             #[cfg(target_os = "android")]
             android_logger::init_once(android_logger::Config::default().with_max_level(log::LevelFilter::Info).with_tag("PaperFlowRuntime"));
             let checker = FsPackInstallChecker::new(&base);
-            let session = TranslatorSession::open(&catalog,None,base,&checker).map_err(|e|format!("{e:?}"))?;
-            let _ = RUNTIME.set(Runtime {session:Arc::new(session),ocr:OcrEngine::new()});
+            let disk=std::fs::read_to_string(std::path::Path::new(&base).join("index_v6.json")).ok();
+            let session = TranslatorSession::open(&catalog,disk.as_deref(),base,&checker).map_err(|e|format!("{e:?}"))?;
+            let _ = RUNTIME.set(Runtime {session:Arc::new(session),ocr:OcrEngine::new(),bundled:catalog});
         }
         Ok(json!({"ready":true}))
     })();
@@ -73,8 +74,20 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_call(mut env
                 "fromEnglish":row.availability.has_from_english,"toEnglish":row.availability.has_to_english
             })).collect::<Vec<_>>())),
             "refresh" => {session.refresh_snapshot();Ok(json!({}))},
-            "plan" => Ok(plan_json(session.plan_download(arg("language"),Feature::Core,None).ok_or("Language pack is unavailable")?)),
+            "catalog" => {
+                translator::parse_and_validate_catalog(arg("catalog"))?;
+                session.replace_catalog(&r.bundled,Some(arg("catalog")),session.snapshot().base_dir.clone()).map_err(|e|e.to_string())?;
+                Ok(json!({}))
+            },
+            "plan" => {
+                if session.snapshot().catalog.language_by_code(&translator::LanguageCode::from(arg("language"))).is_none(){return Err("Language pack is unavailable".into())}
+                Ok(plan_json(session.plan_download(arg("language"),Feature::Core,None).ok_or("Language pack is unavailable")?))
+            },
             "deletePlan" => Ok(delete_json(&session.prepare_delete(arg("language"),Feature::Core))),
+            "upgradePlan" => {
+                let snap=session.snapshot();let codes=[translator::LanguageCode::from(arg("language"))];
+                Ok(plan_json(if arg("kind")=="ocr" {translator::plan_ocr_engine_upgrades(&snap,&codes,"ppocr")}else{translator::plan_translation_upgrades(&snap,&codes)}))
+            },
             "zipPlan" => {
                 let marker=req["marker"].as_object().map(|m|translator::InstallMarker{
                     path:m.get("path").and_then(Value::as_str).unwrap_or("").into(),
@@ -122,7 +135,18 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut en
         let still=r.session.build_still_image(&bytes,width as u32,height as u32,1500).map_err(|e|e.to_string())?;
         if !target.is_empty() {
             let selection=if source=="auto" {translator::OcrSourceSelection::auto()} else {translator::OcrSourceSelection::specific(source)};
-            let prepared=r.session.translate_from_still(&still,&bytes,width as u32,height as u32,selection,target,min_conf as u32,None,BackgroundMode::AutoDetect,None).map_err(|e|e.to_string())?;
+            let mut prepared=r.session.translate_from_still(&still,&bytes,width as u32,height as u32,selection,target,min_conf as u32,None,BackgroundMode::AutoDetect,None).map_err(|e|e.to_string())?;
+            if let Some(edits)=req["sourceEdits"].as_array(){
+                if edits.len()!=prepared.blocks.len(){return Err("The photo layout changed. Translate it again before editing.".into())}
+                for (block,text) in prepared.blocks.iter_mut().zip(edits){block.source_text=text.as_str().ok_or("Invalid source edit")?.into();block.source_style_spans.clear();}
+                prepared.extracted_text=prepared.blocks.iter().map(|b|b.source_text.as_str()).collect::<Vec<_>>().join("\n");
+                if !req["translationEdits"].is_array(){prepared=r.session.retranslate_prepared_overlay(prepared,source,target).map_err(|e|e.to_string())?;}
+            }
+            if let Some(edits)=req["translationEdits"].as_array(){
+                if edits.len()!=prepared.blocks.len(){return Err("The photo layout changed. Translate it again before editing.".into())}
+                for (block,text) in prepared.blocks.iter_mut().zip(edits){block.translated_text=text.as_str().ok_or("Invalid translation edit")?.into();block.style_spans.clear();}
+                prepared.translated_text=prepared.blocks.iter().map(|b|b.translated_text.as_str()).collect::<Vec<_>>().join("\n");
+            }
             let rendered=translator::image_render::render_overlay(&prepared,&android_font_provider::AndroidFontProvider,
                 &translator::image_render::RenderOptions{language:target.into(),min_font_size_px:8.0}).map_err(|e|e.to_string())?;
             if env.get_array_length(&output).map_err(|e|e.to_string())? as usize !=rendered.rgba_bytes.len() {return Err("Invalid output buffer".into())}
@@ -145,19 +169,29 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut en
         } else {vec![translator::ocr_runtime::recognizer_script_for_language(&snap,&translator::LanguageCode::from(source)).map_err(|e|e.to_string())?;boxes.len()]};
         let strips=engine.dewarp_strips(&still.rgb,&boxes,Some(translator::coords::Quadrant::R0));
         let lines=engine.recognize_from_strips(&strips,&boxes,&scripts,translator::ppocr::PpocrProfile::Still,width as u32,height as u32,0.0).map_err(|e|e.to_string())?;
-        let mut words=Vec::new();
+        let mut all_words=Vec::new();let mut rtl_lines=std::collections::HashSet::new();
         for (i,line) in lines.iter().enumerate() {
             if line.text.trim().is_empty() || line.confidence*100.0<min_conf {continue}
             let firings:Vec<_>=line.visual_firings.iter().map(|f|(char::from_u32(f.ch).unwrap_or('\u{fffd}'),f.at)).collect();
             let script=scripts.get(i).copied();
             let rtl=script.is_some_and(|s|s.is_rtl());
+            if rtl {rtl_lines.insert(i as u32);}
             let text=if rtl {reverse_visual_to_logical(&line.text)} else {line.text.clone()};
             let mut line_words=translator::text_metrics::firing_word_boxes(&text,&firings,script==Some(translator::PpocrScript::Cj),&line.oriented_box,i as u32);
+            // Multi-chunk recognition may omit CTC firings. Retain the recognized line
+            // as one searchable span instead of silently losing its text in PDFs.
+            if line_words.is_empty(){
+                all_words.push(translator::ocr::PositionedWord{text:line.text.clone(),bounds:line.oriented_box,line_index:i as u32});
+                continue;
+            }
             for word in &mut line_words {
                 if rtl {word.text=reverse_visual_to_logical(&word.text)}
-                words.push(word_json(word,line.oriented_box.height,line.rect.bottom));
             }
+            all_words.extend(line_words);
         }
+        let words:Vec<_>=translator::ocr::order_words_visually(all_words,&rtl_lines).iter().map(|word|{
+            let line=&lines[word.line_index as usize];word_json(word,line.oriented_box.height,line.rect.bottom)
+        }).collect();
         Ok(json!({"words":words,"text":lines.iter().filter(|l|l.confidence*100.0>=min_conf).map(|l|l.text.as_str()).collect::<Vec<_>>().join("\n")}))
     })();
     reply(&mut env,result)
@@ -179,4 +213,23 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_createLive(m
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_paperflow_translation_RuntimeNative_destroyLive(_:JNIEnv,_:JClass,ptr:jlong) {
     if ptr!=0 {let pipeline=unsafe {Arc::from_raw(ptr as *const LiveTrackerPipeline)};pipeline.reset();}
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_paperflow_translation_RuntimeNative_controlLive(_:JNIEnv,_:JClass,ptr:jlong,enabled:jni::sys::jboolean,af_scanning:jni::sys::jboolean,reset:jni::sys::jboolean) {
+    if ptr==0{return}
+    let pipeline=unsafe {&*(ptr as *const LiveTrackerPipeline)};
+    if reset!=0{pipeline.reset();}
+    pipeline.set_target_mode(if enabled!=0&&af_scanning==0{translator::live_tracker_pipeline::TargetMode::Active}else{translator::live_tracker_pipeline::TargetMode::Suppressed});
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_paperflow_translation_RuntimeNative_changeLiveLanguages(mut env:JNIEnv,_:JClass,ptr:jlong,source:JString,target:JString) {
+    if ptr==0{return}
+    let result=(|| {
+        let source=str_arg(&mut env,&source)?;let target=str_arg(&mut env,&target)?;
+        let pipeline=unsafe {&*(ptr as *const LiveTrackerPipeline)};
+        pipeline.set_languages(if source=="auto"{"en"}else{&source},&target,source=="auto");pipeline.reset();Ok::<_,String>(())
+    })();
+    if let Err(error)=result{let _=env.throw_new("java/io/IOException",error);}
 }
