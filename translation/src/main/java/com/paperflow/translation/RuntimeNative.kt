@@ -3,7 +3,7 @@ import java.nio.ByteBuffer
 
 /** JNI boundary to offline-translator's pinned Rust/MNN/slimt runtime. */
 object RuntimeNative {
-    init { System.loadLibrary("paperflow_runtime"); check(apiVersion()==2) { "Incompatible offline language runtime" } }
+    init { System.loadLibrary("paperflow_runtime"); check(apiVersion()==3) { "Incompatible offline language runtime. Rebuild or download the current native artifacts." } }
     @JvmStatic private external fun apiVersion(): Int
     @JvmStatic external fun open(catalog: String, base: String): String
     @JvmStatic external fun call(request: String): String

@@ -13,10 +13,10 @@ use translator::live_tracker_pipeline::LiveTrackerPipeline;
 struct Runtime { session: Arc<TranslatorSession>, bundled: String }
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 
-// ABI 2 passes direct ByteBuffers instead of Java byte arrays. Keep an explicit
-// handshake so stale workflow artifacts cannot be loaded with the wrong JNI ABI.
+// ABI 3 also supplies OCR confidence and shares the session's OCR engine.
+// Keep a handshake so old artifacts cannot silently skip the selection data.
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_apiVersion(_:JNIEnv,_:JClass)->jint {2}
+pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_apiVersion(_:JNIEnv,_:JClass)->jint {3}
 fn runtime() -> Result<&'static Runtime, String> {
     RUNTIME.get().ok_or_else(|| "Language runtime is not initialized".into())
 }
@@ -109,10 +109,10 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_call(mut env
     reply(&mut env,result)
 }
 
-fn word_json(word: &translator::ocr::PositionedWord, height: f32, baseline: u32) -> Value {
+fn word_json(word: &translator::ocr::PositionedWord, height: f32, baseline: u32, confidence: f32) -> Value {
     let rect=word.bounds.to_aabb();
     json!({"text":word.text,"left":rect.left,"top":rect.top,"right":rect.right,"bottom":rect.bottom,
-        "lineHeight":height.round() as u32,"baseline":baseline,"line":word.line_index})
+        "lineHeight":height.round() as u32,"baseline":baseline,"line":word.line_index,"confidence":confidence})
 }
 
 // From translator-ocr/ppocr.rs (MIT). The upstream helper is crate-private.
@@ -161,8 +161,8 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut en
             let destination=env.get_direct_buffer_address(&output).map_err(|e|e.to_string())?;
             unsafe {std::ptr::copy_nonoverlapping(rendered.rgba_bytes.as_ptr(),destination,rendered.rgba_bytes.len());}
             return Ok(json!({"text":prepared.extracted_text,"translation":prepared.translated_text,
-                "words":prepared.source_words.iter().map(|w|word_json(w,w.bounds.height,w.bounds.to_aabb().bottom)).collect::<Vec<_>>(),
-                "translatedWords":rendered.translated_words.iter().map(|w|word_json(w,w.bounds.height,w.bounds.to_aabb().bottom)).collect::<Vec<_>>(),
+                "words":prepared.source_words.iter().map(|w|word_json(w,w.bounds.height,w.bounds.to_aabb().bottom,1.0)).collect::<Vec<_>>(),
+                "translatedWords":rendered.translated_words.iter().map(|w|word_json(w,w.bounds.height,w.bounds.to_aabb().bottom,1.0)).collect::<Vec<_>>(),
                 "blocks":prepared.blocks.iter().map(|b|json!({"source":b.source_text,"translation":b.translated_text,
                     "left":b.bounding_box.left,"top":b.bounding_box.top,"right":b.bounding_box.right,"bottom":b.bounding_box.bottom})).collect::<Vec<_>>()}));
         }
@@ -199,7 +199,7 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut en
             all_words.extend(line_words);
         }
         let words:Vec<_>=translator::ocr::order_words_visually(all_words,&rtl_lines).iter().map(|word|{
-            let line=&lines[word.line_index as usize];word_json(word,line.oriented_box.height,line.rect.bottom)
+            let line=&lines[word.line_index as usize];word_json(word,line.oriented_box.height,line.rect.bottom,line.confidence)
         }).collect();
         Ok(json!({"words":words,"text":lines.iter().filter(|l|l.confidence*100.0>=min_conf).map(|l|l.text.as_str()).collect::<Vec<_>>().join("\n")}))
     })();
