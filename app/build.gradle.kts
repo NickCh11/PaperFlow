@@ -21,6 +21,9 @@ require(modelMirrorRepository.isEmpty() || (modelMirrorRepository.matches(Regex(
 }
 
 android {
+    // Direct project dependencies precede external AARs: use the language
+    // runtime's NDK 28 libc++, shared by MNN, slimt and OpenCV.
+    packaging { jniLibs.pickFirsts += "**/libc++_shared.so" }
     buildFeatures { resValues = true }
     namespace = "com.example.myapplication"
     ndkVersion = "27.2.12479018"
