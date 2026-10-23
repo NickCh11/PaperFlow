@@ -5,7 +5,7 @@ mod android_font_provider;
 mod live_pipeline_jni;
 
 use std::sync::{Arc, OnceLock};
-use jni::{JNIEnv, objects::{JByteArray, JClass, JString}, sys::{jint, jlong, jstring}};
+use jni::{JNIEnv, objects::{JByteBuffer, JClass, JString}, sys::{jint, jlong, jstring}};
 use serde_json::{Value, json};
 use translator::{TranslatorSession, FsPackInstallChecker, Feature, TaskInstall, BackgroundMode};
 use translator::live_tracker_pipeline::LiveTrackerPipeline;
@@ -122,13 +122,17 @@ fn reverse_visual_to_logical(text: &str) -> String {
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut env: JNIEnv, _: JClass, pixels:JByteArray, width:jint, height:jint, request:JString, output:JByteArray) -> jstring {
+pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut env: JNIEnv, _: JClass, pixels:JByteBuffer, width:jint, height:jint, request:JString, output:JByteBuffer) -> jstring {
     let result=(|| {
         let r=runtime()?;
         let req:Value=serde_json::from_str(&str_arg(&mut env,&request)?).map_err(|e|e.to_string())?;
         if width<=0 || height<=0 || width>20000 || height>20000 {return Err("Invalid image dimensions".into())}
-        let bytes=env.convert_byte_array(&pixels).map_err(|e|e.to_string())?;
-        if bytes.len()!=width as usize*height as usize*4 {return Err("Invalid RGBA image".into())}
+        let capacity=env.get_direct_buffer_capacity(&pixels).map_err(|e|e.to_string())?;
+        if capacity!=width as usize*height as usize*4 {return Err("Invalid RGBA image".into())}
+        let address=env.get_direct_buffer_address(&pixels).map_err(|e|e.to_string())?;
+        // The JNI argument retains the direct buffer for the entire call. This avoids
+        // pinning the Java heap or making a second full-resolution input copy.
+        let bytes=unsafe {std::slice::from_raw_parts(address,capacity)};
         let source=req["source"].as_str().unwrap_or("auto");
         let target=req["target"].as_str().unwrap_or("");
         let min_conf=req["confidence"].as_f64().unwrap_or(50.0) as f32;
@@ -149,10 +153,9 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut en
             }
             let rendered=translator::image_render::render_overlay(&prepared,&android_font_provider::AndroidFontProvider,
                 &translator::image_render::RenderOptions{language:target.into(),min_font_size_px:8.0}).map_err(|e|e.to_string())?;
-            if env.get_array_length(&output).map_err(|e|e.to_string())? as usize !=rendered.rgba_bytes.len() {return Err("Invalid output buffer".into())}
-            // JNI byte arrays use signed bytes but preserve the RGBA bit patterns.
-            let signed:Vec<i8>=rendered.rgba_bytes.iter().map(|b|*b as i8).collect();
-            env.set_byte_array_region(&output,0,&signed).map_err(|e|e.to_string())?;
+            if env.get_direct_buffer_capacity(&output).map_err(|e|e.to_string())? !=rendered.rgba_bytes.len() {return Err("Invalid output buffer".into())}
+            let destination=env.get_direct_buffer_address(&output).map_err(|e|e.to_string())?;
+            unsafe {std::ptr::copy_nonoverlapping(rendered.rgba_bytes.as_ptr(),destination,rendered.rgba_bytes.len());}
             return Ok(json!({"text":prepared.extracted_text,"translation":prepared.translated_text,
                 "words":prepared.source_words.iter().map(|w|word_json(w,w.bounds.height,w.bounds.to_aabb().bottom)).collect::<Vec<_>>(),
                 "translatedWords":rendered.translated_words.iter().map(|w|word_json(w,w.bounds.height,w.bounds.to_aabb().bottom)).collect::<Vec<_>>(),
