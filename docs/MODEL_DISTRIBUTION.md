@@ -7,13 +7,13 @@ Shared files are downloaded once. Files are staged before installation; archive
 markers are written last. Cancelling a download discards its staging directory.
 
 The catalog is bundled at `translation/src/main/assets/index_v6.json`.
-**Settings → OCR languages / Translation languages → Check for language pack
-updates** refreshes it from `https://offline-translator.davidv.dev/index.json`
+**Settings → Offline languages (OCR and translation) → Check for language pack
+updates** refreshes it from `https://offline-translator.davidv.dev/index_v6.json`
 and upgrades installed packs. Model URLs come from that upstream catalog.
 Camera frames, document images and text stay on the device.
 
-The upstream catalog declares decoded sizes rather than cryptographic model
-digests. The installer checks HTTPS, decoded file size and archive paths.
+The upstream catalog declares transport sizes rather than cryptographic model
+digests. The installer checks HTTPS, downloaded bytes before gzip decoding and archive paths.
 This is not a claim of cryptographic verification of upstream model bytes.
 
 Old Tesseract and previous translation packs are not loaded by the new runtime.
@@ -47,7 +47,7 @@ Changing the bundled catalog requires regenerating its archive tag with
 
 The separate scheduled model health workflow probes catalog URLs and retries
 temporary failures. Its full verification option downloads models and checks
-decoded sizes. Reports are saved as Actions artifacts. PR checks validate the
+transport sizes and gzip integrity. Reports are saved as Actions artifacts. PR checks validate the
 bundled catalog and archive tag without depending on a live health probe.
 
 CI and local device fixtures use `tools/ci/prepare_models.py` to install the

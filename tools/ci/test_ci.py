@@ -8,6 +8,22 @@ from prepare_models import safe_name, verify, fetch, wait_for_android
 
 
 class CiRegressionTest(unittest.TestCase):
+    def test_gzip_catalog_size_is_transport_size(self):
+        import gzip
+        import io
+        data=b"language model weights "*10000
+        encoded=gzip.compress(data)
+        self.assertGreater(len(data),len(encoded))
+        entry={"url":"https://example.invalid/model.gz","size":len(encoded),"gzip":True}
+        with tempfile.TemporaryDirectory() as folder:
+            target=Path(folder,"model.bin")
+            with patch("prepare_models.urllib.request.urlopen",return_value=io.BytesIO(encoded)):
+                fetch(entry,target)
+            self.assertEqual(data,target.read_bytes())
+            with patch("prepare_models.urllib.request.urlopen") as download:
+                fetch(entry,target)
+                download.assert_not_called()
+
     def test_android_readiness_requires_consecutive_package_manager_responses(self):
         import subprocess
         ready = subprocess.CompletedProcess([], 0, "package:/system/framework/framework-res.apk\n", "")
@@ -23,12 +39,13 @@ class CiRegressionTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "package manager"):
                 wait_for_android(["adb"])
 
-    def test_vendored_cpuinfo_logging_sources_are_present(self):
+    def test_native_runtime_dependencies_are_pinned(self):
         root = Path(__file__).resolve().parents[2]
-        clog = root / "translation/third-party/slimt/3rd-party/ruy/third_party/cpuinfo/deps/clog"
-        for name in ("CMakeLists.txt", "LICENSE", "include/clog.h", "src/clog.c"):
-            with self.subTest(file=name):
-                self.assertTrue((clog / name).is_file(), f"Missing vendored native source: {name}")
+        manifest=(root/"translation/native/Cargo.toml").read_text(encoding="utf-8")
+        lock=(root/"translation/native/Cargo.lock").read_text(encoding="utf-8")
+        self.assertIn('rev = "a1e232488007cfe28b9198da1a3351cf32078ef9"',manifest)
+        for dependency in ("translator-core", "mnn-sys", "slimt-sys"):
+            self.assertIn('name = "'+dependency+'"',lock)
 
     def test_cached_download_is_reverified_before_use(self):
         import io

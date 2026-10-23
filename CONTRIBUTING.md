@@ -14,3 +14,11 @@ Keep interface text in `app/src/main/res/values/strings.xml`. Use `UiText.get(R.
 Keep tool/mode/intent IDs stable. Translate their captions at display boundaries with `UiText.label`, never the IDs used in routing or saved data. Never pass filenames, recognized text or other user content through that label lookup. Use tags or item IDs for navigation, rather than matching translated captions.
 
 Run the translation validator and its regression tests when changing UI resources. See [build instructions](docs/BUILD.md) for the Android toolchain requirements.
+
+## Downloadable OCR and translation languages
+
+These are separate from interface translations. Every code in the model catalog
+must have a fixture in `app/src/androidTest/assets/language-detection-samples.json`.
+The CI coverage test fails when a new downloadable language has no corresponding
+sample. Device tests run automatic OCR and language detection on each fixture.
+See [fixture rules](app/src/androidTest/assets/README-language-detection.md).

@@ -158,7 +158,9 @@ class OcrDocument(
             val wordWidth = textBox.box.width * scaleX
             val fontSize = textBox.lineHeight * scaleY * 0.8f
             // nominal width: fontSize / kCharWidth (Tesseract convention)
-            val nominalWidth = textBox.text.length * fontSize / 2f
+            // Include the explicit separator in the fitted width. Otherwise it
+            // overlaps the next word and PDF readers can sort it inside that word.
+            val nominalWidth = (textBox.text.length + 1) * fontSize / 2f
             val hScale = if (nominalWidth > 0f) (wordWidth / nominalWidth) * 100f else 100f
             val baselineY = dimensions.pageHeight - (textBox.lineBottom * scaleY) + fontSize * 0.2f
 

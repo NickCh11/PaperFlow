@@ -149,6 +149,7 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
 
     private void showSources() {
         stage = "source"; generation++; int version = generation; body.removeAllViews(); if(largeRotationPreview!=null&&!largeRotationPreview.isRecycled())largeRotationPreview.recycle();largeRotationPreview=null;releaseResultPreview();configureBottom(false);compressionSaveAction.setVisibility(View.GONE); primary.setEnabled(true); primary.setText(UiText.get(R.string.ui_next)); unlockOrientation();
+        if(operation.equals("OCR PDF"))note(UiText.get(R.string.ui_ocr_pdf_intro));
         title(UiText.format(R.string.ui_select_value, (operation.equals("Merge Files") ? "PDF files" : "a PDF"))); note(operation.equals("Merge Files") ? UiText.get(R.string.ui_choose_two_or_more_files_then_arrange_them_in_the_next_step) : UiText.get(R.string.ui_choose_a_document_from_your_library_or_import_a_pdf));
         TextView importButton = action(UiText.get(R.string.ui_import_pdf_files), false); body.addView(importButton, spaced(-1, dp(46), 14)); importButton.setOnClickListener(v -> importLauncher.launch(new String[]{"application/pdf"}));
         if (sources.isEmpty()) note(UiText.get(R.string.ui_your_document_library_is_empty_import_a_pdf_to_get_started));
@@ -204,7 +205,7 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
             case "Lock": showPasswordOptions(); return;
             case "Compress": showCompressionOptions(); return;
             case "Rotate PDF": showRotationOptions(); break;
-            case "OCR PDF": primary.setText(UiText.get(R.string.ui_create_searchable_pdf));note(UiText.get(R.string.ui_convert_scanned_pages_into_a_pdf_with_selectable_copyable_and_searchable_te));TextView languages=label(UiText.get(R.string.ui_ocr_languages_84fba977),16,BRAND);languages.setPadding(12,20,12,20);languages.setOnClickListener(v->startActivity(new Intent(this,LanguageManagerActivity.class).putExtra("kind","ocr")));body.addView(languages);break;
+            case "OCR PDF": primary.setText(UiText.get(R.string.ui_create_searchable_pdf));note(UiText.get(R.string.ui_ocr_pdf_intro));TextView languages=label(UiText.get(R.string.ui_ocr_languages_84fba977),16,BRAND);languages.setPadding(12,20,12,20);languages.setOnClickListener(v->startActivity(new Intent(this,LanguageManagerActivity.class).putExtra("kind","ocr")));body.addView(languages);break;
             case "Add Watermark": showWatermarkOptions(); break;
             case "PDF to Images": showImageOptions(); break;
             case "PDF to Long Image": radioOptions(UiText.get(R.string.ui_clarity),new String[]{UiText.get(R.string.ui_clarity_standard),UiText.get(R.string.ui_clarity_high)},longImageQuality,value->longImageQuality=value);note(UiText.get(R.string.ui_selected_pages_are_stacked_in_order_long_documents_are_scaled_to_fit_a_16_0)); break;

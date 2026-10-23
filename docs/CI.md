@@ -31,10 +31,17 @@ Language fixtures use the upstream v6 core packs and PaddleOCR script models.
 The fixture installer never seeds the retired Tesseract language directory.
 This suite checks correctness, not production multithreaded performance.
 Office fixtures are in `app/src/androidTest/assets/office-fixtures`. English and
-Greek OCR/translation packs are fetched from the URLs in the app manifests and
-verified against their pinned digests before installation. Download tests also
+Greek core packs and every downloadable OCR script are fetched from the upstream
+catalog. Transport sizes and gzip integrity are checked; device fixture copies
+are compared against the local files with SHA-256. The catalog does not publish
+upstream content digests. Download tests also
 exercise the production network downloader; an unavailable upstream can fail the
 job. Downloaded packs, private files and credentials are not committed.
+
+`tools/ci/test_language_coverage.py` requires one explicit sample for each download
+language. A new catalog language without a sample fails the PR check. The device
+suite tests every sample as text and as an image, including the documented
+Bosnian/Croatian ambiguity and the Norwegian/Bokmal alias.
 
 Reports and APKs are retained as workflow artifacts for seven days. JVM and device report
 validation rejects zero tests, failures, errors, skipped tests and missing source tests.
@@ -82,7 +89,7 @@ bash gradlew testDebugUnitTest lintDebug -PpaperflowAbi=x86_64
 python3 tools/ci/check_test_results.py app/build/test-results/testDebugUnitTest app/src/test/java
 bash gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PpaperflowAbi=x86_64
 # Start a fresh API 29+ emulator, then:
-python3 tools/ci/prepare_models.py --install
+python3 tools/ci/prepare_models.py --all-ocr --install
 bash gradlew :app:connectedDebugAndroidTest -PpaperflowAbi=x86_64 -Pandroid.testInstrumentationRunnerArguments.ci=true
 python3 tools/ci/check_test_results.py app/build/outputs/androidTest-results/connected app/src/androidTest/java
 bash gradlew :app:assembleDebug :app:assembleRelease -PpaperflowAbi=arm64-v8a

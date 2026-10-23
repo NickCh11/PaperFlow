@@ -3,6 +3,16 @@ from pathlib import Path
 
 CATALOG = "translation/src/main/assets/index_v6.json"
 
+def ocr_packs(catalog):
+    result=set()
+    def visit(key):
+        if key in result:return
+        result.add(key)
+        for dependency in catalog["packs"][key].get("dependsOn",[]):visit(dependency)
+    for language in catalog["languages"].values():
+        for key in language.get("assets",{}).get("ocr",{}).values():visit(key)
+    return sorted(result)
+
 
 def core_packs(catalog, languages):
     roots = set()

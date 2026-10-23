@@ -21,10 +21,10 @@ Scan paper, create searchable PDFs and translate photos on your device
 <table>
   <tr>
     <td align="center"><img src="docs/images/home-light.png" width="280" alt="PaperFlow Home in light mode with scan and PDF shortcuts"><br><b>Home · Light</b></td>
-    <td align="center"><img src="docs/images/tools-light.png" width="280" alt="PaperFlow Tools with ID Cards, ID Photo Maker, Photo Translation, Book, Slides, Whiteboard and Timestamp"><br><b>Document tools · Light</b></td>
+    <td align="center"><img src="docs/images/tools-light.png" width="280" alt="PaperFlow Tools with ID Cards, ID Photo Maker, Translation, Book, Slides, Whiteboard and Timestamp"><br><b>Document tools · Light</b></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/images/translation-dark.png" width="280" alt="Photo Translation screen in dark mode with camera and photo import"><br><b>Photo Translation · Dark</b></td>
+    <td align="center"><img src="docs/images/translation-dark.png" width="280" alt="Translation screen in dark mode with camera and photo import"><br><b>Translation · Dark</b></td>
     <td align="center"><img src="docs/images/settings-dark.png" width="280" alt="Settings in dark mode showing system appearance, app language and language downloads"><br><b>Settings · Dark</b></td>
   </tr>
 </table>
@@ -51,7 +51,7 @@ Scan paper, create searchable PDFs and translate photos on your device
 |---|---|
 | **OCR PDF** | Make selected PDF pages searchable and their text copyable. |
 | **Batch OCR** | Recognize text in multiple documents at once. |
-| **Photo Translation** | Translate photos, live camera views and text offline with downloadable language packs. |
+| **Translation** | Translate scans and images offline, with live preview and all pages exported as PDF or images. |
 
 ### 📄 PDF tools
 

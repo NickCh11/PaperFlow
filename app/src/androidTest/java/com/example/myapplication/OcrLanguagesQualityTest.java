@@ -38,12 +38,14 @@ public class OcrLanguagesQualityTest {
 
     @Test public void downloadSelectPersistDeleteThroughLanguageScreen()throws Exception{
         Set<String> original=selected();JSONObject chosen=null;JSONArray catalog=LanguageModels.catalog(context(),"ocr");
-        for(int i=0;i<catalog.length();i++){JSONObject candidate=catalog.getJSONObject(i);if(!LanguageModels.installed(context(),"ocr",candidate)){chosen=candidate;break;}}
+        // OCR scripts can already be present through another language (or the
+        // all-script CI fixture). Download/Delete controls the complete core pack.
+        for(int i=0;i<catalog.length();i++){JSONObject candidate=catalog.getJSONObject(i);if(!LanguageModels.installed(context(),"translation",candidate)){chosen=candidate;break;}}
         assertNotNull("Need an uninstalled pack to test a fresh download",chosen);
         final JSONObject pack=chosen;String code=pack.getString("code"),title=LanguageModels.title(pack);Activity activity=launch();
         long started=SystemClock.elapsedRealtime();
         try{
-            LinearLayout initial=row(activity,title);assertFalse(((CheckBox)initial.getChildAt(0)).isEnabled());assertEquals("Download",((Button)initial.getChildAt(1)).getText().toString());
+            LinearLayout initial=row(activity,title);assertEquals(LanguageModels.installed(context(),"ocr",pack),((CheckBox)initial.getChildAt(0)).isEnabled());assertEquals("Download",((Button)initial.getChildAt(1)).getText().toString());
             inst.runOnMainSync(()->((Button)initial.getChildAt(1)).performClick());
             LanguageManagerActivity.DownloadSession session=(LanguageManagerActivity.DownloadSession)field(activity,"session");
             long deadline=started+90000;while(session.busy&&SystemClock.elapsedRealtime()<deadline)Thread.sleep(100);
@@ -55,7 +57,9 @@ public class OcrLanguagesQualityTest {
             java.util.concurrent.atomic.AtomicBoolean clicked=new java.util.concurrent.atomic.AtomicBoolean();
             inst.runOnMainSync(()->{for(android.view.View root:android.view.inspector.WindowInspector.getGlobalWindowViews()){Button positive=root.findViewById(android.R.id.button1);if(positive!=null&&"Delete".contentEquals(positive.getText())){clicked.set(positive.performClick());break;}}});
             assertTrue("Delete confirmation button exists",clicked.get());
-            inst.waitForIdleSync();assertFalse(LanguageModels.installed(context(),"ocr",pack));assertFalse(selected().contains(code));assertFalse(((CheckBox)row(activity,title).getChildAt(0)).isEnabled());
+            inst.waitForIdleSync();assertFalse(LanguageModels.installed(context(),"translation",pack));assertFalse(selected().contains(code));
+            // Other installed core packs can retain this script's shared OCR files.
+            assertEquals(LanguageModels.installed(context(),"ocr",pack),((CheckBox)row(activity,title).getChildAt(0)).isEnabled());
         }finally{
             inst.runOnMainSync(activity::finish);
             LanguageModels.remove(context(),"ocr",pack);restore(original);
@@ -69,6 +73,41 @@ public class OcrLanguagesQualityTest {
         try{LanguageModels.download(context(),"ocr",pack,()->false,(a,b)->{});fail("Unknown language accepted");}catch(IOException expected){}
         assertFalse(LanguageModels.installed(context(),"ocr",pack));
         json("integrity.json",new JSONObject().put("cancelledCleanly",true).put("unknownLanguageRejected",true));
+    }
+
+    @Test public void cancelActiveDownloadAndShareLanguageScreen()throws Exception{
+        JSONObject chosen=null;JSONArray catalog=LanguageModels.catalog(context(),"ocr");
+        for(int i=0;i<catalog.length();i++){JSONObject candidate=catalog.getJSONObject(i);if(!candidate.optBoolean("installed")&&candidate.getLong("size")>10_000_000){chosen=candidate;break;}}
+        assertNotNull("Need a fresh shared language pack",chosen);JSONObject pack=chosen;
+        boolean ocrBefore=LanguageModels.installed(context(),"ocr",pack);
+        Activity activity=launch();
+        try{
+            LanguageManagerActivity.DownloadSession session=(LanguageManagerActivity.DownloadSession)field(activity,"session");
+            inst.runOnMainSync(()->session.start("ocr",pack));
+            Thread.sleep(300);
+            assertTrue("Download should still be active",session.busy);
+            long started=SystemClock.elapsedRealtime();inst.runOnMainSync(session::cancel);
+            while(session.busy&&SystemClock.elapsedRealtime()-started<5000)Thread.sleep(50);
+            assertFalse("Cancel did not stop the network operation within 5 seconds",session.busy);
+            inst.waitForIdleSync();assertEquals(context().getString(R.string.ui_language_download_cancelled),session.status.getValue());
+            assertEquals("Cancelled download changed shared OCR availability",ocrBefore,LanguageModels.installed(context(),"ocr",pack));
+            assertFalse("Cancelled pack became usable for translation",LanguageModels.installed(context(),"translation",pack));
+            File staging=new File(context().getFilesDir(),"offline-language-packs/.staging");
+            assertTrue("Cancelled staging files remain",staging.list()==null||staging.list().length==0);
+        }finally{inst.runOnMainSync(activity::finish);}
+    }
+
+    @Test public void queuedDownloadCanBeCancelled()throws Exception{
+        com.paperflow.translation.OfflineRuntime runtime=com.paperflow.translation.OfflineRuntime.get(context());
+        java.util.concurrent.locks.ReentrantLock lock=(java.util.concurrent.locks.ReentrantLock)field(runtime,"installationLock");
+        java.util.concurrent.atomic.AtomicBoolean cancelled=new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.ExecutorService worker=java.util.concurrent.Executors.newSingleThreadExecutor();
+        lock.lock();
+        try{
+            java.util.concurrent.Future<Boolean> stopped=worker.submit(()->{try{runtime.download("en",cancelled::get,(done,total)->{});return false;}catch(InterruptedIOException expected){return true;}});
+            Thread.sleep(150);cancelled.set(true);
+            assertTrue("Queued download ignored cancellation",stopped.get(2,java.util.concurrent.TimeUnit.SECONDS));
+        }finally{lock.unlock();worker.shutdownNow();}
     }
 
     static String normalized(String text){return text.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]+"," ").trim();}
@@ -94,6 +133,7 @@ public class OcrLanguagesQualityTest {
                 String expected=String.join(" ",samples[i]);long start=SystemClock.elapsedRealtime();String actual=LocalOcr.text(context(),bitmap);long millis=SystemClock.elapsedRealtime()-start;
                 String[] words=normalized(expected).split(" +");int errors=distance(words,normalized(actual).split(" +"));
                 results.put(new JSONObject().put("languages",LocalOcr.activeLanguages(context())).put("expected",expected).put("actual",actual).put("wordErrors",errors).put("words",words.length).put("wordErrorRate",errors/(double)words.length).put("ms",millis).put("rawPaddleOcr",raw(bitmap)));assertFalse(actual.isEmpty());
+                assertTrue("OCR word error rate exceeds 25%: "+actual,errors/(double)words.length<=.25);
                 if(i==2){
                     try(FileOutputStream out=new FileOutputStream(report("mixed-sample.png"))){bitmap.compress(Bitmap.CompressFormat.PNG,100,out);}
                     try(PDDocument doc=new PDDocument()){
@@ -103,6 +143,9 @@ public class OcrLanguagesQualityTest {
                     }
                 }
             }finally{bitmap.recycle();}
-        }}finally{restore(original);json("quality.json",new JSONObject().put("samples",results).put("pdfTextMatchesRecognized",true).put("pdfAppearanceUnchanged",true));}
+        }
+        select("en","el");Bitmap blank=Bitmap.createBitmap(800,600,Bitmap.Config.ARGB_8888);blank.eraseColor(Color.WHITE);
+        try{assertTrue("Blank pages must not fail OCR",LocalOcr.text(context(),blank).isEmpty());}finally{blank.recycle();}
+        }finally{restore(original);json("quality.json",new JSONObject().put("samples",results).put("pdfTextMatchesRecognized",true).put("pdfAppearanceUnchanged",true));}
     }
 }

@@ -217,7 +217,7 @@ public class MainActivity extends AppCompatActivity {
         TextView recent = new TextView(this); recent.setText(UiText.get(R.string.ui_recents)); recent.setTextSize(18); recent.setTypeface(null, Typeface.BOLD); recent.setTextColor(INK); sectionHeader.addView(recent, new LinearLayout.LayoutParams(0, -2, 1));
         TextView viewAll = new TextView(this); viewAll.setText(UiText.get(R.string.ui_view_all)); viewAll.setTextSize(12); viewAll.setTextColor(MUTED);AppIcon nextIcon=new AppIcon("Next",MUTED);nextIcon.setBounds(0,0,dp(12),dp(12));viewAll.setCompoundDrawables(null,null,nextIcon,null);viewAll.setCompoundDrawablePadding(dp(2));sectionHeader.addView(viewAll); viewAll.setOnClickListener(v -> renderAllDocuments());LinearLayout.LayoutParams sectionParams=new LinearLayout.LayoutParams(-1,-2);sectionParams.topMargin=dp(6);content.addView(sectionHeader,sectionParams);
         addSelectionBar();
-        Cursor cursor = store.db().query("docs", null, searchQuery.isEmpty() ? "deleted_at=0 AND "+FolderLock.visibleSql(this,store) : "deleted_at=0 AND "+FolderLock.visibleSql(this,store)+" AND (instr(search_text,?)>0 OR instr(search_meta,?)>0)", searchQuery.isEmpty() ? null : new String[]{DocumentStore.normalize(searchQuery),DocumentStore.normalize(searchQuery)}, null, null, "last_opened DESC, created DESC");
+        Cursor cursor = store.db().query("docs", null, searchQuery.isEmpty() ? "deleted_at=0 AND "+DocumentStore.recentRevisionSql()+" AND "+FolderLock.visibleSql(this,store) : "deleted_at=0 AND "+DocumentStore.recentRevisionSql()+" AND "+FolderLock.visibleSql(this,store)+" AND (instr(search_text,?)>0 OR instr(search_meta,?)>0)", searchQuery.isEmpty() ? null : new String[]{DocumentStore.normalize(searchQuery),DocumentStore.normalize(searchQuery)}, null, null, "last_opened DESC, created DESC");
         if (cursor.getCount() == 0) {
             LinearLayout empty = new LinearLayout(this); empty.setGravity(Gravity.CENTER); empty.setOrientation(LinearLayout.VERTICAL); empty.setBackgroundColor(AppTheme.surface()); empty.setMinimumHeight(dp(440));
             View illustration = new EmptyDocumentIllustration(); empty.addView(illustration, new LinearLayout.LayoutParams(dp(112), dp(128)));
@@ -537,8 +537,7 @@ public class MainActivity extends AppCompatActivity {
         settingHelp(UiText.get(R.string.app_language_help));
         label(content,UiText.get(R.string.ui_paperflow_local_storage),15,MUTED,false).setPadding(0,dp(16),0,0);
         settingHelp(UiText.get(R.string.ui_documents_are_saved_locally_use_save_to_cloud_to_export_copies_to_your_own));
-        setting(UiText.get(R.string.ui_ocr_languages_84fba977),"OCR PDF",()->startActivity(new Intent(this,LanguageManagerActivity.class).putExtra("kind","ocr")));
-        setting(UiText.get(R.string.ui_translation_languages),"Photo Translation",()->startActivity(new Intent(this,LanguageManagerActivity.class).putExtra("kind","translation")));
+        setting(UiText.get(R.string.ui_offline_languages),"OCR PDF",()->startActivity(new Intent(this,LanguageManagerActivity.class)));
         setting(UiText.get(R.string.ui_lock_folders_now),"Lock",()->{FolderLock.lockAll();renderSettings();});
         setting(UiText.get(R.string.ui_scan_and_export_preferences),"Smart Scan",this::scanPreferences);
         setting(UiText.get(R.string.ui_save_to_cloud),"Cloud",this::chooseCloudDocuments);
@@ -586,7 +585,7 @@ public class MainActivity extends AppCompatActivity {
         try{if(!new File(path).getCanonicalPath().startsWith(new File(getFilesDir(),"documents").getCanonicalPath()+File.separator))return;}catch(java.io.IOException invalid){return;}
         String origin=intent.getStringExtra("origin_path");ArrayList<String> origins=intent.getStringArrayListExtra("origin_paths");if(origins==null)origins=new ArrayList<>();if(origin!=null)origins.add(origin);for(String item:origins)if(!FolderLock.ensureDocument(this,item,()->handleDocumentIntent(intent)))return;
         intent.removeExtra("document_action");
-        if(action.equals("Register")){registerDerivedDocument(path,name==null?"Document":name,intent.getIntExtra("pages",-1),origins);renderHome();String next=intent.getStringExtra("after_save_action");if("To Word".equals(next))beginWordConversion(path,name);else if("Sign".equals(next)){Intent viewer=new Intent(this,PdfViewerActivity.class).putExtra("path",path).putExtra("name",name).putExtra("start_sign",true);startActivity(viewer);}else openPdf(path);}
+        if(action.equals("Register")){registerDerivedDocument(path,name==null?"Document":name,intent.getIntExtra("pages",-1),origins);if(intent.getBooleanExtra("signed_revision",false))store.signedRevision(origin,path);renderHome();String next=intent.getStringExtra("after_save_action");if("To Word".equals(next))beginWordConversion(path,name);else if("Sign".equals(next)){Intent viewer=new Intent(this,PdfViewerActivity.class).putExtra("path",path).putExtra("name",name).putExtra("start_sign",true);startActivity(viewer);}else openPdf(path);}
         else if(action.equals("Rename")){ContentValues values=new ContentValues();values.put("name",name);store.db().update("docs",values,"path=?",new String[]{path});renderHome();openPdf(path);}
         else if(action.equals("Tags"))editTags(path);
         else if(action.equals("To Word")){String password=intent.getStringExtra("pdf_password");intent.removeExtra("pdf_password");beginWordConversion(path,name==null?"Document":name,password==null?"":password);}

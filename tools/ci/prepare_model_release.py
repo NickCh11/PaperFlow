@@ -48,7 +48,7 @@ def prepare(output):
         "https://github.com/mozilla/firefox-translations-models\n"
         "Catalog: https://github.com/DavidVentura/offline-translator\n"
         "Files are unchanged after decoding the transport gzip. Names identify catalog descriptors, not content hashes.\n"
-        "The upstream v6 catalog declares decoded sizes, not content digests. SHA256SUMS.txt records the downloaded bytes.\n"
+        "The upstream v6 catalog declares transport sizes, not content digests. SHA256SUMS.txt records the decoded archive bytes.\n"
         "Original URLs, install paths and dependency/role information are in upstream-manifests.json.\n",
         encoding="utf-8",newline="\n")
     sums = []

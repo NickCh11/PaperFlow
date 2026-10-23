@@ -145,7 +145,7 @@ jobs:
       - name: Build test application
         run: bash gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PpaperflowAbi=x86_64 --stacktrace
       - name: Download and verify public language fixtures
-        run: python3 tools/ci/prepare_models.py
+        run: python3 tools/ci/prepare_models.py --all-ocr
       - name: Install emulator image with download retries
         env:
           API: ${{ matrix.api }}
@@ -178,7 +178,7 @@ jobs:
           emulator-options: -no-window -no-snapshot -gpu swiftshader -noaudio -no-boot-anim -camera-back emulated
           script: |
             bash gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PpaperflowAbi=x86_64 --stacktrace
-            python3 tools/ci/prepare_models.py --install
+            python3 tools/ci/prepare_models.py --all-ocr --install
             bash gradlew :app:connectedDebugAndroidTest -PpaperflowAbi=x86_64 -Pandroid.testInstrumentationRunnerArguments.ci=true --stacktrace
             python3 tools/ci/check_test_results.py app/build/outputs/androidTest-results/connected app/src/androidTest/java
             mkdir -p build/ci-device-reports

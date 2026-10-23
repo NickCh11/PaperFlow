@@ -1,4 +1,21 @@
 <resources>
+    <string name="ui_no_translated_pages">Translate at least one page before exporting.</string>
+    <string name="ui_translation_snapshot_unavailable">The saved translation is unavailable. Translate this page again.</string>
+    <string name="ui_translation_pdf">PDF (all pages, selectable text)</string>
+    <string name="ui_translation_import_images">Import images</string>
+    <string name="ui_new_translation">New translation</string>
+    <string name="ui_translation_previous_page">Previous page</string>
+    <string name="ui_translation_next_page">Next page</string>
+    <string name="ui_ocr_pdf_intro">Convert a scanned PDF into a searchable PDF with text you can select and copy. Only the pages you choose are processed.</string>
+    <string name="ui_translation_pages_help">Swipe left or right to preview pages. PDF exports contain every page; image exports save or share every translated image.</string>
+    <string name="ui_translation_images">Images (all pages)</string>
+    <string name="ui_translation_page_progress">Translating page %1$d of %2$d…</string>
+    <string name="ui_translation_saved_images">All translated images were saved.</string>
+    <string name="ui_flash_change_failed">Could not change the flash. Please try again.</string>
+    <string name="ui_offline_languages">Offline languages (OCR and translation)</string>
+    <string name="ui_language_download_progress">Downloading %1$s · %2$d%%</string>
+    <string name="ui_language_download_cancelled">Download cancelled</string>
+    <string name="ui_language_download_cancelling">Cancelling download…</string>
     <string name="ui_shared_language_packs_help">Download a language pack for offline translation and OCR. Common models are shared between languages. Enable OCR languages to add selectable text to scans and PDFs.</string>
     <string name="ui_photo_capture_mode">Photo</string>
     <string name="ui_page_capture_mode">Page</string>

@@ -17,11 +17,10 @@ object LocalOcr {
     }
     @JvmStatic fun recognize(context: Context, bitmap: Bitmap): List<OcrTextBox> =
         recognize(context,bitmap,activeLanguages(context),50f)
-    /** Multiple enabled languages use the upstream script classifier. */
+    /** Enabled script recognizers share the upstream detector and word coordinates. */
     @JvmStatic @Synchronized fun recognize(context: Context, bitmap: Bitmap, languages: String, minimumConfidence: Float): List<OcrTextBox> {
         if(languages.isBlank())return emptyList()
-        val source=if('+' in languages)"auto" else languages
-        val words=OfflineRuntime.get(context).recognize(bitmap,source,minimumConfidence).getJSONArray("words")
+        val words=OfflineRuntime.get(context).recognize(bitmap,languages,minimumConfidence).getJSONArray("words")
         return (0 until words.length()).map { i ->
             val word=words.getJSONObject(i)
             OcrTextBox(word.getString("text"),ImageRect(word.getInt("left"),word.getInt("top"),word.getInt("right"),word.getInt("bottom")),word.getInt("lineHeight"),word.getInt("baseline"))

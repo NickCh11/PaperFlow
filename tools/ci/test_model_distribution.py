@@ -25,10 +25,10 @@ class ModelDistributionTests(unittest.TestCase):
             dest.write_bytes((ROOT/"translation/src/main/assets/index_v6.json").read_bytes())
             before,_=inventory(root)
             file=root/"translation/src/main/assets/index_v6.json"
-            data=json.loads(file.read_text())
+            data=json.loads(file.read_text(encoding="utf-8"))
             file.write_bytes((json.dumps(data,indent=4)+"\n").replace("\n","\r\n").encode("utf-8"))
             self.assertEqual(before,inventory(root)[0],"Line endings/formatting must not change release tags")
-            data["packs"]["ocr-ppocr-detector"]["files"][0]["url"]+="?mirror=changed";file.write_text(json.dumps(data))
+            data["packs"]["ocr-ppocr-detector"]["files"][0]["url"]+="?mirror=changed";file.write_text(json.dumps(data),encoding="utf-8")
             after,_=inventory(root)
             self.assertNotEqual(before,after)
 

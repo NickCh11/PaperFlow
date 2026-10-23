@@ -39,7 +39,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
     private long focusAnchor=-1,lastFocusUpdate;
     private CameraCaptureSession session;
     private PreviewView preview; private GuideView guide; private ImageCapture imageCapture; private Camera camera; private boolean ready,binding;
-    private ImageView flash,thumbnail; private TextView quality,hint,count,undo,bookSingle,bookDouble; private LinearLayout bookChoices; private View close,more,shutter,features,images,files;
+    private ImageView flash,thumbnail; private TextView quality,hint,count,undo,bookSingle,bookDouble; private LinearLayout bookChoices; private View close,more,shutter,features,images,files;private int flashGeneration;
     private FrameLayout review; private HorizontalScrollView modeScroll; private LinearLayout modeRow;
     private ActivityResultLauncher<String> permissionLauncher; private ActivityResultLauncher<String[]> galleryLauncher;
     private ActivityResultLauncher<Intent> bookReviewLauncher;
@@ -143,8 +143,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
         if(focusLocked&&(now-lastFocusUpdate<750||Math.abs(requested-lastFocusDistance)<.5f))return;
         androidx.camera.camera2.interop.CaptureRequestOptions options=new androidx.camera.camera2.interop.CaptureRequestOptions.Builder()
             .setCaptureRequestOption(android.hardware.camera2.CaptureRequest.CONTROL_AF_MODE,android.hardware.camera2.CameraMetadata.CONTROL_AF_MODE_OFF)
-            .setCaptureRequestOption(android.hardware.camera2.CaptureRequest.LENS_FOCUS_DISTANCE,requested)
-            .setCaptureRequestOption(android.hardware.camera2.CaptureRequest.CONTROL_AE_MODE,android.hardware.camera2.CameraMetadata.CONTROL_AE_MODE_ON).build();
+            .setCaptureRequestOption(android.hardware.camera2.CaptureRequest.LENS_FOCUS_DISTANCE,requested).build();
         androidx.camera.camera2.interop.Camera2CameraControl.from(camera.getCameraControl()).setCaptureRequestOptions(options);
         focusLocked=true;lastFocusDistance=requested;lastFocusUpdate=now;
     }
@@ -193,7 +192,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
         shutter.setEnabled(!session.busy&&ready);shutter.setAlpha(!session.busy&&ready?1:.4f);
         for(int i=0;i<modeRow.getChildCount();i++){TextView label=(TextView)modeRow.getChildAt(i);label.setEnabled(!session.busy);boolean active=session.mode.equals(label.getTag());label.setSelected(active);label.setTextColor(active?TEAL:Color.WHITE);}
         quality.setText(session.hd ? UiText.get(R.string.ui_hd) : UiText.get(R.string.ui_sd));((View)quality.getParent()).setContentDescription(session.hd ? UiText.get(R.string.ui_high_resolution_on) : UiText.get(R.string.ui_standard_resolution_on));
-        flash.setImageDrawable(new HeaderIcon(false,session.flash!=ImageCapture.FLASH_MODE_OFF));flash.setContentDescription(UiText.format(R.string.ui_flash_value, (session.flash==ImageCapture.FLASH_MODE_AUTO?"auto":session.flash==ImageCapture.FLASH_MODE_ON?"on":"off")));
+        flash.setImageDrawable(new HeaderIcon(false,session.flash!=ImageCapture.FLASH_MODE_OFF,session.flash==ImageCapture.FLASH_MODE_AUTO));flash.setContentDescription(UiText.format(R.string.ui_flash_value, (session.flash==ImageCapture.FLASH_MODE_AUTO?"auto":session.flash==ImageCapture.FLASH_MODE_ON?"on":"off")));
         review.setVisibility(session.pages.isEmpty()?View.GONE:View.VISIBLE);undo.setVisibility(session.pages.isEmpty()?View.GONE:View.VISIBLE);count.setText(UiText.format(R.string.ui_value, ("Book".equals(session.mode)?Math.min(99,session.pages.size()):session.pages.size())));review.setContentDescription(UiText.format(R.string.ui_review_value_pages, session.pages.size()));
         if(session.thumbnail!=null)thumbnail.setImageBitmap(session.thumbnail);guide.mode=session.mode;guide.grid=session.grid;guide.bookDouble=session.bookDoublePage;guide.invalidate();
         if(!timerPending)hint.setText(livePreparing?UiText.get(R.string.ui_live_translation_starting):session.busy ? UiText.get(R.string.ui_processing) : guideText());if(session.message!=null){Toast.makeText(this,session.message,Toast.LENGTH_LONG).show();session.message=null;}
@@ -225,7 +224,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
             final int generation=liveGeneration;if(CaptureModes.detectsPaper(session.mode))liveAnalysis.setAnalyzer(liveWorker,image->analyzeLive(image,generation));
             UseCaseGroup.Builder groupBuilder=new UseCaseGroup.Builder().setViewPort(preview.getViewPort()).addUseCase(live).addUseCase(imageCapture);
             if(CaptureModes.detectsPaper(session.mode))groupBuilder.addUseCase(liveAnalysis);UseCaseGroup group=groupBuilder.build();
-            provider.unbindAll();camera=provider.bindToLifecycle(this,CameraSelector.DEFAULT_BACK_CAMERA,group);if(liveTranslation)translatedPreview.setCameraOrientationDegrees(camera.getCameraInfo().getSensorRotationDegrees(preview.getDisplay().getRotation()));ready=true;render();
+            provider.unbindAll();camera=provider.bindToLifecycle(this,CameraSelector.DEFAULT_BACK_CAMERA,group);applyFlashMode();if(liveTranslation)translatedPreview.setCameraOrientationDegrees(camera.getCameraInfo().getSensorRotationDegrees(preview.getDisplay().getRotation()));ready=true;render();
         }catch(Exception error){hint.setText(UiText.get(R.string.ui_camera_unavailable_import_images_or_files_below));Toast.makeText(this,UiText.get(R.string.ui_could_not_start_camera),Toast.LENGTH_LONG).show();}finally{binding=false;}},ContextCompat.getMainExecutor(this));
     }
     private void analyzeLive(ImageProxy image,int generation){
@@ -256,10 +255,22 @@ public class CameraCaptureActivity extends BackHandlingActivity {
         if(stableAnchor==null||movement>.018f){stableAnchor=quad.clone();stableSince=now;return;}if(stableSince==0)stableSince=now;
         hint.setText(UiText.get(R.string.ui_hold_steady));if(now-stableSince>=1200&&now-lastAuto>2200){if("Book".equals(session.mode)&&bookTracker.hasBaseline()&&!bookTracker.changed(signature)){autoArmed=false;stableSince=0;hint.setText(UiText.get(R.string.ui_page_unchanged_tap_shutter_to_capture_again));return;}capturedSignature=signature;bookRearmedByChange=false;capture();}
     }
-    private void chooseFlash(){if(camera==null||!camera.getCameraInfo().hasFlashUnit()){Toast.makeText(this,UiText.get(R.string.ui_this_camera_has_no_flash),Toast.LENGTH_SHORT).show();return;}new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_flash)).setSingleChoiceItems(new String[]{UiText.get(R.string.ui_off), UiText.get(R.string.ui_auto), UiText.get(R.string.ui_on)},session.flash==ImageCapture.FLASH_MODE_OFF?0:session.flash==ImageCapture.FLASH_MODE_AUTO?1:2,(d,w)->{session.flash=w==0?ImageCapture.FLASH_MODE_OFF:w==1?ImageCapture.FLASH_MODE_AUTO:ImageCapture.FLASH_MODE_ON;imageCapture.setFlashMode(session.flash);render();d.dismiss();}).show();}
+    private void chooseFlash(){if(camera==null||!camera.getCameraInfo().hasFlashUnit()){Toast.makeText(this,UiText.get(R.string.ui_this_camera_has_no_flash),Toast.LENGTH_SHORT).show();return;}new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_flash)).setSingleChoiceItems(new String[]{UiText.get(R.string.ui_off), UiText.get(R.string.ui_auto), UiText.get(R.string.ui_on)},session.flash==ImageCapture.FLASH_MODE_OFF?0:session.flash==ImageCapture.FLASH_MODE_AUTO?1:2,(d,w)->{session.flash=CameraFlash.modeForChoice(w);releaseFocus();applyFlashMode();render();d.dismiss();}).show();}
+    private void applyFlashMode(){
+        if(camera==null||imageCapture==null)return;
+        if(!camera.getCameraInfo().hasFlashUnit()){session.flash=ImageCapture.FLASH_MODE_OFF;imageCapture.setFlashMode(session.flash);return;}
+        final Camera active=camera;final int generation=++flashGeneration;
+        CameraFlash.apply(new CameraFlash.Backend(){
+            public void captureMode(int mode){imageCapture.setFlashMode(mode);}
+            public void torch(boolean enabled){
+                ListenableFuture<Void> change=active.getCameraControl().enableTorch(enabled);
+                change.addListener(()->{try{change.get();}catch(Exception error){if(camera==active&&generation==flashGeneration&&resumed&&!isDestroyed()){session.flash=ImageCapture.FLASH_MODE_OFF;imageCapture.setFlashMode(session.flash);active.getCameraControl().enableTorch(false);render();Toast.makeText(CameraCaptureActivity.this,R.string.ui_flash_change_failed,Toast.LENGTH_SHORT).show();}}},ContextCompat.getMainExecutor(CameraCaptureActivity.this));
+            }
+        },session.flash);
+    }
     private void settings(){new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_camera_settings)).setItems(new String[]{session.grid ? UiText.get(R.string.ui_hide_alignment_grid) : UiText.get(R.string.ui_show_alignment_grid), UiText.get(R.string.ui_timer_off), UiText.get(R.string.ui_timer_3_seconds), UiText.get(R.string.ui_timer_5_seconds), autoCapture ? UiText.get(R.string.ui_automatic_capture_on) : UiText.get(R.string.ui_automatic_capture_off)},(d,w)->{if(w==0)session.grid=!session.grid;else if(w==4){autoCapture=!autoCapture;autoArmed=true;stableSince=0;getPreferences(0).edit().putBoolean("auto_capture",autoCapture).apply();}else session.timer=w==1?0:w==2?3:5;render();}).show();}
     private void permissionDenied(){hint.setText(UiText.get(R.string.ui_allow_camera_access_to_scan_or_import_images_below));new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_camera_access)).setMessage(UiText.get(R.string.ui_allow_camera_access_in_app_settings_to_scan_documents_you_can_also_import_i)).setPositiveButton(UiText.get(R.string.ui_settings),(d,w)->startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+getPackageName())))).setNegativeButton(UiText.get(R.string.ui_continue),null).show();}
-    @Override protected void onResume(){super.onResume();resumed=true;if(preview!=null){render();if(!ready&&ContextCompat.checkSelfPermission(this,Manifest.permission.CAMERA)==PackageManager.PERMISSION_GRANTED)bindCamera();}}
+    @Override protected void onResume(){super.onResume();resumed=true;if(preview!=null){render();if(!ready&&ContextCompat.checkSelfPermission(this,Manifest.permission.CAMERA)==PackageManager.PERMISSION_GRANTED)bindCamera();else if(ready)applyFlashMode();}}
     private void capture(){if(session.busy||!ready||imageCapture==null)return;autoArmed=false;stableSince=0;if(latestSignature!=null){capturedSignature=latestSignature.clone();if("Book".equals(session.mode))bookTracker.accept(latestSignature);}lastAuto=SystemClock.elapsedRealtime();timerPending=session.timer>0;session.busy=true;session.notifyChange();countdown=session.timer;timerTick.run();}
     private void takePhoto(){countdown=0;if(!ready||imageCapture==null){session.fail("Camera is not ready");return;}session.previewRatio=preview.getHeight()>0?(float)preview.getWidth()/preview.getHeight():0;final CameraCaptureSession owner=session;final String mode=session.mode;final boolean doublePage=session.bookDoublePage;final File file=session.newFile("capture");imageCapture.takePicture(new ImageCapture.OutputFileOptions.Builder(file).build(),session.worker,new ImageCapture.OnImageSavedCallback(){@Override public void onImageSaved(ImageCapture.OutputFileResults output){owner.processCaptured(file,mode,doublePage);}@Override public void onError(ImageCaptureException error){file.delete();owner.fail("Could not capture page. Please try again.");}});}
     private void finishCapture(boolean importPdf){if(session.busy||(!importPdf&&session.pages.isEmpty()))return;if("Book".equals(session.mode)&&!importPdf&&!liveTranslation){reviewBook();return;}Intent result=new Intent().putStringArrayListExtra("pages",new ArrayList<>(session.pages)).putExtra("capture_mode","ID Cards".equals(session.mode)?"ID Card":session.mode).putExtra("import_pdf",importPdf);if(session.importOptionsChosen)result.putExtra("initial_filter",session.importFilter).putExtra("auto_detect",session.importAutoCrop);if(!CaptureModes.detectsPaper(session.mode))result.putExtra("initial_filter",0).putExtra("auto_detect",false).putExtra("start_crop",false);
@@ -293,8 +304,8 @@ public class CameraCaptureActivity extends BackHandlingActivity {
         @Override protected void onDraw(Canvas canvas){if(isSelected())canvas.drawRoundRect(getWidth()/2f-dp(13),-dp(3),getWidth()/2f+dp(13),dp(3),dp(4),dp(4),marker);super.onDraw(canvas);}
     }
     private static class HeaderIcon extends Drawable {
-        final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);final boolean more,on;HeaderIcon(boolean more,boolean on){this.more=more;this.on=on;p.setColor(Color.WHITE);p.setStrokeWidth(1.8f);p.setStrokeCap(Paint.Cap.ROUND);p.setStrokeJoin(Paint.Join.ROUND);}
-        @Override public void draw(Canvas c){int s=c.save();c.translate(getBounds().left,getBounds().top);c.scale(getBounds().width()/24f,getBounds().height()/24f);if(more){p.setStyle(Paint.Style.FILL);for(int y:new int[]{5,12,19})c.drawCircle(12,y,1.7f,p);}else{p.setStyle(Paint.Style.STROKE);Path a=new Path();a.moveTo(14,2);a.lineTo(5,13);a.lineTo(11,13);a.lineTo(10,22);a.lineTo(20,10);a.lineTo(14,10);a.close();c.drawPath(a,p);if(!on)c.drawLine(3,3,21,21,p);}c.restoreToCount(s);}
+        final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);final boolean more,on,automatic;HeaderIcon(boolean more,boolean on){this(more,on,false);}HeaderIcon(boolean more,boolean on,boolean automatic){this.more=more;this.on=on;this.automatic=automatic;p.setColor(Color.WHITE);p.setStrokeWidth(1.8f);p.setStrokeCap(Paint.Cap.ROUND);p.setStrokeJoin(Paint.Join.ROUND);}
+        @Override public void draw(Canvas c){int s=c.save();c.translate(getBounds().left,getBounds().top);c.scale(getBounds().width()/24f,getBounds().height()/24f);if(more){p.setStyle(Paint.Style.FILL);for(int y:new int[]{5,12,19})c.drawCircle(12,y,1.7f,p);}else{p.setStyle(Paint.Style.STROKE);Path a=new Path();a.moveTo(14,2);a.lineTo(5,13);a.lineTo(11,13);a.lineTo(10,22);a.lineTo(20,10);a.lineTo(14,10);a.close();c.drawPath(a,p);if(!on)c.drawLine(3,3,21,21,p);if(automatic){p.setStyle(Paint.Style.FILL);p.setTextSize(8);p.setTypeface(Typeface.DEFAULT_BOLD);c.drawText("A",18,7,p);}}c.restoreToCount(s);}
         @Override public void setAlpha(int a){p.setAlpha(a);}@Override public void setColorFilter(ColorFilter f){p.setColorFilter(f);}@Override public int getOpacity(){return PixelFormat.TRANSLUCENT;}
     }
     private static class GuideView extends View {

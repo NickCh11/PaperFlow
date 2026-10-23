@@ -23,7 +23,7 @@
     <!-- MainActivity.java: categoryTools; IdPhotoMakerActivity.java:54 -->
     <string name="ui_id_photo_maker" formatted="false">ID Photo Maker</string>
     <!-- MainActivity.java: categoryTools; LocalTranslationActivity.java:220 -->
-    <string name="ui_photo_translation" formatted="false">Photo Translation</string>
+    <string name="ui_photo_translation" formatted="false">Translation</string>
     <!-- MainActivity.java: categoryTools; CameraCaptureActivity.java:85 -->
     <string name="ui_book" formatted="false">Book</string>
     <!-- MainActivity.java: categoryTools; CameraCaptureActivity.java:85 -->
@@ -737,9 +737,9 @@
     <!-- LocalTranslationActivity.java:226; LocalTranslationActivity.java:286 -->
     <string name="ui_translation" formatted="false">Translation</string>
     <!-- LocalTranslationActivity.java:232 -->
-    <string name="ui_translate_a_photo" formatted="false">Translate a photo</string>
+    <string name="ui_translate_a_photo" formatted="false">Translate scans and images</string>
     <!-- LocalTranslationActivity.java:233 -->
-    <string name="ui_take_a_photo_or_choose_an_image_text_and_language_are_detected_automaticall" formatted="false">Take a photo or choose an image. Text and language are detected automatically.</string>
+    <string name="ui_take_a_photo_or_choose_an_image_text_and_language_are_detected_automaticall" formatted="false">Capture pages or import images. Text and source language are detected automatically.</string>
     <!-- LocalTranslationActivity.java:242 -->
     <string name="ui_value_7cd939c2">%1$s ▾</string>
     <!-- LocalTranslationActivity.java:242 -->
