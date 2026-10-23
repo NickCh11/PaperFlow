@@ -9,9 +9,8 @@ use jni::{JNIEnv, objects::{JByteBuffer, JClass, JString}, sys::{jint, jlong, js
 use serde_json::{Value, json};
 use translator::{TranslatorSession, FsPackInstallChecker, Feature, TaskInstall, BackgroundMode};
 use translator::live_tracker_pipeline::LiveTrackerPipeline;
-use translator_ocr::engine::OcrEngine;
 
-struct Runtime { session: Arc<TranslatorSession>, ocr: OcrEngine, bundled: String }
+struct Runtime { session: Arc<TranslatorSession>, bundled: String }
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 
 // ABI 2 passes direct ByteBuffers instead of Java byte arrays. Keep an explicit
@@ -59,7 +58,7 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_open(mut env
             let checker = FsPackInstallChecker::new(&base);
             let disk=std::fs::read_to_string(std::path::Path::new(&base).join("index_v6.json")).ok();
             let session = TranslatorSession::open(&catalog,disk.as_deref(),base,&checker).map_err(|e|format!("{e:?}"))?;
-            let _ = RUNTIME.set(Runtime {session:Arc::new(session),ocr:OcrEngine::new(),bundled:catalog});
+            let _ = RUNTIME.set(Runtime {session:Arc::new(session),bundled:catalog});
         }
         Ok(json!({"ready":true}))
     })();
@@ -169,7 +168,9 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut en
         }
         // OCR alone uses exactly the same Paddle detector/recognizers, without translating.
         let snap=r.session.snapshot();
-        let engine=r.ocr.engine(&snap).map_err(|e|e.to_string())?;
+        // Share the session's engine with still/live translation instead of
+        // retaining a second full set of installed MNN models in this process.
+        let engine=translator::live_session::LiveOcrHost::ppocr_engine(r.session.as_ref())?;
         let boxes=translator::ocr_runtime::detect_boxes_from_still(&engine,&still,width as u32,height as u32).map_err(|e|e.to_string())?;
         let scripts=if source=="auto" {
             let predictions=engine.classify_text_boxes_image(&still.rgb,&boxes,Some(translator::coords::Quadrant::R0)).map_err(|e|e.to_string())?;
