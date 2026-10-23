@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
--->
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Preserve documents, originals, DB and folder preferences. Exclude redownloadable models, temporary sessions and device-bound Keystore ciphertext. -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="file" path="offline-language-packs/" />
+    <exclude domain="file" path="tessdata/" />
+    <exclude domain="file" path="translation-models/" />
+    <exclude domain="file" path="captures/" />
+    <exclude domain="file" path="book-draft.json" />
+    <exclude domain="file" path="translation-inputs/" />
+    <exclude domain="file" path="translation-sessions/" />
+    <exclude domain="file" path="signingtemp/" />
+    <exclude domain="sharedpref" path="google_translation.xml" />
 </full-backup-content>

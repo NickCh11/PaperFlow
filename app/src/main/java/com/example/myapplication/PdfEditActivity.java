@@ -24,18 +24,22 @@ public class PdfEditActivity extends BackHandlingActivity {
     private final ArrayList<Mark> marks=new ArrayList<>();
     private String path,name,password,tool=TOOLS[0];private int page,count,generation;private boolean busy,destroyed;
     private boolean initialized,dirty;private String baseline="[]";private int selected=-1,inkColor=0xff1252cc;private float lineWidth=1.5f,displayWidth=595;private final ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>();
+    private File sessionFile;
     private Bitmap bitmap;private Editor editor;private TextView counter;private final ArrayList<View> actions=new ArrayList<>();
     static class Mark extends PdfAnnotations.Mark {}
     @Override public void onCreate(Bundle state){super.onCreate(state);PDFBoxResourceLoader.init(this);
         path=getIntent().getStringExtra("path");name=getIntent().getStringExtra("name");password=getIntent().getStringExtra("pdf_password");if(password==null)password="";page=getIntent().getIntExtra("page",0);
-        if(state!=null){page=state.getInt("page",page);tool=state.getString("tool",tool);try{String file=state.getString("annotation_session");if(file!=null){org.json.JSONObject session=new org.json.JSONObject(new String(java.nio.file.Files.readAllBytes(new File(file).toPath()),java.nio.charset.StandardCharsets.UTF_8));marks.addAll(PdfAnnotations.decode(session.getString("marks"),Mark::new));baseline=session.optString("baseline","[]");initialized=true;dirty=!PdfAnnotations.encode(marks).equals(baseline);inkColor=session.optInt("color",inkColor);lineWidth=(float)session.optDouble("width",lineWidth);org.json.JSONArray us=session.optJSONArray("undo"),rs=session.optJSONArray("redo");if(us!=null)for(int i=0;i<us.length();i++)undo.addLast(us.getString(i));if(rs!=null)for(int i=0;i<rs.length();i++)redo.addLast(rs.getString(i));}}catch(Exception e){toast(UiText.get(R.string.ui_could_not_restore_edits_the_original_pdf_is_unchanged));}}
+        sessionFile=new File(getCacheDir(),"annotation-session-"+UUID.randomUUID()+".json");
+        final String restored=state==null?null:state.getString("annotation_session");
+        if(state!=null){page=state.getInt("page",page);tool=state.getString("tool",tool);if(restored!=null)sessionFile=new File(restored);}
+
 
         LinearLayout root=new LinearLayout(this);root.setOrientation(android.widget.LinearLayout.VERTICAL);root.setBackgroundColor(AppTheme.background());UiInsets.apply(root);setContentView(root);
         LinearLayout header=new LinearLayout(this);root.addView(header);button(header,UiText.get(R.string.ui_back),this::handleBackPressed);counter=new TextView(this);counter.setTextSize(17);counter.setTextColor(AppTheme.ink());counter.setGravity(Gravity.CENTER);header.addView(counter,new LinearLayout.LayoutParams(0,dp(52),1));button(header,UiText.get(R.string.ui_save_copy),this::save);
         TextView note=new TextView(this);note.setTextColor(AppTheme.muted());note.setText(UiText.get(R.string.ui_select_to_move_or_edit_existing_marks_drag_with_a_marking_tool_to_add_one_p));note.setPadding(dp(14),dp(6),dp(14),dp(6));root.addView(note);
         editor=new Editor();root.addView(editor,new LinearLayout.LayoutParams(-1,0,1));
         HorizontalScrollView tools=new HorizontalScrollView(this);LinearLayout row=new LinearLayout(this);tools.addView(row);button(row,UiText.get(R.string.ui_color),this::chooseColor);button(row,UiText.get(R.string.ui_width),this::chooseWidth);button(row,UiText.get(R.string.ui_delete_selected),()->{if(selected>=0&&selected<marks.size()){checkpoint();marks.remove(selected);selected=-1;editor.invalidate();}});button(row,UiText.get(R.string.ui_edit_comment),this::editComment);button(row,UiText.get(R.string.ui_redact_keywords),this::redactKeywords);for(String label:TOOLS)button(row,label,()->{tool=label;if(!label.equals("Select"))inkColor=label.equals("Highlight")?0xffffd600:0xff1252cc;selected=-1;editor.active=null;editor.invalidate();counter.setText(UiText.format(R.string.ui_page_value_value_value, (page+1), count, UiText.label(tool)));});root.addView(tools);
-        LinearLayout navigation=new LinearLayout(this);root.addView(navigation);button(navigation,UiText.get(R.string.ui_previous),()->change(-1));button(navigation,UiText.get(R.string.ui_undo),()->history(false));button(navigation,UiText.get(R.string.ui_redo),()->history(true));button(navigation,UiText.get(R.string.ui_next),()->change(1));load();
+        LinearLayout navigation=new LinearLayout(this);root.addView(navigation);button(navigation,UiText.get(R.string.ui_previous),()->change(-1));button(navigation,UiText.get(R.string.ui_undo),()->history(false));button(navigation,UiText.get(R.string.ui_redo),()->history(true));button(navigation,UiText.get(R.string.ui_next),()->change(1));if(restored==null)load();else restoreSession();
     }
     private void button(LinearLayout parent,String title,Runnable action){Button b=new Button(this);b.setText(title);b.setAllCaps(false);parent.addView(b);b.setOnClickListener(v->{if(!busy)action.run();});actions.add(b);}
     private void busy(boolean value){busy=value;for(View v:actions)v.setEnabled(!value);}
@@ -117,10 +121,30 @@ public class PdfEditActivity extends BackHandlingActivity {
         }
     }
     @Override public void handleBackPressed(){if(busy)return;if(!dirty){super.handleBackPressed();return;}new ProtectedDialogs.Builder(this).setTitle(UiText.get(R.string.ui_discard_unsaved_marks)).setNegativeButton(UiText.get(R.string.ui_keep_editing),null).setPositiveButton(UiText.get(R.string.ui_discard),(d,w)->finish()).show();}
-    @Override protected void onSaveInstanceState(Bundle state){super.onSaveInstanceState(state);state.putInt("page",page);state.putString("tool",tool);try{org.json.JSONObject session=new org.json.JSONObject().put("marks",PdfAnnotations.encode(marks)).put("baseline",baseline).put("color",inkColor).put("width",lineWidth).put("undo",new org.json.JSONArray(undo)).put("redo",new org.json.JSONArray(redo));File file=new File(getCacheDir(),"annotation-session-"+UUID.randomUUID()+".json");java.nio.file.Files.write(file.toPath(),session.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));state.putString("annotation_session",file.getAbsolutePath());}catch(Exception ignored){}}
+    private void restoreSession(){
+        busy(true);File file=sessionFile;
+        worker.execute(()->{try{
+            org.json.JSONObject session=new org.json.JSONObject(SessionSnapshots.read(file));
+            ArrayList<Mark> restored=PdfAnnotations.decode(session.getString("marks"),Mark::new);
+            String baseline=session.optString("baseline","[]");boolean changed=!PdfAnnotations.encode(restored).equals(baseline);
+            ArrayList<String> us=new ArrayList<>(),rs=new ArrayList<>();org.json.JSONArray u=session.optJSONArray("undo"),r=session.optJSONArray("redo");
+            if(u!=null)for(int i=0;i<Math.min(20,u.length());i++)us.add(u.getString(i));if(r!=null)for(int i=0;i<Math.min(20,r.length());i++)rs.add(r.getString(i));
+            runOnUiThread(()->{if(destroyed)return;marks.clear();marks.addAll(restored);this.baseline=baseline;initialized=true;dirty=changed;inkColor=session.optInt("color",inkColor);lineWidth=(float)session.optDouble("width",lineWidth);undo.addAll(us);redo.addAll(rs);load();});
+        }catch(Exception error){runOnUiThread(()->{if(!destroyed){toast(UiText.get(R.string.ui_could_not_restore_edits_the_original_pdf_is_unchanged));load();}});}});
+    }
+    private ArrayList<Mark> copyMarks(){
+        ArrayList<Mark> snapshot=new ArrayList<>();for(Mark m:marks){Mark copy=new Mark();copy.page=m.page;copy.color=m.color;copy.tool=m.tool;copy.text=m.text;copy.origin=m.origin;copy.fillColor=m.fillColor;copy.bounds.set(m.bounds);copy.points.addAll(m.points);copy.quads.addAll(m.quads);for(ArrayList<Float> stroke:m.strokes)copy.strokes.add(new ArrayList<>(stroke));copy.width=m.width;copy.opacity=m.opacity;snapshot.add(copy);}return snapshot;
+    }
+    @Override protected void onSaveInstanceState(Bundle state){super.onSaveInstanceState(state);state.putInt("page",page);state.putString("tool",tool);
+        // A pending restore must never overwrite the good snapshot with an empty editor.
+        if(initialized){final ArrayList<Mark> copy=copyMarks();final String base=baseline;final int color=inkColor;final float width=lineWidth;final ArrayList<String> us=new ArrayList<>(undo),rs=new ArrayList<>(redo);
+            SessionSnapshots.write(sessionFile,()->new org.json.JSONObject().put("marks",PdfAnnotations.encode(copy)).put("baseline",base).put("color",color).put("width",width).put("undo",new org.json.JSONArray(us)).put("redo",new org.json.JSONArray(rs)).toString());}
+        state.putString("annotation_session",sessionFile.getPath());
+    }
+
 
     @Override protected void onResume(){super.onResume();FolderLock.guard(this,path);}
-    @Override protected void onDestroy(){destroyed=true;worker.execute(()->{if(bitmap!=null)bitmap.recycle();});worker.shutdown();super.onDestroy();}
+    @Override protected void onDestroy(){if(isFinishing()&&sessionFile!=null)SessionSnapshots.delete(sessionFile);destroyed=true;worker.execute(()->{if(bitmap!=null)bitmap.recycle();});worker.shutdown();super.onDestroy();}
     private int dp(int value){return Math.round(value*getResources().getDisplayMetrics().density);}
     private void toast(String text){Toast.makeText(this,text,Toast.LENGTH_LONG).show();}
 }

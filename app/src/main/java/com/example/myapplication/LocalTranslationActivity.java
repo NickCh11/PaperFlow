@@ -55,6 +55,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
         volatile boolean busy,disposed,cancelled;boolean restoring;Uri pendingDestination;
         final Set<File> snapshots=java.util.concurrent.ConcurrentHashMap.newKeySet();volatile File snapshot;File lastExport,exportEvent;String exportAction,exportMime;
         final Set<File> importedSources=java.util.concurrent.ConcurrentHashMap.newKeySet();
+        void ownInputs(Collection<String> paths){for(String path:paths)try{importedSources.add(TemporaryInputs.owned(getApplication().getFilesDir(),path));}catch(IOException ignored){}}
 
         public TranslationSession(Application app){super(app);
             android.content.SharedPreferences prefs=app.getSharedPreferences("photo-translation",0);
@@ -284,7 +285,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
             }catch(Exception error){for(Uri destination:created)try{android.provider.DocumentsContract.deleteDocument(getApplication().getContentResolver(),destination);}catch(Exception ignored){}fail(error);}});
         }
         void cancel(){cancelled=true;message=UiText.get(R.string.ui_stopping_after_the_current_step);publish();}
-        @Override protected void onCleared(){disposed=true;cancelled=true;worker.execute(()->{for(File dir:snapshots)TranslationSnapshot.remove(getApplication(),dir);snapshots.clear();for(File file:importedSources)file.delete();if(source!=null&&!source.isRecycled())source.recycle();if(result!=null&&!result.bitmap.isRecycled())result.bitmap.recycle();});worker.shutdown();}
+        @Override protected void onCleared(){disposed=true;cancelled=true;worker.execute(()->{for(File dir:snapshots)TranslationSnapshot.remove(getApplication(),dir);snapshots.clear();try{TemporaryInputs.remove(getApplication().getFilesDir(),importedSources,new BookDraftStore(getApplication()).read().pages);}catch(IOException unreadableDraft){/* Keep inputs if draft ownership cannot be established. */}if(source!=null&&!source.isRecycled())source.recycle();if(result!=null&&!result.bitmap.isRecycled())result.bitmap.recycle();});worker.shutdown();}
     }
 
     static String languageName(String code){return Locale.forLanguageTag(code.replace('_','-')).getDisplayName(UiText.context().getResources().getConfiguration().getLocales().get(0));}
@@ -295,13 +296,14 @@ public class LocalTranslationActivity extends BackHandlingActivity {
             ArrayList<String> cached=state.getStringArrayList("translated_page_snapshots");if(cached!=null)for(int i=0;i<cached.size();i++)if(cached.get(i)!=null)try{File file=TranslationSnapshot.owned(this,cached.get(i),"translation-sessions");if(file.isDirectory()){session.pageSnapshots.put(i,file);session.snapshots.add(file);}}catch(IOException ignored){}
             ArrayList<String> outputs=state.getStringArrayList("translation_export_files");if(outputs!=null&&session.exportFiles.isEmpty())for(String path:outputs)try{File file=new File(path).getCanonicalFile();if(file.isFile()&&(file.getPath().startsWith(getCacheDir().getCanonicalPath()+File.separator)||file.getPath().startsWith(getFilesDir().getCanonicalPath()+File.separator)))session.exportFiles.add(file);}catch(IOException ignored){}
             session.exportPageCount=state.getInt("translation_export_page_count",1);
-            for(String path:session.capturedPages)try{File file=TranslationSnapshot.owned(this,path,"translation-inputs");session.importedSources.add(file);}catch(IOException ignored){}
+            session.ownInputs(session.capturedPages);
         }
         picker=registerForActivityResult(new ActivityResultContracts.OpenMultipleDocuments(),uris->{if(uris!=null&&!uris.isEmpty()){original=false;session.importImages(uris);}});
         camera=registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),result->{
             if(result.getResultCode()!=RESULT_OK||result.getData()==null)return;
             ArrayList<String> pages=result.getData().getStringArrayListExtra("pages");
             if(pages!=null&&!pages.isEmpty()){
+                session.ownInputs(pages);
                 original=false;session.captureMode=result.getData().getStringExtra("capture_mode");
                 session.sourceOverride=result.getData().getStringExtra("translation_source");if(session.sourceOverride==null)session.sourceOverride="auto";
                 String selectedTarget=result.getData().getStringExtra("translation_target");if(selectedTarget!=null){session.target=selectedTarget;session.explicitTarget=true;}
