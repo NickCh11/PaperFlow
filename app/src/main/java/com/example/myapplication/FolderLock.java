@@ -54,9 +54,14 @@ final class FolderLock {
         if(prefs(a).getBoolean("bio_"+id,false)&&BiometricManager.from(a).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)==BiometricManager.BIOMETRIC_SUCCESS){
             BiometricPrompt prompt=new BiometricPrompt(a,ContextCompat.getMainExecutor(a),new BiometricPrompt.AuthenticationCallback(){
                 @Override public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result){unlocked(id);done.run();}
-                @Override public void onAuthenticationError(int code,CharSequence message){if(code==BiometricPrompt.ERROR_NEGATIVE_BUTTON)askPin(a,id,done);}
+                @Override public void onAuthenticationError(int code,CharSequence message){authenticationError(a,id,done,code);}
             });prompt.authenticate(new BiometricPrompt.PromptInfo.Builder().setTitle(UiText.get(R.string.ui_unlock_folder)).setSubtitle("Use an enrolled device biometric").setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG).setNegativeButtonText("Use folder PIN").build());
         }else askPin(a,id,done);
+    }
+    static void authenticationError(AppCompatActivity a,long id,Runnable done,int code){
+        if(code==BiometricPrompt.ERROR_USER_CANCELED||code==BiometricPrompt.ERROR_CANCELED)return;
+        // Hardware errors and biometric lockout must still allow the folder PIN.
+        a.getWindow().getDecorView().post(()->{if(!a.isFinishing()&&!a.isDestroyed())askPin(a,id,done);});
     }
     private static void askPin(AppCompatActivity a,long id,Runnable done){
         EditText input=new EditText(a);input.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD);input.setSingleLine();

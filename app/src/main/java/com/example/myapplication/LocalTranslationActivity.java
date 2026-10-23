@@ -394,7 +394,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
         }catch(Exception problem){Toast.makeText(this,UiText.get(R.string.ui_could_not_load_translation_languages),Toast.LENGTH_LONG).show();}
     }
     private void choosePhoto(){new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_new_translation)).setItems(new String[]{UiText.get(R.string.ui_camera), UiText.get(R.string.ui_translation_import_images)},(d,w)->{if(w==0)openCamera();else picker.launch(new String[]{"image/*"});}).show();}
-    private void openCamera(){if(!session.busy)camera.launch(new Intent(this,CameraCaptureActivity.class).putExtra("capture_mode",session.captureMode).putExtra("live_translation",true).putExtra("translation_source",session.sourceOverride).putExtra("translation_target",session.target));}
+    private void openCamera(){if(!session.busy)camera.launch(new Intent(this,CameraCaptureActivity.class).putExtra("capture_mode",session.captureMode).putExtra("translation_capture",true).putExtra("translation_source",session.sourceOverride).putExtra("translation_target",session.target));}
     private void chooseExport(String action){if(session.busy||session.result==null)return;new AlertDialog.Builder(this).setTitle(action.equals("device") ? UiText.get(R.string.ui_save_to_device) : UiText.get(R.string.ui_share_translation)).setItems(new String[]{UiText.get(R.string.ui_translation_pdf), UiText.get(R.string.ui_translation_images)},(d,w)->session.export(w==0,action)).setNegativeButton(UiText.get(R.string.ui_cancel),null).show();}
     private void showText(){
         TextView text=text(session.translatedText(),16,INK);text.setTextIsSelectable(true);text.setPadding(dp(20),dp(16),dp(20),dp(16));ScrollView scroll=new ScrollView(this);scroll.addView(text);

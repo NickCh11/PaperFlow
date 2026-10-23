@@ -19,17 +19,10 @@
     <string name="ui_shared_language_packs_help">Download a language pack for offline translation and OCR. Common models are shared between languages. Enable OCR languages to add selectable text to scans and PDFs.</string>
     <string name="ui_photo_capture_mode">Photo</string>
     <string name="ui_page_capture_mode">Page</string>
-    <string name="ui_live_translation">Live translation</string>
-    <string name="ui_live_translation_starting">Preparing live translation…</string>
-    <string name="ui_live_translation_ready">Hold the camera steady to translate</string>
-    <string name="ui_live_translation_languages">Download the source and target language packs first.</string>
     <string name="ui_source_language_ambiguous">Choose the source language for this short or ambiguous text.</string>
     <string name="ui_photo_translation_offline_help">Offline translation with automatic text and language detection</string>
     <string name="ui_photo_no_detection">Photo mode · no page detection</string>
-    <string name="ui_live_overlay_on">Live: on</string>
-    <string name="ui_live_overlay_off">Live: off</string>
     <string name="ui_update_language_packs">Check for language pack updates</string>
     <string name="ui_updating_language_packs">Checking language pack updates…</string>
     <string name="ui_offline_translation_help">Choose a source language or use automatic detection, then select the target language. Photo, live camera and text translation run on this device after the required language packs are downloaded. Photo mode keeps the full frame; document modes enable paper detection.</string>
-    <string name="ui_live_preview_unavailable">Live translation preview is unavailable on this device. Capture a photo to translate it.</string>
 </resources>
