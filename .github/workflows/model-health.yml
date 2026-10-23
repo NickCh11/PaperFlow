@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       verify_bytes:
-        description: Download all models and verify pinned hashes
+        description: Download all models and verify catalog sizes
         type: boolean
         default: false
 

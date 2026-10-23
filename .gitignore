@@ -38,6 +38,8 @@ __pycache__/
 venv/
 node_modules/
 *.part
+/translation/native/target/
+/translation/src/main/jniLibs/
 
 # Model conversion input; runtime models under src are committed
 /app/model-tools/uvdoc/uvdoc-model.pkl

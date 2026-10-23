@@ -1,13 +1,13 @@
 # PaperFlow third-party notices
 
-PaperFlow as a combined application is provided under GPL-3.0-or-later. Original third-party copyright notices and license terms remain applicable to their components. This application is independent of FairScan, unmark, PlayTranslate, Mozilla and CamScanner.
+PaperFlow as a combined application is provided under GPL-3.0-or-later. Original third-party copyright notices and license terms remain applicable to their components. This application is independent of FairScan, unmark, offline-translator, Mozilla and CamScanner.
 
 ## FairScan
 
 Copyright 2025–2026 The FairScan authors. GPL-3.0-or-later.
 https://github.com/pynicolas/FairScan/tree/c1517c52bf10eeeea8aef6710c7fad94d4edcc67
 
-Image processing sources, OCR language naming, word/line extraction and searchable PDF text layer were adapted. Integration changes include Java entry points, bitmap ownership, shared serialized inference, OpenCV resource cleanup, a unique OCR font resource name and support for nonzero PDF crop origins. Upstream mask thresholding, preprocessing, geometry, color selection and enhancement are retained. CameraX live display and existing Book crease handling belong to PaperFlow's integration.
+Image processing sources and the searchable PDF text layer were adapted. OCR inference now comes from offline-translator. Integration changes include Java entry points, bitmap ownership, shared serialized inference, OpenCV resource cleanup, a unique OCR font resource name and support for nonzero PDF crop origins. Upstream mask thresholding, preprocessing, geometry, color selection and enhancement are retained. CameraX live display and existing Book crease handling belong to PaperFlow's integration.
 
 Segmentation model v1.2.0, GPL-3.0:
 https://github.com/pynicolas/fairscan-segmentation-model
@@ -21,29 +21,37 @@ https://github.com/EmreO33/unmark/tree/b757a9b4273d9078749f57f430b09bab8df89047
 
 Inpainter.kt retains the nearest-neighbor multi-source fill, six smoothing passes, 1024-pixel processing limit and full-resolution masked blend. Adaptations: synchronous worker entry point, Java access, temporary bitmap recycling and rejection of an entirely selected image. Pinch zoom and drawing controls are PaperFlow integration code.
 
-## Local translation
+## Offline translation and OCR
 
-PlayTranslate, GPL-3.0:
-https://github.com/dominostars/playtranslate/tree/c797cafbe3347a1c6bce7ac57978d973b9211b20
-The Bergamot JNI bridge and Android CMake integration were adapted. Native services are serialized; the C++ runtime is linked statically inside the JNI library. ARM NEON / x86 SSE2 selection, API 26 aligned allocation, a vendored PCRE2 source path and 16 KB library alignment are integration changes.
+offline-translator, Copyright (C) 2024 David V, GPL-3.0-or-later:
+https://github.com/DavidVentura/offline-translator/tree/8a6707756528b878f6b5cf6e5ffc9b5ed71f315e
+PaperFlow adapts its live GL camera surface, JNI tracker fast path, Android font
+provider and v6 pack catalog. Live tracking, PaddleOCR/MNN recognition, CLD2
+language detection, slimt translation and native image rendering use its pinned
+translator-rs engine. The host UI retains PaperFlow capture modes and exports.
+See translation/OFFLINE-TRANSLATOR-NOTICE.md and translation/native/Cargo.lock.
 
-slimt fork and contributors, GNU GPL version 2 as distributed; embedded Marian-derived files retain their MPL-2.0 notices:
-https://github.com/dominostars/slimt/tree/a0a486cf573c862c2f74eb32f068fec561ba0a08
-Complete pinned sources and dependency licenses are retained in translation/third-party. Exact source archives and hashes are recorded in translation/upstream-lock.json. Dependencies include SentencePiece (Apache-2.0), ruy (Apache-2.0), cpuinfo (BSD), gemmology (MPL-2.0), xsimd (BSD), intgemm (MIT), GoogleTest (BSD), and PCRE2 10.43 (BSD). Some vendored dependencies are not selected in the Android build.
+translator-rs, Copyright 2026 David, MIT:
+https://github.com/DavidVentura/translator-rs/tree/a1e232488007cfe28b9198da1a3351cf32078ef9
+The MIT license is included as assets/licenses/TRANSLATOR-RS-LICENSE.
 
-The cpuinfo dependency includes its bundled clog logging library (BSD-2-Clause),
-including its original license under `cpuinfo/deps/clog/LICENSE`. Its ignore rules
-are adapted so this required source is included in clean repository checkouts.
+PaddleOCR models and contributors, Apache-2.0:
+https://github.com/PaddlePaddle/PaddleOCR
+DocAligner lcnet050, DocsaidLab and contributors, Apache-2.0:
+https://github.com/DocsaidLab/DocAligner
+MNN runtime and contributors, Apache-2.0:
+https://github.com/alibaba/MNN
+CLD2 and contributors, Apache-2.0:
+https://github.com/CLD2Owners/cld2
+slimt and its dependencies retain their upstream license notices in the pinned
+Git sources resolved by Cargo.lock. Those include Marian-derived translation
+code and vocabulary/shortlist handling. Model licenses are independent.
 
-PaperFlow's ARMv7 integration selects the existing ruy int8 backend because the
-vendored gemmology ARM kernels require ARM64. The model reader validates 64-bit
-on-disk sizes before converting them to the target's `size_t`, rejecting values
-and array sizes that exceed the address space.
-
-Mozilla Firefox Translations tiny models, MPL-2.0:
+Firefox Translations models, Mozilla and contributors, MPL-2.0:
 https://github.com/mozilla/firefox-translations-models
-https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/db/models.json
-The catalog includes 62 stable tiny-model directions connecting 32 languages through English. Pinned model versions are recorded per entry. Weights, vocabulary and shortlist are downloaded unchanged from Mozilla's official attachments CDN. Exact URLs, sizes and SHA-256 hashes are in assets/languages/translation.json. Attribution and model license apply to model files; model output is not relicensed as a model adaptation.
+The pinned upstream v6 catalog contains original model URLs, install paths and
+decoded sizes. Downloads use offline-translator's model host. No document or
+camera data is sent to that host.
 
 ## OCR and other runtimes
 
@@ -58,12 +66,9 @@ https://github.com/microsoft/onnxruntime/tree/v1.23.2
 Used to execute the UVDoc grid locally. Its upstream license is included as
 assets/licenses/ONNX-RUNTIME-LICENSE.
 
-Tesseract and tessdata_fast, Apache-2.0:
+TesseractGlyphLessFont.ttf, Apache-2.0: retained only as the invisible searchable
+PDF font; the Tesseract OCR runtime and traineddata packs are no longer used.
 https://github.com/tesseract-ocr/tesseract
-https://github.com/tesseract-ocr/tessdata_fast/tree/87416418657359cb625c412a48b6e1d6d41c29bd
-126 downloadable traineddata entries are pinned to Git blob SHA-1 and byte size. TesseractGlyphLessFont.ttf is included for invisible searchable text.
-
-Tesseract4Android 4.9.0 (Apache-2.0), Leptonica (BSD), libpng (libpng license), libjpeg-turbo (IJG/BSD/zlib): https://github.com/adaptech-cz/Tesseract4Android
 
 LiteRT 1.4.1 and support API 1.4.1 (Apache-2.0): https://github.com/google-ai-edge/LiteRT
 OpenCV 4.12.0 (Apache-2.0 and bundled third-party notices): https://github.com/opencv/opencv
@@ -80,10 +85,11 @@ Model bytes are unchanged; it runs through LiteRT for ID Photo Maker. No ML Kit 
 Full license texts accompanying included sources and standard GPL, Apache, MPL and BSD licenses are available under assets/licenses and in the corresponding vendored source directories. The APK's Settings → Open source licenses screen displays this attribution document.
 
 
-Language-detection profiles, Apache-2.0:
-https://github.com/optimaize/language-detector/tree/1a322c462f977b29eca8d3142b816b7111d3fa19
-Original profile data by Nakatani Shuyo and contributors, distributed by Optimaize. The app includes derived lowercase NFKC rank profiles (top 700 n-grams for each of 32 languages) rather than the upstream Java library or complete profiles. A custom local rank-distance classifier consumes them. The upstream license text is included as assets/licenses/LANGUAGE-PROFILES-APACHE-2.0.txt.
+## Language packs and archives
 
-## Language model distribution mirrors
-
-Unmodified pinned Tesseract tessdata_fast files (Apache-2.0) and Mozilla Firefox Translations model/vocabulary/shortlist files (MPL-2.0) may additionally be downloaded from the project's configured public GitHub model Release. Each mirror uses the same pinned model bytes and verification as its official source. The model Release includes the upstream manifests, full model licenses, attribution, original source URLs and SHA-256 checksums. No model license is replaced by the application license. See docs/MODEL_DISTRIBUTION.md.
+The app uses the offline-translator catalog and shared core packs directly.
+Downloads are staged; complete archive markers are committed last. The upstream
+catalog declares decoded byte sizes, not cryptographic model digests. Optional
+private archives include separately calculated SHA-256 checksums for their
+downloaded bytes. They are not anonymous app download endpoints.
+See docs/MODEL_DISTRIBUTION.md.

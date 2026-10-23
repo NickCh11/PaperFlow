@@ -44,14 +44,16 @@ public class LocalTranslationActivity extends BackHandlingActivity {
         Bitmap source;
         TranslationRenderer.Result result;
         ArrayList<TranslationRenderer.Block> blocks=new ArrayList<>();
-        String target="en",sourceLanguage="",sourceOverride="auto",message=UiText.get(R.string.ui_32_languages_works_offline_after_the_first_download);
+        final ArrayList<String> capturedPages=new ArrayList<>();int capturedIndex;
+        String captureMode="Photo";
+        String target="en",sourceLanguage="",sourceOverride="auto",message=UiText.get(R.string.ui_photo_translation_offline_help);
         boolean explicitTarget,error,readableLayout;
         volatile boolean busy,disposed,cancelled;boolean restoring;Uri pendingDestination;
         final Set<File> snapshots=java.util.concurrent.ConcurrentHashMap.newKeySet();volatile File snapshot;File lastExport,exportEvent;String exportAction,exportMime;
 
         public TranslationSession(Application app){super(app);
             android.content.SharedPreferences prefs=app.getSharedPreferences("photo-translation",0);
-            explicitTarget=prefs.contains("target");target=prefs.getString("target","en");
+            explicitTarget=true;target=prefs.getString("target","en");
         }
         void publish(){changes.setValue(changes.getValue()==null?1:changes.getValue()+1);}
         void status(String value){main.post(()->{if(!disposed&&!cancelled){message=value;publish();}});}
@@ -84,7 +86,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
                 if(image==null)throw new IOException(UiText.get(R.string.ui_could_not_open_this_photo_choose_another_image));
                 try(InputStream in=getApplication().getContentResolver().openInputStream(uri)){image=ImageOrientation.upright(image,new androidx.exifinterface.media.ExifInterface(in));}
                 checkCancelled();
-                try{float[] corners=PageBoundaryDetector.detect(image);
+                try{float[] corners=CaptureModes.detectsPaper(captureMode)&&!"Book".equals(captureMode)?PageBoundaryDetector.detect(image):null;
                     if(corners!=null){Bitmap cropped=PageGeometry.crop(image,corners);if(cropped!=image)image.recycle();image=cropped;}
                 }catch(RuntimeException cropUnavailable){/* OCR can still read the full photo. */}
                 checkCancelled();Bitmap ready=image;image=null;
@@ -113,7 +115,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
         }
         String sourceText(List<TranslationRenderer.Block> ready){StringBuilder out=new StringBuilder();for(TranslationRenderer.Block block:ready)out.append(block.source).append(' ');return out.toString();}
         ArrayList<TranslationRenderer.Block> readBlocks(String ocr){
-            ArrayList<TranslationRenderer.Block> ready=TranslationRenderer.blocks(LocalOcr.recognize(getApplication(),source,ocr,0f),ocr.equals("heb")||ocr.equals("fas"));
+            ArrayList<TranslationRenderer.Block> ready=TranslationRenderer.blocks(LocalOcr.recognize(getApplication(),source,ocr,0f),ocr.equals("he")||ocr.equals("fa")||ocr.equals("ar"));
             for(TranslationRenderer.Block block:ready)block.source=Normalizer.normalize(block.source,Normalizer.Form.NFKC);
             return ready;
         }
@@ -122,19 +124,19 @@ public class LocalTranslationActivity extends BackHandlingActivity {
                 TranslationCatalog.Language language=TranslationCatalog.language(getApplication(),override);ensureLanguage("ocr",language.ocr);
                 status(UiText.format(R.string.ui_reading_value_text, language.name));return new Recognition(readBlocks(language.ocr),override);
             }
-            ensureLanguage("ocr","eng");ensureLanguage("ocr","ell");
-            LinkedHashSet<String> candidates=new LinkedHashSet<>(Arrays.asList("eng","ell"));
-            String recent=getApplication().getSharedPreferences("photo-translation",0).getString("recent-source","");
-            for(String code:new String[]{recent,target})if(!code.isEmpty()){
-                TranslationCatalog.Language language=TranslationCatalog.language(getApplication(),code);
-                if(LanguageModels.installed(getApplication(),"ocr",language("ocr",language.ocr)))candidates.add(language.ocr);
-            }
-            status(UiText.get(R.string.ui_reading_text_and_detecting_its_language));ArrayList<TranslationRenderer.Block> probe=readBlocks(String.join("+",candidates));
+            com.paperflow.translation.OfflineRuntime runtime=com.paperflow.translation.OfflineRuntime.get(getApplication());
+            JSONArray installed=runtime.languages();boolean hasOcr=false;
+            for(int i=0;i<installed.length();i++)if(installed.getJSONObject(i).optBoolean("ocr")){hasOcr=true;break;}
+            if(!hasOcr){ensureLanguage("ocr","en");ensureLanguage("ocr","el");}
+            status(UiText.get(R.string.ui_reading_text_and_detecting_its_language));
+            ArrayList<TranslationRenderer.Block> probe=readBlocks("auto");
             if(probe.isEmpty())throw new IOException(UiText.get(R.string.ui_no_readable_text_found_choose_the_photo_language_above_or_try_a_clearer_pho));
-            String detected=PhotoLanguageDetector.detect(getApplication(),sourceText(probe));TranslationCatalog.Language language=TranslationCatalog.language(getApplication(),detected);
-            ensureLanguage("ocr",language.ocr);checkCancelled();status(UiText.format(R.string.ui_reading_value_text, language.name));
-            return new Recognition(readBlocks(language.ocr),detected);
+            String detected=PhotoLanguageDetector.detect(getApplication(),sourceText(probe));
+            if(detected.isEmpty())throw new IOException(UiText.get(R.string.ui_source_language_ambiguous));
+            TranslationCatalog.Language language=TranslationCatalog.language(getApplication(),detected);
+            ensureLanguage("ocr",language.ocr);return new Recognition(probe,detected);
         }
+
         void translate(boolean recognize){
             if(busy||source==null)return;begin("Preparing automatic translation…");
             final String requestedTarget=target,requestedSource=sourceOverride;final boolean automaticTarget=!explicitTarget;
@@ -146,27 +148,39 @@ public class LocalTranslationActivity extends BackHandlingActivity {
                     ready=new ArrayList<>(blocks);detected=requestedSource.equals("auto")?PhotoLanguageDetector.detect(getApplication(),sourceText(ready)):requestedSource;
                 }
                 checkCancelled();if(ready.isEmpty())throw new IOException(UiText.get(R.string.ui_no_readable_text_found_choose_the_photo_language_above_or_try_a_clearer_pho));
+                if(detected.isEmpty())throw new IOException(UiText.get(R.string.ui_source_language_ambiguous));
                 String chosen=automaticTarget?(detected.equals("el")?"en":"el"):requestedTarget;
                 main.post(()->{if(!disposed&&!cancelled){sourceLanguage=detected;target=chosen;publish();}});
-                boolean sameLanguage=detected.equals(chosen);
-                if(sameLanguage)for(TranslationRenderer.Block block:ready)block.translation=block.source;
-                else{
-                    List<String> route=TranslationCatalog.route(detected,chosen);
-                    for(String direction:route)ensureLanguage("translation",direction);
-                    int completed=0,total=route.size()*ready.size();
-                    // Close one native model before loading the next to keep pivot translation small.
-                    for(int hop=0;hop<route.size();hop++)try(OfflineTranslator translator=new OfflineTranslator(getApplication(),route.get(hop))){
-                        for(TranslationRenderer.Block block:ready){checkCancelled();block.translation=translator.translate(hop==0?block.source:block.translation);completed++;status(UiText.format(R.string.ui_translating_value_value, completed, total));}
-                    }
-                }
-                renderAndPublish(ready,detected,chosen,sameLanguage);
+                for(String direction:TranslationCatalog.route(detected,chosen))ensureLanguage("translation",direction);
+                checkCancelled();status(UiText.get(R.string.ui_preparing_your_translation));
+                JSONObject edits=null;
+                if(!recognize){JSONArray sources=new JSONArray();for(TranslationRenderer.Block block:ready)sources.put(block.source);edits=new JSONObject().put("sourceEdits",sources);}
+                renderNative(detected,chosen,edits);
             }catch(Exception|LinkageError|OutOfMemoryError problem){fail(problem);}});
         }
-        void renderAndPublish(ArrayList<TranslationRenderer.Block> ready,String detected,String chosen,boolean sameLanguage)throws Exception{
-            checkCancelled();status(UiText.get(R.string.ui_preparing_your_translation));TranslationRenderer.Result rendered;boolean fallback=false;
-            if(sameLanguage){ArrayList<com.paperflow.imageprocessing.OcrTextBox> words=new ArrayList<>();for(TranslationRenderer.Block block:ready)words.addAll(block.words);rendered=new TranslationRenderer.Result(source.copy(Bitmap.Config.ARGB_8888,false),words);}
-            else try{rendered=TranslationRenderer.render(source,ready);}catch(RuntimeException cannotFit){checkCancelled();rendered=TranslationRenderer.readableDocument(ready);fallback=true;}
-            final TranslationRenderer.Result output=rendered;final boolean usedFallback=fallback;
+        void renderNative(String detected,String chosen,JSONObject edits)throws Exception{
+            com.paperflow.translation.OfflineRuntime.ImageResult nativeResult=com.paperflow.translation.OfflineRuntime.get(getApplication()).image(source,detected,chosen,50f,edits);
+            try{
+                checkCancelled();ArrayList<com.paperflow.imageprocessing.OcrTextBox> outputWords=words(nativeResult.metadata.getJSONArray("translatedWords"));
+                ArrayList<com.paperflow.imageprocessing.OcrTextBox> sourceWords=words(nativeResult.metadata.getJSONArray("words"));
+                ArrayList<TranslationRenderer.Block> nativeBlocks=new ArrayList<>();JSONArray blockRows=nativeResult.metadata.getJSONArray("blocks");
+                for(int i=0;i<blockRows.length();i++){
+                    JSONObject row=blockRows.getJSONObject(i);Rect rect=new Rect(row.getInt("left"),row.getInt("top"),row.getInt("right"),row.getInt("bottom"));
+                    com.paperflow.imageprocessing.OcrTextBox box=new com.paperflow.imageprocessing.OcrTextBox(row.getString("source"),new com.paperflow.imageprocessing.ImageRect(rect.left,rect.top,rect.right,rect.bottom),rect.height(),rect.bottom);
+                    TranslationRenderer.Block block=new TranslationRenderer.Block(box);block.words.clear();
+                    for(com.paperflow.imageprocessing.OcrTextBox word:sourceWords)if(Rect.intersects(rect,new Rect(word.getBox().getLeft(),word.getBox().getTop(),word.getBox().getRight(),word.getBox().getBottom())))block.words.add(word);
+                    block.translation=row.getString("translation");nativeBlocks.add(block);
+                }
+                publishResult(new TranslationRenderer.Result(nativeResult.bitmap,outputWords),nativeBlocks,detected,chosen,false);
+            }catch(Exception|OutOfMemoryError error){if(!nativeResult.bitmap.isRecycled())nativeResult.bitmap.recycle();throw error;}
+        }
+
+        static ArrayList<com.paperflow.imageprocessing.OcrTextBox> words(JSONArray rows)throws Exception{
+            ArrayList<com.paperflow.imageprocessing.OcrTextBox> words=new ArrayList<>();
+            for(int i=0;i<rows.length();i++){JSONObject w=rows.getJSONObject(i);words.add(new com.paperflow.imageprocessing.OcrTextBox(w.getString("text"),new com.paperflow.imageprocessing.ImageRect(w.getInt("left"),w.getInt("top"),w.getInt("right"),w.getInt("bottom")),w.getInt("lineHeight"),w.getInt("baseline")));}return words;
+        }
+        void publishResult(TranslationRenderer.Result output,ArrayList<TranslationRenderer.Block> ready,String detected,String chosen,boolean usedFallback)throws Exception{
+            boolean sameLanguage=detected.equals(chosen);
             File savedSnapshot;try{savedSnapshot=TranslationSnapshot.write(getApplication(),source,output,ready,detected,chosen,sourceOverride,explicitTarget,usedFallback);snapshots.add(savedSnapshot);}catch(Exception e){output.bitmap.recycle();throw e;}
             main.post(()->{
                 if(disposed||cancelled){output.bitmap.recycle();if(!disposed)fail(new InterruptedIOException(UiText.get(R.string.ui_translation_cancelled)));return;}
@@ -174,7 +188,8 @@ public class LocalTranslationActivity extends BackHandlingActivity {
                 message=sameLanguage ? UiText.format(R.string.ui_this_text_is_already_in_value_choose_another_target_to_translate_it, languageName(chosen)) : usedFallback ? UiText.get(R.string.ui_ready_text_layout_keeps_the_full_translation_readable) : UiText.get(R.string.ui_ready_translated_on_this_device);publish();
             });
         }
-        void renderEdits(){if(busy||source==null)return;begin("Updating translation…");worker.execute(()->{try{renderAndPublish(new ArrayList<>(blocks),sourceLanguage,target,false);}catch(Exception|OutOfMemoryError problem){fail(problem);}});}
+        void renderEdits(){if(busy||source==null)return;begin("Updating translation…");worker.execute(()->{try{JSONArray sources=new JSONArray(),translations=new JSONArray();for(TranslationRenderer.Block block:blocks){sources.put(block.source);translations.put(block.translation);}
+            renderNative(sourceLanguage,target,new JSONObject().put("sourceEdits",sources).put("translationEdits",translations));}catch(Exception|OutOfMemoryError problem){fail(problem);}});}
         String translatedText(){StringBuilder out=new StringBuilder();for(TranslationRenderer.Block block:blocks){if(out.length()>0)out.append("\n\n");out.append(block.translation);}return out.toString();}
         void export(boolean pdf,String action){
             if(busy||result==null)return;begin("Preparing file…");
@@ -202,15 +217,21 @@ public class LocalTranslationActivity extends BackHandlingActivity {
         @Override protected void onCleared(){disposed=true;cancelled=true;worker.execute(()->{for(File dir:snapshots)TranslationSnapshot.remove(getApplication(),dir);snapshots.clear();if(source!=null&&!source.isRecycled())source.recycle();if(result!=null&&!result.bitmap.isRecycled())result.bitmap.recycle();});worker.shutdown();}
     }
 
-    static String languageName(String code){return Locale.forLanguageTag(code).getDisplayLanguage(UiText.context().getResources().getConfiguration().getLocales().get(0));}
+    static String languageName(String code){return Locale.forLanguageTag(code.replace('_','-')).getDisplayName(UiText.context().getResources().getConfiguration().getLocales().get(0));}
     @Override protected void onCreate(Bundle state){
         super.onCreate(state);com.tom_roush.pdfbox.android.PDFBoxResourceLoader.init(this);
-        session=new ViewModelProvider(this).get(TranslationSession.class);if(state!=null){original=state.getBoolean("show_original");String saved=state.getString("translation_session"),export=state.getString("pending_export");if(session.source==null&&!session.busy&&saved!=null){session.busy=true;session.restoring=true;session.worker.execute(()->{try{TranslationSnapshot.restore(session,saved);}catch(Exception|OutOfMemoryError e){session.main.post(()->{session.restoring=false;if(session.pendingDestination!=null&&session.lastExport!=null){Uri destination=session.pendingDestination;session.pendingDestination=null;session.busy=false;session.copyOutput(destination);}else session.fail(e);});}});}if(session.lastExport==null&&export!=null)try{File file=new File(export).getCanonicalFile();if(file.isFile()&&(file.getPath().startsWith(getFilesDir().getCanonicalPath()+File.separator)||file.getPath().startsWith(getCacheDir().getCanonicalPath()+File.separator)))session.lastExport=file;}catch(IOException ignored){}}
-        picker=registerForActivityResult(new ActivityResultContracts.OpenDocument(),uri->{if(uri!=null){original=false;session.load(uri);}});
+        session=new ViewModelProvider(this).get(TranslationSession.class);if(state!=null){if(session.capturedPages.isEmpty()){ArrayList<String> captured=state.getStringArrayList("captured_pages");if(captured!=null)for(String path:captured)if(new File(path).isFile())session.capturedPages.add(path);session.capturedIndex=state.getInt("captured_index");session.captureMode=state.getString("translation_capture_mode","Photo");}original=state.getBoolean("show_original");String saved=state.getString("translation_session"),export=state.getString("pending_export");if(session.source==null&&!session.busy&&saved!=null){session.busy=true;session.restoring=true;session.worker.execute(()->{try{TranslationSnapshot.restore(session,saved);}catch(Exception|OutOfMemoryError e){session.main.post(()->{session.restoring=false;if(session.pendingDestination!=null&&session.lastExport!=null){Uri destination=session.pendingDestination;session.pendingDestination=null;session.busy=false;session.copyOutput(destination);}else session.fail(e);});}});}if(session.lastExport==null&&export!=null)try{File file=new File(export).getCanonicalFile();if(file.isFile()&&(file.getPath().startsWith(getFilesDir().getCanonicalPath()+File.separator)||file.getPath().startsWith(getCacheDir().getCanonicalPath()+File.separator)))session.lastExport=file;}catch(IOException ignored){}}
+        picker=registerForActivityResult(new ActivityResultContracts.OpenDocument(),uri->{if(uri!=null){original=false;session.captureMode="Photo";session.capturedPages.clear();session.load(uri);}});
         camera=registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),result->{
             if(result.getResultCode()!=RESULT_OK||result.getData()==null)return;
             ArrayList<String> pages=result.getData().getStringArrayListExtra("pages");
-            if(pages!=null&&!pages.isEmpty()){original=false;session.load(Uri.fromFile(new File(pages.get(0))));}
+            if(pages!=null&&!pages.isEmpty()){
+                original=false;session.captureMode=result.getData().getStringExtra("capture_mode");
+                session.sourceOverride=result.getData().getStringExtra("translation_source");if(session.sourceOverride==null)session.sourceOverride="auto";
+                String selectedTarget=result.getData().getStringExtra("translation_target");if(selectedTarget!=null){session.target=selectedTarget;session.explicitTarget=true;}
+                session.capturedPages.clear();session.capturedPages.addAll(pages);session.capturedIndex=0;
+                session.load(Uri.fromFile(new File(pages.get(0))));
+            }
             else if(result.getData().getBooleanExtra("import_pdf",false))picker.launch(new String[]{"image/*"});
         });
         savePicker=registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),result->{if(result.getResultCode()==RESULT_OK&&result.getData()!=null&&result.getData().getData()!=null)session.copyOutput(result.getData().getData());});
@@ -256,6 +277,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
         }else{
             LinearLayout inputs=new LinearLayout(this);TextView take=button(UiText.get(R.string.ui_camera),true),importPhoto=button(UiText.get(R.string.ui_import_photo),false);inputs.addView(take,new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.leftMargin=dp(10);inputs.addView(importPhoto,lp);footer.addView(inputs);take.setOnClickListener(v->openCamera());importPhoto.setOnClickListener(v->picker.launch(new String[]{"image/*"}));
         }
+        if(session.capturedPages.size()>1&&!session.busy){TextView pages=button(UiText.format(R.string.ui_page_value,(session.capturedIndex+1)+" / "+session.capturedPages.size()),false);footer.addView(pages,new LinearLayout.LayoutParams(-1,dp(48)));pages.setOnClickListener(v->chooseCapturedPage());}
         if(session.exportEvent!=null){
             File file=session.exportEvent;session.exportEvent=null;
             if("library".equals(session.exportAction)){
@@ -266,6 +288,13 @@ public class LocalTranslationActivity extends BackHandlingActivity {
                 Uri uri=FileProvider.getUriForFile(this,getPackageName()+".files",file);startActivity(Intent.createChooser(new Intent(Intent.ACTION_SEND).setType(session.exportMime).putExtra(Intent.EXTRA_STREAM,uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),UiText.get(R.string.ui_share_translation)));
             }
         }
+    }
+    private void chooseCapturedPage(){
+        if(session.busy)return;String[] labels=new String[session.capturedPages.size()];
+        for(int i=0;i<labels.length;i++)labels[i]=UiText.format(R.string.ui_page_value,i+1);
+        new AlertDialog.Builder(this).setTitle(R.string.ui_pages).setSingleChoiceItems(labels,session.capturedIndex,(dialog,index)->{
+            session.capturedIndex=index;original=false;dialog.dismiss();session.load(Uri.fromFile(new File(session.capturedPages.get(index))));
+        }).show();
     }
     private void chooseLanguage(boolean source){
         if(session.busy)return;
@@ -282,7 +311,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
         }catch(Exception problem){Toast.makeText(this,UiText.get(R.string.ui_could_not_load_translation_languages),Toast.LENGTH_LONG).show();}
     }
     private void choosePhoto(){new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_new_photo)).setItems(new String[]{UiText.get(R.string.ui_camera), UiText.get(R.string.ui_import_photo)},(d,w)->{if(w==0)openCamera();else picker.launch(new String[]{"image/*"});}).show();}
-    private void openCamera(){if(!session.busy)camera.launch(new Intent(this,CameraCaptureActivity.class).putExtra("capture_mode","Single"));}
+    private void openCamera(){if(!session.busy)camera.launch(new Intent(this,CameraCaptureActivity.class).putExtra("capture_mode",session.captureMode).putExtra("live_translation",true).putExtra("translation_source",session.sourceOverride).putExtra("translation_target",session.target));}
     private void chooseExport(String action){if(session.busy||session.result==null)return;new AlertDialog.Builder(this).setTitle(action.equals("device") ? UiText.get(R.string.ui_save_to_device) : UiText.get(R.string.ui_share_translation)).setItems(new String[]{UiText.get(R.string.ui_pdf_selectable_text), UiText.get(R.string.ui_png_image)},(d,w)->session.export(w==0,action)).setNegativeButton(UiText.get(R.string.ui_cancel),null).show();}
     private void showText(){
         TextView text=text(session.translatedText(),16,INK);text.setTextIsSelectable(true);text.setPadding(dp(20),dp(16),dp(20),dp(16));ScrollView scroll=new ScrollView(this);scroll.addView(text);
@@ -299,7 +328,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
             case "Edit translation":editText(false);break;
             case "Save to documents":session.export(true,"library");break;
             case "Share":chooseExport("share");break;
-            default:new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_offline_translation)).setMessage(UiText.get(R.string.ui_32_languages_are_supported_choose_the_photo_language_or_use_auto_detect_the)).setPositiveButton(UiText.get(R.string.ui_ok),null).show();
+            default:new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_offline_translation)).setMessage(R.string.ui_offline_translation_help).setPositiveButton(UiText.get(R.string.ui_ok),null).show();
         }return true;});menu.show();
     }
     private void editText(boolean recognized){
@@ -309,7 +338,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
     }
     private void back(){if(session.busy)new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_stop_translation)).setNegativeButton(UiText.get(R.string.ui_keep_translating),null).setPositiveButton(UiText.get(R.string.ui_stop),(d,w)->{session.cancel();finish();}).show();else finish();}
     @Override public void handleBackPressed(){back();}
-    @Override protected void onSaveInstanceState(Bundle state){state.putBoolean("show_original",original);if(session.snapshot!=null)state.putString("translation_session",session.snapshot.getAbsolutePath());if(session.lastExport!=null)state.putString("pending_export",session.lastExport.getAbsolutePath());super.onSaveInstanceState(state);}
+    @Override protected void onSaveInstanceState(Bundle state){state.putBoolean("show_original",original);state.putStringArrayList("captured_pages",session.capturedPages);state.putInt("captured_index",session.capturedIndex);state.putString("translation_capture_mode",session.captureMode);if(session.snapshot!=null)state.putString("translation_session",session.snapshot.getAbsolutePath());if(session.lastExport!=null)state.putString("pending_export",session.lastExport.getAbsolutePath());super.onSaveInstanceState(state);}
     @Override protected void onDestroy(){destroyed=true;super.onDestroy();}
     private TextView text(String value,int size,int color){TextView view=new TextView(this);view.setText(value);view.setTextSize(size);view.setTextColor(color);view.setGravity(Gravity.CENTER_VERTICAL);return view;}
     private TextView button(String value,boolean filled){TextView view=text(value,15,filled ? AppTheme.onAccent() :BRAND);view.setGravity(Gravity.CENTER);view.setTypeface(null,android.graphics.Typeface.BOLD);view.setPadding(dp(10),dp(8),dp(10),dp(8));view.setBackground(round(filled ? BRAND : AppTheme.surface(),6));AppTheme.polishAction(view);view.setContentDescription(value);return view;}

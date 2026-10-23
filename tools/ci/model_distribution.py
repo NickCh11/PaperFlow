@@ -4,35 +4,29 @@ import json
 from pathlib import Path
 import re
 from urllib.parse import urlsplit
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
 
 ROOT = Path(__file__).resolve().parents[2]
 TAG_RESOURCE = ROOT / "app/src/main/res/values/model_distribution.xml"
 
 
 def inventory(root=ROOT):
+    from offline_catalog import CATALOG, active_files, core_packs
+    catalog = json.loads((root / CATALOG).read_text("utf-8"))
+    canonical = json.dumps(catalog,sort_keys=True,separators=(",",":"),ensure_ascii=True).encode()
     entries = {}
-    digest = hashlib.sha256()
-    for kind in ("ocr", "translation"):
-        raw = (root / f"app/src/main/assets/languages/{kind}.json").read_bytes()
-        catalog = json.loads(raw)
-        canonical = json.dumps(catalog, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
-        digest.update(kind.encode() + b"\0" + canonical + b"\0")
-        for language in catalog["languages"]:
-            for item in language.get("files", [language]):
-                git_blob = "blobSha1" in item
-                fingerprint = item["blobSha1" if git_blob else "sha256"]
-                if not re.fullmatch(r"[0-9a-f]{40}" if git_blob else r"[0-9a-f]{64}", fingerprint):
-                    raise ValueError("Invalid model digest")
-                if not isinstance(item["size"], int) or item["size"] <= 0:
-                    raise ValueError("Invalid model size")
-                url = urlsplit(item["url"])
-                if url.scheme != "https" or not url.hostname or url.username or url.password:
-                    raise ValueError("Models must use public HTTPS URLs")
-                name = ("blobsha1-" if git_blob else "sha256-") + fingerprint + (".traineddata" if git_blob else ".bin")
-                if name in entries and entries[name]["size"] != item["size"]:
-                    raise ValueError("Conflicting model sizes")
-                entries.setdefault(name, dict(item))
-    return "language-models-" + digest.hexdigest()[:20], entries
+    for path, item in active_files(catalog,core_packs(catalog,catalog["languages"])).items():
+        url = urlsplit(item["url"])
+        if url.scheme != "https" or not url.hostname or url.username or url.password:
+            raise ValueError("Models must use public HTTPS URLs")
+        if not isinstance(item["sizeBytes"],int) or item["sizeBytes"]<=0:
+            raise ValueError("Invalid model size")
+        descriptor = json.dumps(item,sort_keys=True,separators=(",",":")).encode()
+        name = "asset-" + hashlib.sha256(descriptor).hexdigest() + ".bin"
+        entries[name] = dict(item,size=item["sizeBytes"],gzip=url.path.endswith(".gz"))
+    return "language-models-"+hashlib.sha256(canonical).hexdigest()[:20],entries
+
 
 
 def check_tag(root=ROOT):

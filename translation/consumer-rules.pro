@@ -1,1 +1,2 @@
--keep class com.playtranslate.bergamot.BergamotNative { *; }
+-keep class com.paperflow.translation.RuntimeNative { *; }
+-keep class dev.davidv.translator.LivePipelineJni { *; }

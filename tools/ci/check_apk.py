@@ -6,8 +6,8 @@ import zipfile
 
 ARCHITECTURES = {"arm64-v8a": (2, 183), "armeabi-v7a": (1, 40),
                  "x86_64": (2, 62), "x86": (1, 3)}
-REQUIRED = {"libbergamot_jni.so", "libtensorflowlite_jni.so", "libopencv_java4.so",
-            "libtesseract.so", "libleptonica.so", "libonnxruntime.so",
+REQUIRED = {"libpaperflow_runtime.so", "libtensorflowlite_jni.so", "libopencv_java4.so",
+            "libonnxruntime.so",
             "libonnxruntime4j_jni.so", "libc++_shared.so"}
 
 

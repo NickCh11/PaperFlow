@@ -13,6 +13,11 @@ use translator_ocr::engine::OcrEngine;
 
 struct Runtime { session: Arc<TranslatorSession>, ocr: OcrEngine, bundled: String }
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
+
+// ABI 2 passes direct ByteBuffers instead of Java byte arrays. Keep an explicit
+// handshake so stale workflow artifacts cannot be loaded with the wrong JNI ABI.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_apiVersion(_:JNIEnv,_:JClass)->jint {2}
 fn runtime() -> Result<&'static Runtime, String> {
     RUNTIME.get().ok_or_else(|| "Language runtime is not initialized".into())
 }

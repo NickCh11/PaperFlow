@@ -10,9 +10,11 @@ import shutil
 import subprocess
 import time
 import urllib.request
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
 
 ROOT = Path(__file__).resolve().parents[2]
-PACKS = {"ocr": ("eng", "ell"), "translation": ("en-el", "el-en")}
+PACKS = ("en", "el")
 
 
 def verify(data, entry):
@@ -21,8 +23,10 @@ def verify(data, entry):
     if "blobSha1" in entry:
         digest = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
         expected = entry["blobSha1"]
-    else:
+    elif "sha256" in entry:
         digest, expected = hashlib.sha256(data).hexdigest(), entry["sha256"]
+    else:
+        return  # Upstream v6 declares decoded sizes, not content digests.
     if digest != expected:
         raise ValueError("Language checksum mismatch")
 
@@ -67,18 +71,33 @@ def fetch(entry, target):
 
 
 def prepare(cache):
-    for kind, codes in PACKS.items():
-        catalog = json.loads((ROOT / f"app/src/main/assets/languages/{kind}.json").read_text("utf-8"))
-        entries = {e["code"]: e for e in catalog["languages"]}
-        for code in codes:
-            entry = entries[code]
-            if kind == "ocr":
-                fetch(entry, cache / "tessdata" / f"{safe_name(code)}.traineddata")
-            else:
-                folder = cache / "translation-models" / safe_name(code)
-                for item in entry["files"]:
-                    fetch(item, folder / safe_name(item["path"]))
-                (folder / "installed").write_text(json.dumps(entry), encoding="utf-8")
+    from offline_catalog import CATALOG, active_files, core_packs, resolve
+    catalog = json.loads((ROOT / CATALOG).read_text("utf-8"))
+    # A distinct cache root prevents fixtures from the retired engine being seeded.
+    install_root = cache / "offline-language-packs"
+    for path,item in active_files(catalog,core_packs(catalog,PACKS)).items():
+        entry = dict(item,size=item["sizeBytes"],gzip=item["url"].split("?",1)[0].endswith(".gz"))
+        target = resolve(install_root,path)
+        fetch(entry,target)
+        archive = item.get("archive")
+        if archive:
+            import zipfile
+            marker=item.get("installMarker")
+            install_name=Path(marker["path"]).parent.name if marker else None
+            with zipfile.ZipFile(target) as source:
+                for member in source.infolist():
+                    parts=Path(member.filename.lstrip("/")).parts
+                    if ".." in parts:raise ValueError("Unsafe archive path")
+                    if install_name and parts and parts[0]!=install_name:parts=(install_name,)+parts
+                    destination=resolve(install_root,str(Path(archive["extractTo"],*parts)))
+                    if member.is_dir():destination.mkdir(parents=True,exist_ok=True)
+                    else:
+                        destination.parent.mkdir(parents=True,exist_ok=True)
+                        with source.open(member) as src,destination.open("wb") as dst:shutil.copyfileobj(src,dst)
+            if marker:
+                marker_file=resolve(install_root,marker["path"]);marker_file.parent.mkdir(parents=True,exist_ok=True)
+                marker_file.write_text(json.dumps(dict(version=marker["version"])),encoding="utf-8")
+            if archive.get("deleteAfterExtract"):target.unlink()
 
 
 def wait_for_android(command, timeout=180):
@@ -116,7 +135,7 @@ def install(cache, adb, serial):
     # Camera integration tests supply generated captures. Resolve the runtime prompt
     # before launching activities, so it cannot obscure review/result callbacks.
     subprocess.run(command + ["shell", "pm", "grant", "com.example.myapplication", "android.permission.CAMERA"], check=True)
-    for file in sorted(cache.rglob("*")):
+    for file in sorted((cache / "offline-language-packs").rglob("*")):
         if not file.is_file() or file.suffix == ".part":
             continue
         relative = file.relative_to(cache)

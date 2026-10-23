@@ -2,7 +2,7 @@
 
 PaperFlow integrates [offline-translator](https://github.com/DavidVentura/offline-translator)
 at commit `8a6707756528b878f6b5cf6e5ffc9b5ed71f315e` (David V, GPL-3.0-or-later).
-The JNI live pipeline, Android font provider, GL camera surface and catalog are
+The JNI live pipeline, Android font provider, GL camera surface, focus handling and catalog are
 adapted from that source. Copyright notices remain in the source files.
 
 Its [translator-rs](https://github.com/DavidVentura/translator-rs) core is pinned

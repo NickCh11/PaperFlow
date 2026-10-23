@@ -20,16 +20,15 @@ class ModelDistributionTests(unittest.TestCase):
     def test_catalog_change_requires_new_release_tag(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
-            for kind in ("ocr", "translation"):
-                dest=root/f"app/src/main/assets/languages/{kind}.json"
-                dest.parent.mkdir(parents=True,exist_ok=True)
-                dest.write_bytes((ROOT/f"app/src/main/assets/languages/{kind}.json").read_bytes())
+            dest=root/"translation/src/main/assets/index_v6.json"
+            dest.parent.mkdir(parents=True,exist_ok=True)
+            dest.write_bytes((ROOT/"translation/src/main/assets/index_v6.json").read_bytes())
             before,_=inventory(root)
-            file=root/"app/src/main/assets/languages/ocr.json"
+            file=root/"translation/src/main/assets/index_v6.json"
             data=json.loads(file.read_text())
             file.write_bytes((json.dumps(data,indent=4)+"\n").replace("\n","\r\n").encode("utf-8"))
             self.assertEqual(before,inventory(root)[0],"Line endings/formatting must not change release tags")
-            data["languages"][0]["url"]+="?mirror=changed";file.write_text(json.dumps(data))
+            data["packs"]["ocr-ppocr-detector"]["files"][0]["url"]+="?mirror=changed";file.write_text(json.dumps(data))
             after,_=inventory(root)
             self.assertNotEqual(before,after)
 

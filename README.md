@@ -51,7 +51,7 @@ Scan paper, create searchable PDFs and translate photos on your device
 |---|---|
 | **OCR PDF** | Make selected PDF pages searchable and their text copyable. |
 | **Batch OCR** | Recognize text in multiple documents at once. |
-| **Photo Translation** | Translate text in photos locally across 32 languages. |
+| **Photo Translation** | Translate photos, live camera views and text offline with downloadable language packs. |
 
 ### 📄 PDF tools
 

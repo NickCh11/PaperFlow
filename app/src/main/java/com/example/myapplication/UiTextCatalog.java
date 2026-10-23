@@ -6,6 +6,7 @@ import java.util.*;
 final class UiTextCatalog {
     private static final Map<String,Integer> IDS=new HashMap<>();
     static {
+        IDS.put("Photo",R.string.ui_photo_capture_mode);
         add0();
         add1();
         add2();

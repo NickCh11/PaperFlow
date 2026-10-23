@@ -25,9 +25,18 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
+@androidx.annotation.OptIn(markerClass=androidx.camera.camera2.interop.ExperimentalCamera2Interop.class)
 public class CameraCaptureActivity extends BackHandlingActivity {
     private static final int TEAL = 0xffefad87;
-    private static final String[] MODES={"To Word","Sign","Single","Batch","ID Cards","Book","Whiteboard","Slides","Timestamp"};
+    private static final String[] MODES=CaptureModes.ALL;
+    private boolean liveTranslation,livePreparing,glAvailable=true;
+    private String translationSource="auto",translationTarget="en";
+    private long livePointer;
+    private dev.davidv.translator.ui.components.LiveGlSurfaceView translatedPreview;
+    private TextView sourceChoice,targetChoice,overlayToggle;
+    private boolean liveOverlay=true,afScanning,focusLocked;
+    private float focusedDistance=Float.NaN,focusReference,scaleReference=1,smoothedScale=Float.NaN,lastFocusDistance;
+    private long focusAnchor=-1,lastFocusUpdate;
     private CameraCaptureSession session;
     private PreviewView preview; private GuideView guide; private ImageCapture imageCapture; private Camera camera; private boolean ready,binding;
     private ImageView flash,thumbnail; private TextView quality,hint,count,undo,bookSingle,bookDouble; private LinearLayout bookChoices; private View close,more,shutter,features,images,files;
@@ -40,7 +49,12 @@ public class CameraCaptureActivity extends BackHandlingActivity {
     private final Handler handler=new Handler(Looper.getMainLooper()); private int countdown; private boolean timerPending;
     private final Runnable timerTick=new Runnable(){@Override public void run(){if(isFinishing()||isDestroyed())return;if(countdown>0){hint.setText(String.valueOf(countdown--));handler.postDelayed(this,1000);}else{timerPending=false;render();takePhoto();}}};
     @Override protected void onCreate(Bundle state){
-        super.onCreate(state);WindowCompat.setDecorFitsSystemWindows(getWindow(),false);
+        super.onCreate(state);
+        liveTranslation=getIntent().getBooleanExtra("live_translation",false);
+        translationSource=state==null?getIntent().getStringExtra("translation_source"):state.getString("translation_source");if(translationSource==null)translationSource="auto";
+        translationTarget=state==null?getIntent().getStringExtra("translation_target"):state.getString("translation_target");if(translationTarget==null)translationTarget="en";
+        liveOverlay=state==null||state.getBoolean("live_overlay",true);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(),false);
         getWindow().setStatusBarColor(Color.BLACK);getWindow().setNavigationBarColor(Color.BLACK);
         WindowCompat.getInsetsController(getWindow(),getWindow().getDecorView()).setAppearanceLightStatusBars(false);
         WindowCompat.getInsetsController(getWindow(),getWindow().getDecorView()).setAppearanceLightNavigationBars(false);
@@ -49,13 +63,14 @@ public class CameraCaptureActivity extends BackHandlingActivity {
             if(state!=null){ArrayList<String> saved=state.getStringArrayList("pages");if(saved!=null)for(String path:saved)if(new File(path).isFile())session.pages.add(path);
                 session.hd=state.getBoolean("hd",true);session.grid=state.getBoolean("grid");session.flash=state.getInt("flash",ImageCapture.FLASH_MODE_OFF);session.timer=state.getInt("timer");session.bookDoublePage=state.getBoolean("book_double_page",true);}}
         permissionLauncher=registerForActivityResult(new ActivityResultContracts.RequestPermission(),granted->{if(granted)bindCamera();else permissionDenied();});
-        galleryLauncher=registerForActivityResult(new ActivityResultContracts.OpenMultipleDocuments(),uris->{if(uris!=null&&!uris.isEmpty()&&!session.busy)ScanImportOptions.show(this,(crop,filter)->{session.importOptionsChosen=true;session.importAutoCrop=crop;session.importFilter=filter;session.importImages(uris);},()->{});});
+        galleryLauncher=registerForActivityResult(new ActivityResultContracts.OpenMultipleDocuments(),uris->{if(uris!=null&&!uris.isEmpty()&&!session.busy){if(!CaptureModes.detectsPaper(session.mode)){session.importOptionsChosen=true;session.importAutoCrop=false;session.importFilter=0;session.importImages(uris);}else ScanImportOptions.show(this,(crop,filter)->{session.importOptionsChosen=true;session.importAutoCrop=crop;session.importFilter=filter;session.importImages(uris);},()->{});}});
         bookReviewLauncher=registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),result->{
             if(result.getResultCode()==RESULT_OK&&result.getData()!=null){String path=result.getData().getStringExtra("path");if(path!=null&&new File(path).isFile()){for(String source:session.pages)new File(source).delete();session.completeBookDraft();session.returned=true;startActivity(new Intent(this,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra("document_action","Register").putExtra("path",path).putExtra("name",result.getData().getStringExtra("name")));setResult(RESULT_CANCELED);finish();return;}}
             render();
         });
         if("Book".equals(session.mode)&&session.pages.isEmpty())session.restoreBookDraft();
         autoCapture=getPreferences(0).getBoolean("auto_capture",false);autoArmed=session.pages.isEmpty();buildUi();session.changes.observe(this,revision->render());render();
+        if(liveTranslation)prepareLive();
         if(ContextCompat.checkSelfPermission(this,Manifest.permission.CAMERA)==PackageManager.PERMISSION_GRANTED)bindCamera();else permissionLauncher.launch(Manifest.permission.CAMERA);
     }
     private String canonical(String input){if("ID Card".equals(input))return "ID Cards";for(String mode:MODES)if(mode.equals(input))return mode;return "Single";}
@@ -69,24 +84,105 @@ public class CameraCaptureActivity extends BackHandlingActivity {
         qualityHolder.addView(quality,new FrameLayout.LayoutParams(dp(23),dp(20),Gravity.CENTER));header.addView(qualityHolder,new LinearLayout.LayoutParams(dp(48),dp(48)));
         qualityHolder.setOnClickListener(v->{if(!session.busy){session.hd=!session.hd;render();bindCamera();}});
         more=headerIcon(header,new HeaderIcon(true,false),UiText.get(R.string.ui_camera_settings),v->settings());
+        if(liveTranslation){
+            LinearLayout languages=new LinearLayout(this);languages.setGravity(Gravity.CENTER_VERTICAL);
+            sourceChoice=text("",14,Color.WHITE);targetChoice=text("",14,Color.WHITE);
+            sourceChoice.setGravity(Gravity.CENTER);targetChoice.setGravity(Gravity.CENTER);
+            languages.addView(sourceChoice,new LinearLayout.LayoutParams(0,dp(48),1));languages.addView(targetChoice,new LinearLayout.LayoutParams(0,dp(48),1));
+            overlayToggle=text(UiText.get(liveOverlay?R.string.ui_live_overlay_on:R.string.ui_live_overlay_off),12,TEAL);overlayToggle.setGravity(Gravity.CENTER);languages.addView(overlayToggle,new LinearLayout.LayoutParams(dp(78),dp(48)));
+            overlayToggle.setOnClickListener(v->{liveOverlay=!liveOverlay;overlayToggle.setText(liveOverlay?R.string.ui_live_overlay_on:R.string.ui_live_overlay_off);updateLiveControl(true);});root.addView(languages);
+            sourceChoice.setOnClickListener(v->chooseTranslationLanguage(true));targetChoice.setOnClickListener(v->chooseTranslationLanguage(false));updateTranslationLabels();
+        }
         FrameLayout cameraFrame=new FrameLayout(this);root.addView(cameraFrame,new LinearLayout.LayoutParams(-1,0,1));
         preview=new PreviewView(this);preview.setImplementationMode(PreviewView.ImplementationMode.COMPATIBLE);preview.setScaleType(PreviewView.ScaleType.FILL_CENTER);cameraFrame.addView(preview,new FrameLayout.LayoutParams(-1,-1));
+        if(liveTranslation){translatedPreview=new dev.davidv.translator.ui.components.LiveGlSurfaceView(this);cameraFrame.addView(translatedPreview,new FrameLayout.LayoutParams(-1,-1));preview.setVisibility(View.INVISIBLE);
+            translatedPreview.setOnFailure(()->{runOnUiThread(()->{
+                if(isDestroyed()||!glAvailable)return;glAvailable=false;liveOverlay=false;releaseFocus();updateLiveControl(true);
+                overlayToggle.setText(R.string.ui_live_overlay_off);overlayToggle.setEnabled(false);translatedPreview.setVisibility(View.GONE);preview.setVisibility(View.VISIBLE);ready=false;render();bindCamera();
+            });return kotlin.Unit.INSTANCE;});
+            translatedPreview.setOnFrameResult(packed->{if(packed!=0L)runOnUiThread(()->{if(!isDestroyed())trackFocus(packed);});return kotlin.Unit.INSTANCE;});}
         guide=new GuideView(this);cameraFrame.addView(guide,new FrameLayout.LayoutParams(-1,-1));
         bookChoices=new LinearLayout(this);bookChoices.setPadding(dp(2),dp(2),dp(2),dp(2));bookChoices.setBackground(round(0xcc252525,20));bookSingle=text(UiText.get(R.string.ui_single),12,Color.WHITE);bookDouble=text(UiText.get(R.string.ui_double),12,Color.WHITE);for(TextView option:new TextView[]{bookSingle,bookDouble}){option.setGravity(Gravity.CENTER);bookChoices.addView(option,new LinearLayout.LayoutParams(0,-1,1));}FrameLayout.LayoutParams bookLp=new FrameLayout.LayoutParams(dp(132),dp(34),Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);bookLp.bottomMargin=dp(10);cameraFrame.addView(bookChoices,bookLp);bookSingle.setOnClickListener(v->{if(!session.busy){session.bookDoublePage=false;render();}});bookDouble.setOnClickListener(v->{if(!session.busy){session.bookDoublePage=true;render();}});
-        guide.setOnTouchListener((v,event)->{if(event.getAction()==MotionEvent.ACTION_UP&&camera!=null&&!session.busy){focus(event.getX(),event.getY(),true);v.performClick();}return true;});
+        ScaleGestureDetector zoom=new ScaleGestureDetector(this,new ScaleGestureDetector.SimpleOnScaleGestureListener(){
+            @Override public boolean onScale(ScaleGestureDetector detector){if(camera!=null&&!session.busy){androidx.camera.core.ZoomState state=camera.getCameraInfo().getZoomState().getValue();if(state!=null)camera.getCameraControl().setZoomRatio(Math.max(state.getMinZoomRatio(),Math.min(state.getMaxZoomRatio(),state.getZoomRatio()*detector.getScaleFactor())));}return true;}
+        });
+        GestureDetector tap=new GestureDetector(this,new GestureDetector.SimpleOnGestureListener(){@Override public boolean onDown(MotionEvent event){return true;}@Override public boolean onSingleTapUp(MotionEvent event){if(camera!=null&&!session.busy){focus(event.getX(),event.getY(),true);guide.performClick();}return true;}});
+        guide.setOnTouchListener((v,event)->{zoom.onTouchEvent(event);if(!zoom.isInProgress())tap.onTouchEvent(event);return true;});
         hint=text("",13,Color.WHITE);hint.setGravity(Gravity.CENTER);hint.setShadowLayer(3,0,1,Color.BLACK);FrameLayout.LayoutParams hintLp=new FrameLayout.LayoutParams(-1,dp(56),Gravity.TOP);hintLp.topMargin=dp(10);cameraFrame.addView(hint,hintLp);
         review=new FrameLayout(this);review.setPadding(dp(3),dp(3),dp(3),dp(3));review.setBackground(round(0xCC10191A,8));thumbnail=new ImageView(this);thumbnail.setScaleType(ImageView.ScaleType.CENTER_CROP);review.addView(thumbnail,new FrameLayout.LayoutParams(-1,-1));
         count=text("",12,Color.WHITE);count.setGravity(Gravity.CENTER);count.setTypeface(null,android.graphics.Typeface.BOLD);count.setBackground(round(TEAL,4));review.addView(count,new FrameLayout.LayoutParams(-1,dp(24),Gravity.BOTTOM));
         FrameLayout.LayoutParams reviewLp=new FrameLayout.LayoutParams(dp(58),dp(72),Gravity.BOTTOM|Gravity.RIGHT);reviewLp.setMargins(0,0,dp(16),dp(15));cameraFrame.addView(review,reviewLp);review.setOnClickListener(v->finishCapture(false));
         undo=text(UiText.get(R.string.ui_undo),12,Color.WHITE);undo.setGravity(Gravity.CENTER);icon(undo,UiText.get(R.string.ui_undo),false);FrameLayout.LayoutParams undoLp=new FrameLayout.LayoutParams(dp(76),dp(44),Gravity.BOTTOM|Gravity.LEFT);undoLp.setMargins(dp(12),0,0,dp(15));cameraFrame.addView(undo,undoLp);undo.setOnClickListener(v->session.undo());
         modeScroll=new HorizontalScrollView(this);modeScroll.setHorizontalScrollBarEnabled(false);modeRow=new LinearLayout(this);int modePadding=Math.max(0,getResources().getDisplayMetrics().widthPixels/2-dp(32));modeRow.setPadding(modePadding,0,modePadding,0);modeScroll.addView(modeRow);root.addView(modeScroll,new LinearLayout.LayoutParams(-1,dp(46)));
-        for(String mode:MODES){TextView label=new ModeLabel();label.setText(UiText.label(mode));label.setTextSize(14);label.setTextColor(Color.WHITE);label.setSingleLine();label.setGravity(Gravity.CENTER);label.setTag(mode);modeRow.addView(label,new LinearLayout.LayoutParams(dp(mode.length()>8?104:64),-1));label.setOnClickListener(v->selectMode(mode));}
+        for(String mode:MODES){TextView label=new ModeLabel();label.setText(CaptureModes.label(mode));label.setTextSize(14);label.setTextColor(Color.WHITE);label.setSingleLine();label.setGravity(Gravity.CENTER);label.setTag(mode);modeRow.addView(label,new LinearLayout.LayoutParams(dp(mode.length()>8?104:64),-1));label.setOnClickListener(v->selectMode(mode));}
         LinearLayout controls=new LinearLayout(this);controls.setGravity(Gravity.CENTER_VERTICAL);controls.setPadding(dp(10),dp(12),dp(10),dp(20));root.addView(controls,new LinearLayout.LayoutParams(-1,dp(200)));
-        features=action(controls,UiText.get(R.string.ui_all_features),"All Features",v->new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_capture_mode)).setItems(UiText.labels(MODES),(d,w)->selectMode(MODES[w])).show());
+        features=action(controls,UiText.get(R.string.ui_all_features),"All Features",v->new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_capture_mode)).setItems(CaptureModes.labels(),(d,w)->selectMode(MODES[w])).show());
         ((LinearLayout.LayoutParams)features.getLayoutParams()).weight=2f;
         FrameLayout holder=new FrameLayout(this);controls.addView(holder,new LinearLayout.LayoutParams(0,-1,1.2f));FrameLayout ring=new FrameLayout(this);GradientDrawable outline=round(Color.BLACK,100);outline.setStroke(dp(3),TEAL);ring.setBackground(outline);holder.addView(ring,new FrameLayout.LayoutParams(dp(64),dp(64),Gravity.CENTER));
         shutter=new View(this);shutter.setBackground(round(0xFFF6F7F7,100));ring.addView(shutter,new FrameLayout.LayoutParams(dp(54),dp(54),Gravity.CENTER));shutter.setContentDescription(UiText.get(R.string.ui_capture_page));shutter.setOnClickListener(v->capture());
         images=action(controls,UiText.get(R.string.ui_import_images_ac61abc3),"Import Images",v->galleryLauncher.launch(new String[]{"image/*"}));files=action(controls,UiText.get(R.string.ui_import_files),"Import Files",v->finishCapture(true));
+    }
+    private void updateLiveControl(boolean reset){
+        if(livePointer!=0)com.paperflow.translation.RuntimeNative.controlLive(livePointer,liveOverlay,afScanning,reset);
+    }
+    private void releaseFocus(){
+        if(focusLocked&&camera!=null)androidx.camera.camera2.interop.Camera2CameraControl.from(camera.getCameraControl()).clearCaptureRequestOptions();
+        focusLocked=false;focusAnchor=-1;smoothedScale=Float.NaN;
+    }
+    /** Upstream focus steering: stabilize a locked plane and follow scale changes in diopters. */
+    private void trackFocus(long packed){
+        if(camera==null||!liveOverlay)return;
+        int state=(int)((packed>>>62)&3);if(state!=2){releaseFocus();return;}
+        float scale=(packed&0x1fffff)/1024f;if(scale<=0||!Float.isFinite(focusedDistance)||focusedDistance<=0)return;
+        long anchor=(packed>>>29)&0xffff,now=SystemClock.elapsedRealtime();
+        if(!focusLocked||anchor!=focusAnchor){focusAnchor=anchor;scaleReference=scale;focusReference=focusedDistance;smoothedScale=scale;lastFocusUpdate=0;}
+        else smoothedScale=.25f*scale+.75f*smoothedScale;
+        float requested=focusReference*smoothedScale/scaleReference;
+        Float maximum=androidx.camera.camera2.interop.Camera2CameraInfo.from(camera.getCameraInfo()).getCameraCharacteristic(android.hardware.camera2.CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
+        if(maximum==null||maximum<=0)return;requested=Math.max(0,Math.min(maximum,requested));
+        if(focusLocked&&(now-lastFocusUpdate<750||Math.abs(requested-lastFocusDistance)<.5f))return;
+        androidx.camera.camera2.interop.CaptureRequestOptions options=new androidx.camera.camera2.interop.CaptureRequestOptions.Builder()
+            .setCaptureRequestOption(android.hardware.camera2.CaptureRequest.CONTROL_AF_MODE,android.hardware.camera2.CameraMetadata.CONTROL_AF_MODE_OFF)
+            .setCaptureRequestOption(android.hardware.camera2.CaptureRequest.LENS_FOCUS_DISTANCE,requested)
+            .setCaptureRequestOption(android.hardware.camera2.CaptureRequest.CONTROL_AE_MODE,android.hardware.camera2.CameraMetadata.CONTROL_AE_MODE_ON).build();
+        androidx.camera.camera2.interop.Camera2CameraControl.from(camera.getCameraControl()).setCaptureRequestOptions(options);
+        focusLocked=true;lastFocusDistance=requested;lastFocusUpdate=now;
+    }
+    private void updateTranslationLabels(){
+        sourceChoice.setText(translationSource.equals("auto")?UiText.get(R.string.ui_auto_detect):LocalTranslationActivity.languageName(translationSource));
+        targetChoice.setText("→ "+LocalTranslationActivity.languageName(translationTarget));
+    }
+    private void chooseTranslationLanguage(boolean source){
+        if(livePreparing||session.busy)return;
+        try{java.util.List<TranslationCatalog.Language> languages=TranslationCatalog.languages(this);
+            ArrayList<String> codes=new ArrayList<>(),labels=new ArrayList<>();
+            if(source){codes.add("auto");labels.add(UiText.get(R.string.ui_auto_detect));}
+            for(TranslationCatalog.Language language:languages){codes.add(language.code);labels.add(language.label());}
+            new AlertDialog.Builder(this).setTitle(source?R.string.ui_photo_language:R.string.ui_translation).setItems(labels.toArray(new String[0]),(d,index)->{
+                if(source)translationSource=codes.get(index);else translationTarget=codes.get(index);
+                updateTranslationLabels();prepareLive();
+            }).show();
+        }catch(Exception error){Toast.makeText(this,error.getMessage(),Toast.LENGTH_LONG).show();}
+    }
+    private void prepareLive(){
+        if(livePreparing)return;livePreparing=true;render();
+        final String from=translationSource,to=translationTarget;final long existingPointer=livePointer;
+        session.worker.execute(()->{long pointer=0;try{
+            com.paperflow.translation.OfflineRuntime runtime=com.paperflow.translation.OfflineRuntime.get(getApplicationContext());
+            org.json.JSONArray rows=runtime.languages();java.util.LinkedHashSet<String> required=new java.util.LinkedHashSet<>();required.add(to);
+            if(!from.equals("auto"))required.add(from);
+            else {boolean anyOcr=false;for(int i=0;i<rows.length();i++)anyOcr|=rows.getJSONObject(i).optBoolean("ocr");if(!anyOcr){required.add("en");required.add("el");}}
+            for(String code:required)runtime.download(code,()->isDestroyed(),(done,total)->runOnUiThread(()->{if(!isDestroyed())hint.setText(UiText.format(R.string.ui_downloading_value_value,LocalTranslationActivity.languageName(code),done*100/Math.max(1,total)));}));
+            if(existingPointer==0)pointer=runtime.createLive(from,to);final long readyPointer=pointer;
+            runOnUiThread(()->{
+                if(isDestroyed()){if(readyPointer!=0)com.paperflow.translation.RuntimeNative.destroyLive(readyPointer);return;}
+                releaseFocus();
+                if(existingPointer!=0)com.paperflow.translation.RuntimeNative.changeLiveLanguages(existingPointer,from,to);
+                else {livePointer=readyPointer;translatedPreview.setPipelinePtr(readyPointer);}
+                updateLiveControl(false);
+                livePreparing=false;render();if(ContextCompat.checkSelfPermission(this,Manifest.permission.CAMERA)==PackageManager.PERMISSION_GRANTED)bindCamera();
+            });
+        }catch(Exception|LinkageError error){if(pointer!=0)com.paperflow.translation.RuntimeNative.destroyLive(pointer);runOnUiThread(()->{if(isDestroyed())return;livePreparing=false;render();hint.setText(error.getMessage());});}});
     }
     private ImageView headerIcon(LinearLayout parent,Drawable drawable,String desc,View.OnClickListener listener){ImageView view=new ImageView(this);view.setImageDrawable(drawable);view.setPadding(dp(13),dp(13),dp(13),dp(13));view.setContentDescription(desc);parent.addView(view,new LinearLayout.LayoutParams(dp(48),dp(48)));view.setOnClickListener(listener);return view;}
     private TextView action(LinearLayout parent,String label,String name,View.OnClickListener listener){TextView view=text(label,11,Color.WHITE);view.setGravity(Gravity.CENTER);icon(view,name,true);view.setContentDescription(UiText.label(label).replace('\n',' '));parent.addView(view,new LinearLayout.LayoutParams(0,dp(88),1));view.setOnClickListener(listener);return view;}
@@ -100,32 +196,42 @@ public class CameraCaptureActivity extends BackHandlingActivity {
         flash.setImageDrawable(new HeaderIcon(false,session.flash!=ImageCapture.FLASH_MODE_OFF));flash.setContentDescription(UiText.format(R.string.ui_flash_value, (session.flash==ImageCapture.FLASH_MODE_AUTO?"auto":session.flash==ImageCapture.FLASH_MODE_ON?"on":"off")));
         review.setVisibility(session.pages.isEmpty()?View.GONE:View.VISIBLE);undo.setVisibility(session.pages.isEmpty()?View.GONE:View.VISIBLE);count.setText(UiText.format(R.string.ui_value, ("Book".equals(session.mode)?Math.min(99,session.pages.size()):session.pages.size())));review.setContentDescription(UiText.format(R.string.ui_review_value_pages, session.pages.size()));
         if(session.thumbnail!=null)thumbnail.setImageBitmap(session.thumbnail);guide.mode=session.mode;guide.grid=session.grid;guide.bookDouble=session.bookDoublePage;guide.invalidate();
-        if(!timerPending)hint.setText(session.busy ? UiText.get(R.string.ui_processing) : guideText());if(session.message!=null){Toast.makeText(this,session.message,Toast.LENGTH_LONG).show();session.message=null;}
+        if(!timerPending)hint.setText(livePreparing?UiText.get(R.string.ui_live_translation_starting):session.busy ? UiText.get(R.string.ui_processing) : guideText());if(session.message!=null){Toast.makeText(this,session.message,Toast.LENGTH_LONG).show();session.message=null;}
         if(session.returnRequested&&!session.busy&&!isFinishing()){finishCapture(false);return;}
         modeScroll.post(()->{for(int i=0;i<modeRow.getChildCount();i++){View child=modeRow.getChildAt(i);if(session.mode.equals(child.getTag())){modeScroll.smoothScrollTo(Math.max(0,child.getLeft()-(modeScroll.getWidth()-child.getWidth())/2),0);break;}}});
     }
-    private String guideText(){switch(session.mode){case "ID Cards":return session.pages.isEmpty() ? UiText.get(R.string.ui_align_the_front_of_the_card_with_the_live_outline) : UiText.get(R.string.ui_turn_the_card_over_and_capture_the_back);case "Book":return session.bookDoublePage ? UiText.get(R.string.ui_align_the_spine_with_the_center_line_saves_two_pages) : UiText.get(R.string.ui_align_the_page_with_the_live_outline_saves_one_page);case "Whiteboard":return UiText.get(R.string.ui_align_the_board_with_the_live_outline);case "Slides":return UiText.get(R.string.ui_align_the_slide_with_the_live_outline);case "Timestamp":return UiText.get(R.string.ui_date_and_time_will_be_printed_on_the_image);case "Batch":return UiText.get(R.string.ui_scan_more_pages_then_tap_the_thumbnail_to_review);default:return "";}}
-    private void selectMode(String mode){if(session.busy||session.mode.equals(mode))return;if(!session.pages.isEmpty()){Toast.makeText(this,UiText.get(R.string.ui_review_or_undo_your_pages_before_changing_mode),Toast.LENGTH_SHORT).show();return;}session.mode=mode;if("Book".equals(mode))session.restoreBookDraft();render();}
+    private String guideText(){if(liveTranslation&&!glAvailable)return UiText.get(R.string.ui_live_preview_unavailable);if(!CaptureModes.detectsPaper(session.mode))return UiText.get(liveTranslation?R.string.ui_live_translation_ready:R.string.ui_photo_no_detection);switch(session.mode){case "ID Cards":return session.pages.isEmpty() ? UiText.get(R.string.ui_align_the_front_of_the_card_with_the_live_outline) : UiText.get(R.string.ui_turn_the_card_over_and_capture_the_back);case "Book":return session.bookDoublePage ? UiText.get(R.string.ui_align_the_spine_with_the_center_line_saves_two_pages) : UiText.get(R.string.ui_align_the_page_with_the_live_outline_saves_one_page);case "Whiteboard":return UiText.get(R.string.ui_align_the_board_with_the_live_outline);case "Slides":return UiText.get(R.string.ui_align_the_slide_with_the_live_outline);case "Timestamp":return UiText.get(R.string.ui_date_and_time_will_be_printed_on_the_image);case "Batch":return UiText.get(R.string.ui_scan_more_pages_then_tap_the_thumbnail_to_review);default:return "";}}
+    private void selectMode(String mode){if(session.busy||session.mode.equals(mode))return;if(!session.pages.isEmpty()){Toast.makeText(this,UiText.get(R.string.ui_review_or_undo_your_pages_before_changing_mode),Toast.LENGTH_SHORT).show();return;}session.mode=mode;liveGeneration++;previousLive=null;stableLive=0;guide.documentQuad=null;autoArmed=true;stableSince=0;
+        if("Book".equals(mode))session.restoreBookDraft();render();bindCamera();}
     private void bindCamera(){
-        if(isFinishing()||isDestroyed()||binding)return;
+        if(isFinishing()||isDestroyed()||binding||(liveTranslation&&livePointer==0))return;
         if(preview.getViewPort()==null){preview.postDelayed(this::bindCamera,100);return;}
         binding=true;ready=false;render();ListenableFuture<ProcessCameraProvider> future=ProcessCameraProvider.getInstance(this);
         future.addListener(()->{if(isFinishing()||isDestroyed())return;try{ProcessCameraProvider provider=future.get();
             ResolutionSelector resolution=new ResolutionSelector.Builder().setResolutionStrategy(session.hd?ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY:new ResolutionStrategy(new Size(1920,1440),ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER)).build();
-            Preview live=new Preview.Builder().build();live.setSurfaceProvider(preview.getSurfaceProvider());ImageCapture.Builder builder=new ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).setResolutionSelector(resolution).setFlashMode(session.flash);
+            Preview.Builder liveBuilder=new Preview.Builder();
+            if(liveTranslation)new androidx.camera.camera2.interop.Camera2Interop.Extender<>(liveBuilder).setSessionCaptureCallback(new android.hardware.camera2.CameraCaptureSession.CaptureCallback(){
+                @Override public void onCaptureCompleted(android.hardware.camera2.CameraCaptureSession cameraSession,android.hardware.camera2.CaptureRequest request,android.hardware.camera2.TotalCaptureResult result){
+                    Integer state=result.get(android.hardware.camera2.CaptureResult.CONTROL_AF_STATE);Float distance=result.get(android.hardware.camera2.CaptureResult.LENS_FOCUS_DISTANCE);
+                    if(state==null)return;boolean scanning=state==android.hardware.camera2.CaptureResult.CONTROL_AF_STATE_ACTIVE_SCAN||state==android.hardware.camera2.CaptureResult.CONTROL_AF_STATE_PASSIVE_SCAN;
+                    runOnUiThread(()->{if(isDestroyed())return;if(afScanning!=scanning){afScanning=scanning;updateLiveControl(false);}if(!scanning&&distance!=null&&(state==android.hardware.camera2.CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED||state==android.hardware.camera2.CaptureResult.CONTROL_AF_STATE_PASSIVE_FOCUSED))focusedDistance=distance;});
+                }
+            });
+            Preview live=liveBuilder.build();if(liveTranslation&&glAvailable)live.setSurfaceProvider(request->translatedPreview.provideSurfaceRequest(request,ContextCompat.getMainExecutor(this)));else live.setSurfaceProvider(preview.getSurfaceProvider());ImageCapture.Builder builder=new ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).setResolutionSelector(resolution).setFlashMode(session.flash);
             if(preview.getDisplay()!=null)builder.setTargetRotation(preview.getDisplay().getRotation());imageCapture=builder.build();
             liveGeneration++;previousLive=null;stableLive=0;guide.documentQuad=null;
             if(liveAnalysis!=null)liveAnalysis.clearAnalyzer();
             liveAnalysis=new ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).setTargetResolution(new Size(640,480)).build();
-            final int generation=liveGeneration;liveAnalysis.setAnalyzer(liveWorker,image->analyzeLive(image,generation));
-            UseCaseGroup group=new UseCaseGroup.Builder().setViewPort(preview.getViewPort()).addUseCase(live).addUseCase(imageCapture).addUseCase(liveAnalysis).build();
-            provider.unbindAll();camera=provider.bindToLifecycle(this,CameraSelector.DEFAULT_BACK_CAMERA,group);ready=true;render();
+            final int generation=liveGeneration;if(CaptureModes.detectsPaper(session.mode))liveAnalysis.setAnalyzer(liveWorker,image->analyzeLive(image,generation));
+            UseCaseGroup.Builder groupBuilder=new UseCaseGroup.Builder().setViewPort(preview.getViewPort()).addUseCase(live).addUseCase(imageCapture);
+            if(CaptureModes.detectsPaper(session.mode))groupBuilder.addUseCase(liveAnalysis);UseCaseGroup group=groupBuilder.build();
+            provider.unbindAll();camera=provider.bindToLifecycle(this,CameraSelector.DEFAULT_BACK_CAMERA,group);if(liveTranslation)translatedPreview.setCameraOrientationDegrees(camera.getCameraInfo().getSensorRotationDegrees(preview.getDisplay().getRotation()));ready=true;render();
         }catch(Exception error){hint.setText(UiText.get(R.string.ui_camera_unavailable_import_images_or_files_below));Toast.makeText(this,UiText.get(R.string.ui_could_not_start_camera),Toast.LENGTH_LONG).show();}finally{binding=false;}},ContextCompat.getMainExecutor(this));
     }
     private void analyzeLive(ImageProxy image,int generation){
         Bitmap bitmap=null;
         try{
-            if(session.busy||generation!=liveGeneration||SystemClock.elapsedRealtime()-lastLive<120)return;
+            if(!CaptureModes.detectsPaper(session.mode)||session.busy||generation!=liveGeneration||SystemClock.elapsedRealtime()-lastLive<120)return;
             lastLive=SystemClock.elapsedRealtime();bitmap=image.toBitmap();Rect crop=image.getCropRect();
             if(crop.width()!=bitmap.getWidth()||crop.height()!=bitmap.getHeight()){Bitmap clipped=Bitmap.createBitmap(bitmap,crop.left,crop.top,crop.width(),crop.height());if(clipped!=bitmap)bitmap.recycle();bitmap=clipped;}
             int rotation=image.getImageInfo().getRotationDegrees();if(rotation!=0){Matrix matrix=new Matrix();matrix.postRotate(rotation);Bitmap turned=Bitmap.createBitmap(bitmap,0,0,bitmap.getWidth(),bitmap.getHeight(),matrix,true);if(turned!=bitmap)bitmap.recycle();bitmap=turned;}
@@ -134,13 +240,13 @@ public class CameraCaptureActivity extends BackHandlingActivity {
             stableLive=quad==null?0:previousLive!=null&&difference<20f/640?stableLive+1:1;previousLive=quad;
             final float[] visible=stableLive>=3?quad:null;
             int[] signature="Book".equals(session.mode)?BookPageTracker.frame(bitmap,quad):signature(bitmap);
-            runOnUiThread(()->{if(generation==liveGeneration&&!isFinishing()){guide.documentQuad=visible;guide.imageRatio=ratio;guide.invalidate();considerAutoCapture(quad,signature);}});
+            runOnUiThread(()->{if(generation==liveGeneration&&CaptureModes.detectsPaper(session.mode)&&!isFinishing()){guide.documentQuad=visible;guide.imageRatio=ratio;guide.invalidate();considerAutoCapture(quad,signature);}});
         }catch(Exception|LinkageError error){runOnUiThread(()->{if(generation==liveGeneration){guide.documentQuad=null;guide.invalidate();}});}
         finally{if(bitmap!=null&&!bitmap.isRecycled())bitmap.recycle();image.close();}
     }
     private int[] signature(Bitmap image){int[] values=new int[64];for(int y=0;y<8;y++)for(int x=0;x<8;x++){int pixel=image.getPixel((x*2+1)*image.getWidth()/16,(y*2+1)*image.getHeight()/16);values[y*8+x]=(Color.red(pixel)*3+Color.green(pixel)*6+Color.blue(pixel))/10;}return values;}
     private void considerAutoCapture(float[] quad,int[] signature){
-        latestSignature=signature;if("Book".equals(session.mode)&&signature!=null&&!session.pages.isEmpty()&&!bookTracker.hasBaseline())bookTracker.accept(signature);boolean bookReady="Book".equals(session.mode)&&bookTracker.observe(signature);long now=SystemClock.elapsedRealtime();if(!autoCapture||!resumed||session.busy||!ready){stableSince=0;return;}
+        latestSignature=signature;if("Book".equals(session.mode)&&signature!=null&&!session.pages.isEmpty()&&!bookTracker.hasBaseline())bookTracker.accept(signature);boolean bookReady="Book".equals(session.mode)&&bookTracker.observe(signature);long now=SystemClock.elapsedRealtime();if(!CaptureModes.detectsPaper(session.mode)||!autoCapture||!resumed||session.busy||!ready){stableSince=0;return;}
         if(quad==null){stableSince=0;stableAnchor=null;if(missingSince==0)missingSince=now;if(now-missingSince>600){autoArmed=true;bookRearmedByChange=false;}return;}missingSince=0;
         float area=0;for(int i=0;i<4;i++){int next=(i+1)%4;area+=quad[2*i]*quad[2*next+1]-quad[2*next]*quad[2*i+1];}if(Math.abs(area)*.5f<.15f){stableSince=0;return;}
         for(float value:quad)if(value<.025f||value>.975f){stableSince=0;return;}
@@ -156,7 +262,9 @@ public class CameraCaptureActivity extends BackHandlingActivity {
     @Override protected void onResume(){super.onResume();resumed=true;if(preview!=null){render();if(!ready&&ContextCompat.checkSelfPermission(this,Manifest.permission.CAMERA)==PackageManager.PERMISSION_GRANTED)bindCamera();}}
     private void capture(){if(session.busy||!ready||imageCapture==null)return;autoArmed=false;stableSince=0;if(latestSignature!=null){capturedSignature=latestSignature.clone();if("Book".equals(session.mode))bookTracker.accept(latestSignature);}lastAuto=SystemClock.elapsedRealtime();timerPending=session.timer>0;session.busy=true;session.notifyChange();countdown=session.timer;timerTick.run();}
     private void takePhoto(){countdown=0;if(!ready||imageCapture==null){session.fail("Camera is not ready");return;}session.previewRatio=preview.getHeight()>0?(float)preview.getWidth()/preview.getHeight():0;final CameraCaptureSession owner=session;final String mode=session.mode;final boolean doublePage=session.bookDoublePage;final File file=session.newFile("capture");imageCapture.takePicture(new ImageCapture.OutputFileOptions.Builder(file).build(),session.worker,new ImageCapture.OnImageSavedCallback(){@Override public void onImageSaved(ImageCapture.OutputFileResults output){owner.processCaptured(file,mode,doublePage);}@Override public void onError(ImageCaptureException error){file.delete();owner.fail("Could not capture page. Please try again.");}});}
-    private void finishCapture(boolean importPdf){if(session.busy||(!importPdf&&session.pages.isEmpty()))return;if("Book".equals(session.mode)&&!importPdf){reviewBook();return;}Intent result=new Intent().putStringArrayListExtra("pages",new ArrayList<>(session.pages)).putExtra("capture_mode","ID Cards".equals(session.mode)?"ID Card":session.mode).putExtra("import_pdf",importPdf);if(session.importOptionsChosen)result.putExtra("initial_filter",session.importFilter).putExtra("auto_detect",session.importAutoCrop);session.returned=true;setResult(RESULT_OK,result);finish();}
+    private void finishCapture(boolean importPdf){if(session.busy||(!importPdf&&session.pages.isEmpty()))return;if("Book".equals(session.mode)&&!importPdf&&!liveTranslation){reviewBook();return;}Intent result=new Intent().putStringArrayListExtra("pages",new ArrayList<>(session.pages)).putExtra("capture_mode","ID Cards".equals(session.mode)?"ID Card":session.mode).putExtra("import_pdf",importPdf);if(session.importOptionsChosen)result.putExtra("initial_filter",session.importFilter).putExtra("auto_detect",session.importAutoCrop);if(!CaptureModes.detectsPaper(session.mode))result.putExtra("initial_filter",0).putExtra("auto_detect",false).putExtra("start_crop",false);
+        result.putExtra("translation_source",translationSource).putExtra("translation_target",translationTarget);
+        session.returned=true;setResult(RESULT_OK,result);finish();}
     private void reviewBook(){
         if(session.busy||session.pages.isEmpty())return;session.busy=true;session.notifyChange();ArrayList<String> originals=new ArrayList<>(session.pages);
         session.worker.execute(()->{ArrayList<String> copies=new ArrayList<>();try{for(String original:originals){File copy=session.newFile("book-review");copyBookFile(new File(original),copy);copies.add(Uri.fromFile(copy).toString());}runOnUiThread(()->{session.busy=false;session.notifyChange();if(isFinishing()||isDestroyed()){for(String copy:copies)new File(Uri.parse(copy).getPath()).delete();return;}bookReviewLauncher.launch(new Intent(this,ScanEditorActivity.class).putStringArrayListExtra("pages",copies).putExtra("capture_mode","Book").putExtra("book_review",true));});}catch(Exception error){for(String copy:copies)new File(Uri.parse(copy).getPath()).delete();session.fail("Could not prepare book review. Your captured pages are saved.");}});
@@ -164,11 +272,12 @@ public class CameraCaptureActivity extends BackHandlingActivity {
     private void copyBookFile(File source,File target)throws java.io.IOException{try(java.io.InputStream in=new java.io.FileInputStream(source);java.io.OutputStream out=new java.io.FileOutputStream(target)){byte[] buffer=new byte[32768];int n;while((n=in.read(buffer))!=-1)out.write(buffer,0,n);}}
     private void cancel(){if(session.busy)return;if("Book".equals(session.mode)&&!session.pages.isEmpty()){new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_book_saved_as_a_draft)).setMessage(UiText.get(R.string.ui_continue_capturing_keep_the_draft_for_later_or_discard_this_book)).setNegativeButton(UiText.get(R.string.ui_keep_capturing),null).setNeutralButton(UiText.get(R.string.ui_discard),(d,w)->{session.discardBookDraft();setResult(RESULT_CANCELED);finish();}).setPositiveButton(UiText.get(R.string.ui_save_for_later),(d,w)->{setResult(RESULT_CANCELED);finish();}).show();return;}setResult(RESULT_CANCELED);finish();}
     @Override public void handleBackPressed(){if(session.busy)Toast.makeText(this,UiText.get(R.string.ui_please_wait_for_the_page_to_finish),Toast.LENGTH_SHORT).show();else cancel();}
-    @Override protected void onSaveInstanceState(Bundle state){state.putStringArrayList("pages",new ArrayList<>(session.pages));state.putString("mode",session.mode);state.putBoolean("hd",session.hd);state.putBoolean("grid",session.grid);state.putInt("flash",session.flash);state.putInt("timer",session.timer);state.putBoolean("book_double_page",session.bookDoublePage);super.onSaveInstanceState(state);}
+    @Override protected void onSaveInstanceState(Bundle state){state.putStringArrayList("pages",new ArrayList<>(session.pages));state.putString("mode",session.mode);state.putBoolean("live_overlay",liveOverlay);state.putString("translation_source",translationSource);state.putString("translation_target",translationTarget);state.putBoolean("hd",session.hd);state.putBoolean("grid",session.grid);state.putInt("flash",session.flash);state.putInt("timer",session.timer);state.putBoolean("book_double_page",session.bookDoublePage);super.onSaveInstanceState(state);}
     @Override protected void onStop(){resumed=false;stableSince=0;if(timerPending){handler.removeCallbacks(timerTick);timerPending=false;countdown=0;session.busy=false;session.notifyChange();}super.onStop();}
-    @Override protected void onDestroy(){handler.removeCallbacks(timerTick);if(timerPending){timerPending=false;session.busy=false;session.notifyChange();}liveGeneration++;if(liveAnalysis!=null)liveAnalysis.clearAnalyzer();liveWorker.shutdown();super.onDestroy();}
+    @Override protected void onDestroy(){handler.removeCallbacks(timerTick);if(timerPending){timerPending=false;session.busy=false;session.notifyChange();}liveGeneration++;if(liveAnalysis!=null)liveAnalysis.clearAnalyzer();liveWorker.shutdown();if(translatedPreview!=null)translatedPreview.releasePipeline();
+        long pointer=livePointer;livePointer=0;if(pointer!=0)com.paperflow.translation.RuntimeNative.destroyLive(pointer);super.onDestroy();}
     private void focus(float x,float y,boolean manual){
-        if(camera==null)return;long focusTime=SystemClock.elapsedRealtime();
+        if(camera==null)return;if(liveTranslation){releaseFocus();updateLiveControl(true);}long focusTime=SystemClock.elapsedRealtime();
         try{
             FocusMeteringAction action=new FocusMeteringAction.Builder(preview.getMeteringPointFactory().createPoint(x,y),FocusMeteringAction.FLAG_AF|FocusMeteringAction.FLAG_AE).setAutoCancelDuration(3,TimeUnit.SECONDS).build();
             if(camera.getCameraInfo().isFocusMeteringSupported(action))camera.getCameraControl().startFocusAndMetering(action);
@@ -192,7 +301,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
         final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);volatile float[] documentQuad;float imageRatio=1;String mode="Single";boolean grid,bookDouble=true;float focusX,focusY;long focusUntil;GuideView(android.content.Context c){super(c);setContentDescription(UiText.get(R.string.ui_tap_preview_to_focus));}
         @Override protected void onDraw(Canvas c){float w=getWidth(),h=getHeight();p.setStyle(Paint.Style.STROKE);p.setColor(0x77FFFFFF);p.setStrokeWidth(1.5f);if(grid)for(int i=1;i<3;i++){c.drawLine(w*i/3,0,w*i/3,h,p);c.drawLine(0,h*i/3,w,h*i/3,p);}
             if("Book".equals(mode)){float margin=w*.05f,arm=w*.055f,top=h*.03f,bottom=h*.96f;p.setColor(Color.WHITE);p.setStrokeWidth(3);for(float x:new float[]{margin,w-margin})for(float y:new float[]{top,bottom}){c.drawLine(x,y,x+(x<w/2?arm:-arm),y,p);c.drawLine(x,y,x,y+(y<h/2?arm:-arm),p);}if(bookDouble){p.setPathEffect(new DashPathEffect(new float[]{12,8},0));c.drawLine(0,h/2,w,h/2,p);p.setPathEffect(null);p.setStyle(Paint.Style.FILL);p.setTextSize(w*.23f);p.setColor(0x33000000);p.setTypeface(Typeface.DEFAULT_BOLD);for(int i=0;i<2;i++){c.save();c.translate(w/2,h*(i==0?.25f:.75f));c.rotate(90);String label=i==0?"A":"B";c.drawText(label,-p.measureText(label)/2,p.getTextSize()/3,p);c.restore();}p.setTypeface(Typeface.DEFAULT);}}
-            if(documentQuad!=null){float iw=w,ih=w/imageRatio;if(ih<h){ih=h;iw=h*imageRatio;}float ox=(w-iw)/2,oy=(h-ih)/2;Path path=new Path();for(int i=0;i<4;i++){float x=ox+documentQuad[2*i]*iw,y=oy+documentQuad[2*i+1]*ih;if(i==0)path.moveTo(x,y);else path.lineTo(x,y);}path.close();p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(4);p.setColor(0xff14d7b3);c.drawPath(path,p);}
+            if(CaptureModes.detectsPaper(mode)&&documentQuad!=null){float iw=w,ih=w/imageRatio;if(ih<h){ih=h;iw=h*imageRatio;}float ox=(w-iw)/2,oy=(h-ih)/2;Path path=new Path();for(int i=0;i<4;i++){float x=ox+documentQuad[2*i]*iw,y=oy+documentQuad[2*i+1]*ih;if(i==0)path.moveTo(x,y);else path.lineTo(x,y);}path.close();p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(4);p.setColor(0xff14d7b3);c.drawPath(path,p);}
             if(SystemClock.elapsedRealtime()<focusUntil){p.setStyle(Paint.Style.STROKE);p.setColor(Color.WHITE);p.setStrokeWidth(2);c.drawCircle(focusX,focusY,26,p);c.drawLine(focusX-34,focusY,focusX-22,focusY,p);c.drawLine(focusX+22,focusY,focusX+34,focusY,p);}
         }
     }

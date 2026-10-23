@@ -10,15 +10,14 @@ on:
 permissions:
   contents: read
 
-env:
-  # Private model archives cannot serve anonymous Android downloads.
-  PAPERFLOW_MODEL_REPOSITORY: ${{ vars.MODEL_MIRROR_REPOSITORY || '' }}
-
 concurrency:
   group: android-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  language-runtime:
+    uses: ./.github/workflows/language-runtime.yml
+
   checks:
     name: Unit tests, lint and translations
     runs-on: ubuntu-24.04
@@ -59,6 +58,7 @@ jobs:
           retention-days: 7
 
   build:
+    needs: language-runtime
     name: Build ${{ matrix.abi }} debug and release
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -70,6 +70,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+      - name: Restore compiled offline language runtime
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          pattern: language-runtime-*
+          path: translation
+          merge-multiple: true
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
         with:
           distribution: temurin
@@ -98,6 +104,7 @@ jobs:
           retention-days: 7
 
   device-tests:
+    needs: language-runtime
     name: Device tests API ${{ matrix.api }}
     runs-on: ubuntu-24.04
     timeout-minutes: 55
@@ -109,6 +116,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+      - name: Restore compiled offline language runtime
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          pattern: language-runtime-*
+          path: translation
+          merge-multiple: true
       - name: Free disk space for Android system images
         if: runner.environment == 'github-hosted'
         run: |
@@ -188,16 +201,18 @@ jobs:
   pr-gate:
     name: PR gate
     if: always()
-    needs: [checks, build, device-tests]
+    needs: [checks, build, device-tests, language-runtime]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - name: Require every job to succeed
         env:
+          RUNTIME: ${{ needs.language-runtime.result }}
           CHECKS: ${{ needs.checks.result }}
           BUILD: ${{ needs.build.result }}
           DEVICES: ${{ needs.device-tests.result }}
         run: |
+          test "$RUNTIME" = success
           test "$CHECKS" = success
           test "$BUILD" = success
           test "$DEVICES" = success

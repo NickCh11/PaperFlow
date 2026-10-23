@@ -10,13 +10,14 @@ repository permissions. Builds do not publish or sign releases.
 | Job | Coverage |
 | --- | --- |
 | Unit tests, lint and translations | JVM tests, Android Lint in all modules, localization validator and its regression tests, CI tooling tests |
+| Offline language runtime | Build the pinned Rust/slimt/MNN/CLD2 runtime for ARM64, ARMv7 and x86_64, with cached native dependencies |
 | Build arm64-v8a / armeabi-v7a debug and release | Separate ARMv8 and ARMv7 debug/unsigned release APKs, including native translation code |
 | Device tests API 29 and 37.0 | Complete app instrumentation suite on fresh x86_64 emulators |
 | PR gate | Succeeds only when all preceding jobs succeed; failure, cancellation or a skipped job blocks this check |
 
 ARMv8 maps to `arm64-v8a` and ARMv7 to `armeabi-v7a`. Each build job verifies
 the APK's native engine libraries and ELF headers for its selected ABI.
-ARMv7 uses the translation engine's ruy backend. The device test matrix runs on
+The device test matrix runs on
 x86_64; ARM builds and packaging checks do not replace tests on real ARM devices.
 
 Device tests cover capture modes and scan filters, repeated Book captures and
@@ -26,8 +27,9 @@ translation, snapshot restoration, PDF permissions, folder PIN access and expiry
 Office conversion, exports, collage, app language and system bars.
 
 CI creates synthetic page images instead of depending on private device photos.
-The test runner limits OCR to one OpenMP thread on CI's small emulator CPUs;
-this suite checks correctness, not production multithreaded performance.
+Language fixtures use the upstream v6 core packs and PaddleOCR script models.
+The fixture installer never seeds the retired Tesseract language directory.
+This suite checks correctness, not production multithreaded performance.
 Office fixtures are in `app/src/androidTest/assets/office-fixtures`. English and
 Greek OCR/translation packs are fetched from the URLs in the app manifests and
 verified against their pinned digests before installation. Download tests also
