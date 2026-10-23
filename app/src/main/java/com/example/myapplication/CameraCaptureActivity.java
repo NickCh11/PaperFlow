@@ -90,7 +90,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
             sourceChoice.setGravity(Gravity.CENTER);targetChoice.setGravity(Gravity.CENTER);
             languages.addView(sourceChoice,new LinearLayout.LayoutParams(0,dp(48),1));languages.addView(targetChoice,new LinearLayout.LayoutParams(0,dp(48),1));
             overlayToggle=text(UiText.get(liveOverlay?R.string.ui_live_overlay_on:R.string.ui_live_overlay_off),12,TEAL);overlayToggle.setGravity(Gravity.CENTER);languages.addView(overlayToggle,new LinearLayout.LayoutParams(dp(78),dp(48)));
-            overlayToggle.setOnClickListener(v->{liveOverlay=!liveOverlay;overlayToggle.setText(liveOverlay?R.string.ui_live_overlay_on:R.string.ui_live_overlay_off);updateLiveControl(true);});root.addView(languages);
+            overlayToggle.setOnClickListener(v->{liveOverlay=!liveOverlay;overlayToggle.setText(liveOverlay?R.string.ui_live_overlay_on:R.string.ui_live_overlay_off);releaseFocus();updateLiveControl(true);});root.addView(languages);
             sourceChoice.setOnClickListener(v->chooseTranslationLanguage(true));targetChoice.setOnClickListener(v->chooseTranslationLanguage(false));updateTranslationLabels();
         }
         FrameLayout cameraFrame=new FrameLayout(this);root.addView(cameraFrame,new LinearLayout.LayoutParams(-1,0,1));
@@ -107,7 +107,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
             @Override public boolean onScale(ScaleGestureDetector detector){if(camera!=null&&!session.busy){androidx.camera.core.ZoomState state=camera.getCameraInfo().getZoomState().getValue();if(state!=null)camera.getCameraControl().setZoomRatio(Math.max(state.getMinZoomRatio(),Math.min(state.getMaxZoomRatio(),state.getZoomRatio()*detector.getScaleFactor())));}return true;}
         });
         GestureDetector tap=new GestureDetector(this,new GestureDetector.SimpleOnGestureListener(){@Override public boolean onDown(MotionEvent event){return true;}@Override public boolean onSingleTapUp(MotionEvent event){if(camera!=null&&!session.busy){focus(event.getX(),event.getY(),true);guide.performClick();}return true;}});
-        guide.setOnTouchListener((v,event)->{zoom.onTouchEvent(event);if(!zoom.isInProgress())tap.onTouchEvent(event);return true;});
+        guide.setOnTouchListener((v,event)->{zoom.onTouchEvent(event);tap.onTouchEvent(event);return true;});
         hint=text("",13,Color.WHITE);hint.setGravity(Gravity.CENTER);hint.setShadowLayer(3,0,1,Color.BLACK);FrameLayout.LayoutParams hintLp=new FrameLayout.LayoutParams(-1,dp(56),Gravity.TOP);hintLp.topMargin=dp(10);cameraFrame.addView(hint,hintLp);
         review=new FrameLayout(this);review.setPadding(dp(3),dp(3),dp(3),dp(3));review.setBackground(round(0xCC10191A,8));thumbnail=new ImageView(this);thumbnail.setScaleType(ImageView.ScaleType.CENTER_CROP);review.addView(thumbnail,new FrameLayout.LayoutParams(-1,-1));
         count=text("",12,Color.WHITE);count.setGravity(Gravity.CENTER);count.setTypeface(null,android.graphics.Typeface.BOLD);count.setBackground(round(TEAL,4));review.addView(count,new FrameLayout.LayoutParams(-1,dp(24),Gravity.BOTTOM));
