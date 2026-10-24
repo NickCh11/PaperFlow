@@ -9,6 +9,39 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class DocumentGeometryTest {
+    @Test fun quadRotationsPreserveThePageCornersAndSideLengths() {
+        val quad = Quad(Point(10, 15), Point(70, 15), Point(70, 50), Point(10, 50))
+        val size = ImageSize(100, 80)
+        val expected = listOf(
+            quad,
+            Quad(Point(30, 10), Point(65, 10), Point(65, 70), Point(30, 70)),
+            Quad(Point(30, 30), Point(90, 30), Point(90, 65), Point(30, 65)),
+            Quad(Point(15, 30), Point(50, 30), Point(50, 90), Point(15, 90))
+        )
+        for (turns in 0..7) {
+            val rotated = quad.rotate90(turns, size)
+            assertEquals(expected[turns % 4], rotated)
+            assertTrue(rotated.isConvex())
+            assertEquals(190.0, rotated.edges().sumOf { it.norm() }, 1e-9)
+        }
+        assertEquals(5.0, Line(Point(0, 0), Point(3, 4)).norm(), 0.0)
+    }
+
+    @Test fun shuffledCornersAndNonuniformScalingRetainTheirGeometry() {
+        val points = listOf(Point(10, 20), Point(90, 20), Point(90, 60), Point(10, 60))
+        val expected = Quad(points[0], points[1], points[2], points[3])
+        for (seed in 0..20) assertEquals(expected, createQuad(points.shuffled(kotlin.random.Random(seed))))
+        assertThrows(IllegalArgumentException::class.java) { createQuad(points.take(3)) }
+        val scaled = expected.scaledTo(100, 80, 200, 240)
+        assertEquals(Quad(Point(20, 60), Point(180, 60), Point(180, 180), Point(20, 180)), scaled)
+        assertEquals(expected, scaled.scaledTo(200.0, 240.0, 100.0, 80.0))
+        assertTrue(isInsideImage(Point(0, 0), ImageSize(100, 80)))
+        assertTrue(isInsideImage(Point(100, 80), ImageSize(100, 80)))
+        for (outside in listOf(Point(-1, 40), Point(101, 40), Point(40, -1), Point(40, 81)))
+            assertFalse(isInsideImage(outside, ImageSize(100, 80)))
+        assertFalse(Quad(Point(0, 0), Point(10, 0), Point(0, 10), Point(10, 10)).isConvex())
+    }
+
     @Test fun hullRejectsInteriorDuplicateAndCollinearPoints() {
         val corners = listOf(Point(0, 0), Point(10, 0), Point(10, 20), Point(0, 20))
         assertEquals(corners.toSet(), convexHull(corners.reversed() + corners + listOf(Point(5, 5), Point(5, 0))).toSet())

@@ -1,0 +1,105 @@
+package com.example.myapplication;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import androidx.test.platform.app.InstrumentationRegistry;
+import com.tom_roush.pdfbox.android.PDFBoxResourceLoader;
+import com.tom_roush.pdfbox.pdmodel.*;
+import com.tom_roush.pdfbox.pdmodel.common.PDRectangle;
+import com.tom_roush.pdfbox.pdmodel.font.PDType1Font;
+import java.io.*;
+import java.lang.reflect.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.*;
+import java.util.concurrent.CancellationException;
+import java.util.zip.*;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.junit.Before;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class WordConversionRoutesTest {
+    private final Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
+    @Before public void init(){PDFBoxResourceLoader.init(context);}
+    private File pdf(boolean withText,int pages)throws Exception{
+        File file=File.createTempFile("word-route-",".pdf",context.getCacheDir());
+        try(PDDocument doc=new PDDocument()){for(int i=0;i<pages;i++){PDPage page=new PDPage(new PDRectangle(120,180));doc.addPage(page);
+            if(withText)try(PDPageContentStream stream=new PDPageContentStream(doc,page)){stream.beginText();stream.setFont(PDType1Font.HELVETICA,10);stream.newLineAtOffset(12,140);stream.showText("Page "+(i+1)+" <tag> & value");stream.endText();}}
+            doc.save(file);
+        }return file;
+    }
+    private String document(File file)throws Exception{
+        try(ZipFile zip=new ZipFile(file)){assertNotNull(zip.getEntry("[Content_Types].xml"));assertNotNull(zip.getEntry("_rels/.rels"));
+            byte[] value;try(InputStream in=zip.getInputStream(zip.getEntry("word/document.xml"))){value=read(in);}
+            DocumentBuilderFactory factory=DocumentBuilderFactory.newInstance();factory.setNamespaceAware(true);
+            assertEquals("document",factory.newDocumentBuilder().parse(new ByteArrayInputStream(value)).getDocumentElement().getLocalName());
+            return new String(value,StandardCharsets.UTF_8);
+        }
+    }
+    private byte[] read(InputStream in)throws IOException{ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buffer=new byte[8192];int count;while((count=in.read(buffer))!=-1)out.write(buffer,0,count);return out.toByteArray();}
+    private Object call(String name,Class<?>[] types,Object... args)throws Exception{
+        Method method=WordConversion.class.getDeclaredMethod(name,types);method.setAccessible(true);
+        try{return method.invoke(null,args);}catch(InvocationTargetException error){Throwable cause=error.getCause();if(cause instanceof Exception)throw (Exception)cause;throw new AssertionError(cause);}
+    }
+
+    @Test public void nativeAndAutomaticTextRoutesCreateValidEscapedMultipageWordFiles()throws Exception{
+        File source=pdf(true,2);
+        try{for(int route:new int[]{WordConversion.NATIVE,WordConversion.AUTO}){
+            ArrayList<Integer> progress=new ArrayList<>();WordConversion.Result result=WordConversion.convert(context,source.getPath(),"",route,new WordConversion.Job(),(done,total,message)->{assertEquals(2,total);progress.add(done);});
+            try{assertEquals(2,result.pages);assertEquals(2,result.nativePages);assertEquals(0,result.ocrPages);
+                String xml=document(result.file);assertTrue(xml.contains("Page 1 &lt;tag&gt; &amp; value"));assertTrue(xml.contains("Page 2"));assertTrue(xml.contains("w:type=\"page\""));assertEquals(Integer.valueOf(2),progress.get(progress.size()-1));
+            }finally{result.file.delete();}
+        }}finally{source.delete();}
+    }
+
+    @Test public void visualAndEditableLayoutRoutesKeepImagesAndOnlyEditableRouteHasTextBoxes()throws Exception{
+        File source=pdf(true,1);
+        try{for(int route:new int[]{WordConversion.LAYOUT,WordConversion.APPEARANCE}){
+            WordConversion.Result result=WordConversion.convert(context,source.getPath(),"",route,new WordConversion.Job(),(done,total,message)->{});
+            try{assertEquals(1,result.pages);assertEquals(0,result.nativePages);assertEquals(0,result.ocrPages);String xml=document(result.file);
+                assertEquals(route==WordConversion.LAYOUT,xml.contains("<w:txbxContent>"));
+                try(ZipFile zip=new ZipFile(result.file)){assertNotNull(zip.getEntry("word/media/page1.jpg"));assertNotNull(zip.getEntry("word/_rels/document.xml.rels"));}
+            }finally{result.file.delete();}
+        }}finally{source.delete();}
+    }
+
+    @Test public void emptyOrUnreadableInputFailsWithoutCreatingAnOutput()throws Exception{
+        File noPages=pdf(false,0),blank=pdf(false,1),malformed=File.createTempFile("word-bad-",".pdf",context.getCacheDir());Files.write(malformed.toPath(),new byte[]{1,2,3});
+        File directory=new File(context.getFilesDir(),"documents");directory.mkdirs();Set<String> before=new HashSet<>(Arrays.asList(Objects.requireNonNull(directory.list())));
+        try{for(File source:new File[]{noPages,blank})assertThrows(IllegalStateException.class,()->WordConversion.convert(context,source.getPath(),"",WordConversion.NATIVE,new WordConversion.Job(),(d,t,m)->{}));
+            assertThrows(IOException.class,()->WordConversion.convert(context,malformed.getPath(),"",WordConversion.NATIVE,new WordConversion.Job(),(d,t,m)->{}));
+            assertEquals(before,new HashSet<>(Arrays.asList(Objects.requireNonNull(directory.list()))));
+            assertTrue(noPages.isFile());assertTrue(blank.isFile());assertEquals(3,malformed.length());
+        }finally{noPages.delete();blank.delete();malformed.delete();}
+    }
+
+    @Test public void cancellationBeforeAndDuringWritingLeavesNoPartialWordFile()throws Exception{
+        File source=pdf(true,1);File directory=new File(context.getFilesDir(),"documents");directory.mkdirs();
+        try{for(int route:new int[]{WordConversion.NATIVE,WordConversion.LAYOUT,WordConversion.APPEARANCE}){
+            Set<String> before=new HashSet<>(Arrays.asList(Objects.requireNonNull(directory.list())));
+            WordConversion.Job cancelled=new WordConversion.Job();cancelled.cancel();assertThrows(CancellationException.class,()->WordConversion.convert(context,source.getPath(),"",route,cancelled,(d,t,m)->{}));
+            WordConversion.Job during=new WordConversion.Job();assertThrows(CancellationException.class,()->WordConversion.convert(context,source.getPath(),"",route,during,(d,t,m)->{if(d==t)during.cancel();}));
+            assertEquals(before,new HashSet<>(Arrays.asList(Objects.requireNonNull(directory.list()))));
+        }}finally{source.delete();}
+    }
+
+    @Test public void jobCancellationRecognizesInterruption()throws Exception{
+        WordConversion.Job job=new WordConversion.Job();job.check();job.cancel();assertThrows(CancellationException.class,job::check);
+        WordConversion.Job interrupted=new WordConversion.Job();try{Thread.currentThread().interrupt();assertThrows(CancellationException.class,interrupted::check);}finally{Thread.interrupted();}interrupted.check();
+    }
+
+    @Test public void textCleanupReadabilityAndXmlEscapingHandleCorruptAndMultilingualText()throws Exception{
+        assertEquals("",call("clean",new Class<?>[]{String.class},(Object)null));
+        assertEquals("a\nb\nc\nd",call("clean",new Class<?>[]{String.class}," \u0000a\r\nb\rc\fd\u0001 "));
+        for(String value:new String[]{"English", "Ελληνικά", "日本語文", "1234", "abcd\ufffd"})assertEquals(true,call("readable",new Class<?>[]{String.class},value));
+        for(String value:new String[]{"", "abc", "abcd\ufffd\ufffd"})assertEquals(false,call("readable",new Class<?>[]{String.class},value));
+        assertEquals("&amp;&lt;&gt;&quot;&apos;",call("xml",new Class<?>[]{String.class},"&<>\"'"));
+    }
+
+    @Test public void cancelledLocalOcrReleasesItsBitmap()throws Exception{
+        Bitmap image=Bitmap.createBitmap(20,30,Bitmap.Config.ARGB_8888);WordConversion.Job cancelled=new WordConversion.Job();cancelled.cancel();
+        try{assertThrows(CancellationException.class,()->call("localText",new Class<?>[]{Context.class,Bitmap.class,WordConversion.Job.class},context,image,cancelled));assertTrue(image.isRecycled());}
+        finally{if(!image.isRecycled())image.recycle();}
+    }
+}

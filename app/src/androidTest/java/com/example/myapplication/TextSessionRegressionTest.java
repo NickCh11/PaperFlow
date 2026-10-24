@@ -21,6 +21,52 @@ public class TextSessionRegressionTest {
     private void ready(AtomicReference<TextTranslationActivity> activity)throws Exception{UiTestWait.until(()->!task(activity.get()).loading&&!task(activity.get()).busy,"Text editor did not finish loading");}
     private void seed(TextTranslationActivity a){TextTranslationActivity.Task t=task(a);t.source="Original κείμενο";t.translated="Translated Ελληνικά\nSecond line";t.from="en";t.to="el";t.publish();}
 
+    @Test public void invalidRestoredSessionStopsLoadingAndCannotBeLoadedTwice()throws Exception{
+        Context context=inst.getTargetContext();File invalid=File.createTempFile("text-corrupt-",".json",context.getCacheDir());Files.write(invalid.toPath(),"{broken".getBytes(StandardCharsets.UTF_8));
+        TextTranslationActivity.Task t=new TextTranslationActivity.Task((Application)context.getApplicationContext());
+        try{inst.runOnMainSync(()->t.load(null,invalid.getPath()));UiTestWait.until(()->!t.loading&&!t.busy,"Invalid session left the editor busy");assertFalse(t.message.isEmpty());assertEquals("",t.source);
+            inst.runOnMainSync(()->t.load("must-not-be-read",null));assertFalse(t.busy);assertEquals("",t.source);
+        }finally{inst.runOnMainSync(t::onCleared);invalid.delete();}
+    }
+
+    @Test public void sameLanguageTranslationPreservesAllTextAcrossLongParagraphAndWordBoundaries(){
+        Context context=inst.getTargetContext();
+        for(String value:new String[]{"A".repeat(600)+"\n"+"B".repeat(600)+" "+"C".repeat(650),"word ".repeat(700),"X".repeat(2500)}){
+            TextTranslationActivity.Task t=new TextTranslationActivity.Task((Application)context.getApplicationContext());
+            try{inst.runOnMainSync(()->{t.source=value;t.from="en";t.to="en";t.translate();});UiTestWait.until(()->!t.busy,"Same-language translation did not finish");
+                assertEquals(value.replaceAll("\\s",""),t.translated.replaceAll("\\s",""));assertEquals("en",t.detected);assertFalse(t.message.isEmpty());
+            }finally{inst.runOnMainSync(t::onCleared);}
+        }
+    }
+
+    @Test public void cancellationAndInputLimitsFailBeforeAnyModelDownload()throws Exception{
+        Context context=inst.getTargetContext();TextTranslationActivity.Task t=new TextTranslationActivity.Task((Application)context.getApplicationContext());
+        try{for(String value:new String[]{" ","x".repeat(1000001)})inst.runOnMainSync(()->{t.source=value;t.translate();assertFalse(t.busy);assertTrue(t.translated.isEmpty());assertFalse(t.message.isEmpty());});
+            t.cancelled=true;assertThrows(java.io.InterruptedIOException.class,t::check);t.cancelled=false;
+            try{Thread.currentThread().interrupt();assertThrows(java.io.InterruptedIOException.class,t::check);}finally{Thread.interrupted();}
+            inst.runOnMainSync(()->{t.busy=true;t.translated="Keep existing result";t.translate();assertEquals("Keep existing result",t.translated);t.busy=false;t.onCleared();t.publish();t.status("late status");});
+            assertThrows(java.io.InterruptedIOException.class,t::check);inst.waitForIdleSync();assertNotEquals("late status",t.message);
+        }finally{inst.runOnMainSync(t::onCleared);}
+    }
+
+    @Test public void busyEditorCancelsWithoutReplacingTheRunningInputAndLoadingDoesNotWriteAPartialSnapshot()throws Exception{
+        Context context=inst.getTargetContext();File file=File.createTempFile("text-busy-",".txt",context.getCacheDir());
+        try(ActivityScenario<TextTranslationActivity> scenario=ActivityScenario.launch(new Intent(context,TextTranslationActivity.class).putExtra("text_path",file.getPath()))){
+            AtomicReference<TextTranslationActivity> current=new AtomicReference<>();scenario.onActivity(current::set);ready(current);
+            File snapshot=(File)field(current.get(),"sessionFile");
+            scenario.onActivity(a->{TextTranslationActivity.Task t=task(a);t.source="Running original";t.translated="Completed result";t.publish();
+                assertTrue(((Button)field(a,"copy")).isEnabled());((Button)field(a,"copy")).performClick();
+                android.content.ClipboardManager clipboard=(android.content.ClipboardManager)a.getSystemService(Context.CLIPBOARD_SERVICE);assertEquals("Completed result",clipboard.getPrimaryClip().getItemAt(0).getText().toString());
+                t.busy=true;t.loading=true;t.publish();
+                ((android.widget.EditText)field(a,"input")).setText("UI text must not replace the running input");assertFalse(((Button)field(a,"copy")).isEnabled());assertFalse(((Button)field(a,"share")).isEnabled());assertFalse(((Button)field(a,"saveButton")).isEnabled());
+                a.onSaveInstanceState(new android.os.Bundle());assertEquals("Running original",t.source);((Button)field(a,"translate")).performClick();assertTrue(t.cancelled);
+            });
+            assertThrows(java.io.IOException.class,()->SessionSnapshots.read(snapshot));
+            scenario.onActivity(a->{TextTranslationActivity.Task t=task(a);t.loading=false;a.onSaveInstanceState(new android.os.Bundle());t.busy=false;});
+            org.json.JSONObject saved=new org.json.JSONObject(SessionSnapshots.read(snapshot));assertEquals("Running original",saved.getString("source"));assertEquals("Completed result",saved.getString("translated"));
+        }finally{file.delete();}
+    }
+
     @Test public void recreationWritesACompleteSnapshotThatANewSessionCanRestore()throws Exception{
         Context context=inst.getTargetContext();File input=File.createTempFile("text-empty-",".txt",context.getCacheDir());
         TextTranslationActivity.Task restored=new TextTranslationActivity.Task((Application)context.getApplicationContext());

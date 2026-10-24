@@ -52,19 +52,7 @@ import java.util.UUID;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
-import android.security.keystore.KeyGenParameterSpec;
-import android.security.keystore.KeyProperties;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity {
     private final int INK = AppTheme.ink();
@@ -75,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
     private ScrollView mainScroll;
     private final java.util.List<TextView> navigationItems = new ArrayList<>();
     private DocumentStore store;
-    private ActivityResultLauncher<Intent> captureLauncher,googleUnlockLauncher;
+    private ActivityResultLauncher<Intent> captureLauncher;
     private ActivityResultLauncher<String[]> pdfPicker;
     private ActivityResultLauncher<String[]> imagePicker,filePicker;
     private ActivityResultLauncher<String[]> wordPdfPicker;
@@ -88,20 +76,13 @@ public class MainActivity extends AppCompatActivity {
         final int completed,total; final String message;
         WordProgress(int completed,int total,String message){this.completed=completed;this.total=total;this.message=message;}
     }
-    static final class CloudRequest {
-        final String path,name,password,key;
-        CloudRequest(String path,String name,String password,String key){this.path=path;this.name=name;this.password=password;this.key=key;}
-        Bundle saved(){Bundle state=new Bundle();state.putString("path",path);state.putString("name",name);state.putString("password",password);return state;}
-        static CloudRequest restore(Bundle state){return state==null?null:new CloudRequest(state.getString("path"),state.getString("name"),state.getString("password"),null);}
-    }
     public static final class WordState extends androidx.lifecycle.ViewModel {
-        CloudRequest pendingCloud;
         final ExecutorService worker=Executors.newSingleThreadExecutor();
         final androidx.lifecycle.MutableLiveData<WordProgress> progress=new androidx.lifecycle.MutableLiveData<>();
         final androidx.lifecycle.MutableLiveData<WordConversion.Result> result=new androidx.lifecycle.MutableLiveData<>();
         final androidx.lifecycle.MutableLiveData<Throwable> error=new androidx.lifecycle.MutableLiveData<>();
         volatile boolean running,disposed; WordConversion.Job job; String path,name,password;int route,orientation;
-        @Override protected void onCleared(){pendingCloud=null;disposed=true;if(job!=null)job.cancel();worker.shutdownNow();}
+        @Override protected void onCleared(){disposed=true;if(job!=null)job.cancel();worker.shutdownNow();}
     }
     private String searchQuery = "";
     private boolean favoritesOnly = false;
@@ -127,8 +108,6 @@ public class MainActivity extends AppCompatActivity {
         sortOrder=getPreferences(0).getString("library_sort","last_opened DESC, created DESC");
         PDFBoxResourceLoader.init(getApplicationContext());
         wordState=new androidx.lifecycle.ViewModelProvider(this).get(WordState.class);
-        if(wordState.pendingCloud==null&&state!=null)wordState.pendingCloud=CloudRequest.restore(state.getBundle("cloud_unlock"));
-        googleUnlockLauncher=registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),result->finishGoogleUnlock(result.getResultCode()));
         captureLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             if(result.getResultCode()!=RESULT_OK||result.getData()==null){clearPendingAppend();return;}
             Intent data=result.getData(); ArrayList<String> paths=data.getStringArrayListExtra("pages");
@@ -495,118 +474,22 @@ public class MainActivity extends AppCompatActivity {
         try{File directory=new File(getFilesDir(),"documents");if(!directory.exists()&&!directory.mkdirs())throw new IllegalStateException();File copy=new File(directory,"paperflow-word-source-"+System.currentTimeMillis()+".pdf");try(InputStream in=getContentResolver().openInputStream(uri);FileOutputStream out=new FileOutputStream(copy)){if(in==null)throw new IllegalStateException();byte[] buffer=new byte[8192];int n;while((n=in.read(buffer))!=-1)out.write(buffer,0,n);}beginWordConversion(copy.getAbsolutePath(),"Document");}
         catch(Exception e){Toast.makeText(this,UiText.get(R.string.ui_could_not_open_pdf),Toast.LENGTH_LONG).show();}
     }
-    private void authenticateGoogleSettings(CloudRequest request) {
-        android.app.KeyguardManager keyguard=getSystemService(android.app.KeyguardManager.class);
-        if(keyguard==null||!keyguard.isDeviceSecure()){
-            Toast.makeText(this,UiText.get(R.string.ui_cloud_requires_device_lock),Toast.LENGTH_LONG).show();return;
-        }
-        Intent confirm=keyguard.createConfirmDeviceCredentialIntent(UiText.get(R.string.ui_google_api_settings),UiText.get(R.string.ui_cloud_unlock_reason));
-        if(confirm==null)return;
-        wordState.pendingCloud=request;
-        try{googleUnlockLauncher.launch(confirm);}catch(RuntimeException unavailable){wordState.pendingCloud=null;Toast.makeText(this,UiText.get(R.string.ui_could_not_read_google_api_settings),Toast.LENGTH_LONG).show();}
-    }
-    private void finishGoogleUnlock(int resultCode){
-        CloudRequest request=wordState.pendingCloud;wordState.pendingCloud=null;
-        if(resultCode!=RESULT_OK||request==null||isFinishing()||isDestroyed())return;
-        if(request.key!=null)promptGoogleApiKey(request);else chooseCloudWordRoute(request);
-    }
-    private void promptGoogleApiKey(CloudRequest request) {
-        EditText keyInput = new EditText(this); keyInput.setSingleLine(true); keyInput.setHint(UiText.get(R.string.ui_google_cloud_api_key)); keyInput.setInputType(129);if(request.key!=null)keyInput.setText(request.key);
-        LinearLayout fields = new LinearLayout(this); fields.setOrientation(LinearLayout.VERTICAL); fields.setPadding(dp(20), dp(8), dp(20), dp(4)); fields.addView(keyInput);
-        AlertDialog settingsDialog=new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_google_api_settings)).setMessage(UiText.get(R.string.ui_google_cloud_vision_is_available_for_the_optional_cloud_word_ocr_route_enab)).setView(fields).setNegativeButton(UiText.get(R.string.ui_cancel), null).setPositiveButton(UiText.get(R.string.ui_save),null).create();settingsDialog.setOnShowListener(shown->settingsDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(button->{
-            String key = keyInput.getText().toString().trim();
-            if(key.isEmpty()){keyInput.setError(UiText.get(R.string.ui_enter_your_google_cloud_api_key));return;}
-            saveGoogleSettings(key,settingsDialog,request);
-        }));settingsDialog.show();if(settingsDialog.getWindow()!=null)settingsDialog.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
-    }
-    private void saveGoogleSettings(String key,AlertDialog dialog,CloudRequest request){
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
-        pdfWorker.execute(()->{
-            try{writeGoogleSettings(key,"en");runOnUiThread(()->{if(isDestroyed())return;dialog.dismiss();chooseCloudWordRoute(new CloudRequest(request.path,request.name,request.password,null));});}
-            catch(Exception error){runOnUiThread(()->{
-                if(isDestroyed())return;dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
-                if(error instanceof android.security.keystore.UserNotAuthenticatedException){dialog.dismiss();authenticateGoogleSettings(new CloudRequest(request.path,request.name,request.password,key));}
-                else Toast.makeText(this,UiText.get(R.string.ui_could_not_save_google_cloud_settings),Toast.LENGTH_LONG).show();
-            });}
-        });
-    }
-    static KeyGenParameterSpec googleKeySpec(String alias) {
-        KeyGenParameterSpec.Builder builder=new KeyGenParameterSpec.Builder(alias,KeyProperties.PURPOSE_ENCRYPT|KeyProperties.PURPOSE_DECRYPT)
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE);
-        builder.setUserAuthenticationRequired(true);
-        if(android.os.Build.VERSION.SDK_INT>=30)builder.setUserAuthenticationParameters(300,KeyProperties.AUTH_DEVICE_CREDENTIAL|KeyProperties.AUTH_BIOMETRIC_STRONG);
-        else builder.setUserAuthenticationValidityDurationSeconds(300);
-        return builder.build();
-    }
-    private SecretKey googleSettingsKey() throws Exception {
-        java.security.KeyStore keyStore=java.security.KeyStore.getInstance("AndroidKeyStore");keyStore.load(null);
-        java.security.Key existing=keyStore.getKey("paperflow_google_translation_auth_v2",null);
-        if(existing instanceof SecretKey)return (SecretKey)existing;
-        KeyGenerator generator=KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES,"AndroidKeyStore");
-        generator.init(googleKeySpec("paperflow_google_translation_auth_v2"));return generator.generateKey();
-    }
-    private void writeGoogleSettings(String apiKey,String target)throws Exception {
-        Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");
-        try{cipher.init(Cipher.ENCRYPT_MODE,googleSettingsKey());}
-        catch(android.security.keystore.KeyPermanentlyInvalidatedException invalidated){
-            java.security.KeyStore keyStore=java.security.KeyStore.getInstance("AndroidKeyStore");keyStore.load(null);
-            keyStore.deleteEntry("paperflow_google_translation_auth_v2");cipher.init(Cipher.ENCRYPT_MODE,googleSettingsKey());
-        }
-        byte[] encrypted=cipher.doFinal((apiKey+"\n"+target).getBytes(StandardCharsets.UTF_8));
-        if(!getSharedPreferences("google_translation",MODE_PRIVATE).edit()
-                .putString("iv",android.util.Base64.encodeToString(cipher.getIV(),android.util.Base64.NO_WRAP))
-                .putString("value",android.util.Base64.encodeToString(encrypted,android.util.Base64.NO_WRAP)).putInt("key_version",2).commit())throw new java.io.IOException("Could not persist Cloud settings");
-        java.security.KeyStore keyStore=java.security.KeyStore.getInstance("AndroidKeyStore");keyStore.load(null);
-        keyStore.deleteEntry("paperflow_google_translation");
-    }
-    private String[] readGoogleSettings()throws Exception {
-        android.content.SharedPreferences prefs=getSharedPreferences("google_translation",MODE_PRIVATE);
-        String iv=prefs.getString("iv",null),value=prefs.getString("value",null);
-        if(iv==null||value==null)return new String[]{"","en"};
-        boolean legacy=prefs.getInt("key_version",1)<2;
-        java.security.Key key;
-        if(legacy){java.security.KeyStore keyStore=java.security.KeyStore.getInstance("AndroidKeyStore");keyStore.load(null);key=keyStore.getKey("paperflow_google_translation",null);}
-        else key=googleSettingsKey();
-        if(key==null)throw new java.security.KeyStoreException("Cloud settings key unavailable");
-        Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.DECRYPT_MODE,key,new GCMParameterSpec(128,android.util.Base64.decode(iv,android.util.Base64.NO_WRAP)));
-        String[] parts=new String(cipher.doFinal(android.util.Base64.decode(value,android.util.Base64.NO_WRAP)),StandardCharsets.UTF_8).split("\\n",2);
-        String[] settings={parts[0],parts.length>1?parts[1]:"en"};
-        if(legacy)writeGoogleSettings(settings[0],settings[1]);
-        return settings;
-    }
-    private String readGoogleApiKey() throws Exception { return readGoogleSettings()[0]; }
     private void beginWordConversion(String pdfPath, String name) {
         beginWordConversion(pdfPath,name,"");
     }
     private void beginWordConversion(String pdfPath,String name,String password) {
         if(!FolderLock.ensureDocument(this,pdfPath,()->beginWordConversion(pdfPath,name,password)))return;
         if(wordState.running){showWordProgress();return;}
-        LinearLayout choices=new LinearLayout(this);choices.setOrientation(LinearLayout.VERTICAL);choices.setPadding(dp(18),dp(8),dp(18),dp(4));TextView explanation=new TextView(this);explanation.setText(UiText.get(R.string.ui_automatic_uses_embedded_pdf_text_including_greek_and_on_device_ocr_for_scan));explanation.setTextSize(13);choices.addView(explanation);android.widget.Button ocrLanguages=new android.widget.Button(this);ocrLanguages.setText(UiText.get(R.string.ui_ocr_languages_84fba977));ocrLanguages.setOnClickListener(v->startActivity(new Intent(this,LanguageManagerActivity.class).putExtra("kind","ocr")));choices.addView(ocrLanguages);
-        android.widget.RadioGroup routes=new android.widget.RadioGroup(this);String[] labels={"Automatic · PDF text, then local OCR","PDF text only · includes Greek","On-device OCR · Tesseract","Google Cloud OCR · Greek","Editable page layout · local","Keep page appearance · images"};for(int i=0;i<labels.length;i++){android.widget.RadioButton option=new android.widget.RadioButton(this);option.setId(View.generateViewId());option.setText(UiText.label(labels[i]));option.setTag(i);routes.addView(option);if(i==4)option.setChecked(true);}choices.addView(routes);
+        LinearLayout choices=new LinearLayout(this);choices.setOrientation(LinearLayout.VERTICAL);choices.setPadding(dp(18),dp(8),dp(18),dp(4));TextView explanation=new TextView(this);explanation.setText(UiText.get(R.string.ui_word_routes_description));explanation.setTextSize(13);choices.addView(explanation);android.widget.Button ocrLanguages=new android.widget.Button(this);ocrLanguages.setText(UiText.get(R.string.ui_ocr_languages_84fba977));ocrLanguages.setOnClickListener(v->startActivity(new Intent(this,LanguageManagerActivity.class).putExtra("kind","ocr")));choices.addView(ocrLanguages);
+        android.widget.RadioGroup routes=new android.widget.RadioGroup(this);String[] labels={"Automatic · PDF text, then local OCR","PDF text only · includes Greek","On-device OCR","Editable page layout · local","Keep page appearance · images"};int[] routeIds={WordConversion.AUTO,WordConversion.NATIVE,WordConversion.LOCAL,WordConversion.LAYOUT,WordConversion.APPEARANCE};for(int i=0;i<labels.length;i++){android.widget.RadioButton option=new android.widget.RadioButton(this);option.setId(View.generateViewId());option.setText(UiText.label(labels[i]));option.setTag(routeIds[i]);routes.addView(option);if(routeIds[i]==WordConversion.LAYOUT)option.setChecked(true);}choices.addView(routes);
         new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_convert_to_word)).setView(choices).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_convert),(d,w)->{View selected=routes.findViewById(routes.getCheckedRadioButtonId());int route=selected==null?WordConversion.AUTO:(Integer)selected.getTag();chooseWordRoute(pdfPath,name==null?"Document":name,password,route);}).show();
     }
     private void chooseWordRoute(String path,String name,String password,int route){
-        if(route!=WordConversion.CLOUD){convertPdfToWord(path,name,password,route,"");return;}
-        authenticateGoogleSettings(new CloudRequest(path,name,password,null));
+        if(FolderLock.ensureDocument(this,path,()->chooseWordRoute(path,name,password,route)))convertPdfToWord(path,name,password,route);
     }
-    private void chooseCloudWordRoute(CloudRequest request){
-        String path=request.path,name=request.name,password=request.password;
-        if(!FolderLock.ensureDocument(this,path,()->chooseCloudWordRoute(request)))return;
-        pdfWorker.execute(()->{
-            try{String key=readGoogleApiKey();runOnUiThread(()->{
-                if(isDestroyed()||isFinishing())return;
-                if(key.isEmpty()){promptGoogleApiKey(request);return;}
-                new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_upload_pages_to_google_cloud)).setMessage(UiText.get(R.string.ui_each_pdf_page_will_be_rendered_and_sent_to_google_cloud_vision_for_ocr_incl)).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_upload_and_convert),(d,w)->{if(FolderLock.ensureDocument(this,path,()->chooseCloudWordRoute(request)))convertPdfToWord(path,name,password,WordConversion.CLOUD,key);}).show();
-            });}catch(Exception error){runOnUiThread(()->{
-                if(isDestroyed()||isFinishing())return;
-                if(error instanceof android.security.keystore.UserNotAuthenticatedException)authenticateGoogleSettings(new CloudRequest(path,name,password,null));
-                else{Toast.makeText(this,UiText.get(R.string.ui_could_not_read_google_api_settings),Toast.LENGTH_LONG).show();promptGoogleApiKey(request);}
-            });}
-        });
-    }
-    private void convertPdfToWord(String path,String name,String password,int route,String key){
+    private void convertPdfToWord(String path,String name,String password,int route){
         if(wordState.running){showWordProgress();return;}wordState.error.setValue(null);wordState.result.setValue(null);wordState.path=path;wordState.name=name;wordState.password=password;wordState.route=route;wordState.orientation=getRequestedOrientation();wordState.running=true;WordConversion.Job job=new WordConversion.Job();wordState.job=job;wordState.progress.setValue(new WordProgress(0,0,"Opening PDF…"));setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LOCKED);showWordProgress();
-        android.content.Context app=getApplicationContext();WordState task=wordState;task.worker.execute(()->{WordConversion.Result result=null;try{result=WordConversion.convert(app,path,password,route,key,job,(completed,total,message)->task.progress.postValue(new WordProgress(completed,total,message)));job.check();if(task.disposed){result.file.delete();return;}ConversionHistory.add(app,result.file,name+".docx","application/vnd.openxmlformats-officedocument.wordprocessingml.document",java.util.Collections.singletonList(path));task.running=false;task.result.postValue(result);}catch(Exception e){if(result!=null)result.file.delete();task.running=false;if(!task.disposed)task.error.postValue(job.cancelled?new java.util.concurrent.CancellationException("Conversion cancelled"):e);}});
+        android.content.Context app=getApplicationContext();WordState task=wordState;task.worker.execute(()->{WordConversion.Result result=null;try{result=WordConversion.convert(app,path,password,route,job,(completed,total,message)->task.progress.postValue(new WordProgress(completed,total,message)));job.check();if(task.disposed){result.file.delete();return;}ConversionHistory.add(app,result.file,name+".docx","application/vnd.openxmlformats-officedocument.wordprocessingml.document",java.util.Collections.singletonList(path));task.running=false;task.result.postValue(result);}catch(Exception e){if(result!=null)result.file.delete();task.running=false;if(!task.disposed)task.error.postValue(job.cancelled?new java.util.concurrent.CancellationException("Conversion cancelled"):e);}});
     }
     private void observeWordConversion(){
         wordState.progress.observe(this,progress->{if(wordState.running){showWordProgress();if(progress!=null&&wordProgressDialog!=null){wordProgressDialog.setIndeterminate(progress.total==0);if(progress.total>0){wordProgressDialog.setMax(progress.total);wordProgressDialog.setProgress(progress.completed);}wordProgressDialog.setMessage(wordState.job!=null&&wordState.job.cancelled ? UiText.get(R.string.ui_cancelling) : progress.message);}}});
@@ -684,7 +567,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean resumedOnce;
     @Override protected void onResume(){super.onResume();FolderLock.watch(this,()->{selectedDocuments.clear();if(content!=null){if("All Documents".equals(section))renderAllDocuments();else if("Home".equals(section))renderHome();}});if(resumedOnce&&content!=null){if("All Documents".equals(section))renderAllDocuments();else if("Home".equals(section))renderHome();}resumedOnce=true;}
     @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); handleDocumentIntent(intent); }
-    @Override protected void onSaveInstanceState(Bundle state){super.onSaveInstanceState(state);if(wordState.pendingCloud!=null)state.putBundle("cloud_unlock",wordState.pendingCloud.saved());state.putString("section",section);state.putLong("library_folder",folderId);state.putBoolean("library_trash",trashView);state.putBoolean("library_favorites",favoritesOnly);state.putString("library_query",searchQuery);state.putBoolean("library_visible",libraryVisible);state.putString("append_path",pendingAppendPath);state.putString("append_name",pendingAppendName);state.putString("append_password",pendingAppendPassword);if(wordExport!=null)state.putString("word_export",wordExport.getAbsolutePath());}
+    @Override protected void onSaveInstanceState(Bundle state){super.onSaveInstanceState(state);state.putString("section",section);state.putLong("library_folder",folderId);state.putBoolean("library_trash",trashView);state.putBoolean("library_favorites",favoritesOnly);state.putString("library_query",searchQuery);state.putBoolean("library_visible",libraryVisible);state.putString("append_path",pendingAppendPath);state.putString("append_name",pendingAppendName);state.putString("append_password",pendingAppendPassword);if(wordExport!=null)state.putString("word_export",wordExport.getAbsolutePath());}
     private void clearPendingAppend(){pendingAppendPath=null;pendingAppendName=null;pendingAppendPassword="";}
     private void indexLibrary(){if(isDestroyed()||pdfWorker.isShutdown())return;pdfWorker.execute(()->{store.indexText();});}
     private void handleDocumentIntent(Intent intent) {

@@ -18,6 +18,35 @@ import static org.junit.Assert.*;
 public class ImageProcessingRegressionTest {
     @Before public void loadNativeLibrary() { assertTrue(com.paperflow.scanengine.ScanEngine.ready()); }
 
+    private void removeSpecks(Mat binary,int minArea,boolean ink,Mat within)throws Exception {
+        java.lang.reflect.Method method=PostProcessingKt.class.getDeclaredMethod("removeSpecks",Mat.class,int.class,boolean.class,Mat.class);
+        method.setAccessible(true);method.invoke(null,binary,minArea,ink,within);
+    }
+
+    @Test public void isolatedInkSpecksAreRemovedWhileLetterSizedComponentsRemain()throws Exception {
+        Mat binary=new Mat(30,40,CvType.CV_8UC1,new Scalar(255));
+        try {
+            binary.put(4,5,new byte[]{0});Imgproc.rectangle(binary,new Point(20,10),new Point(24,15),new Scalar(0),-1);
+            removeSpecks(binary,3,true,null);
+            assertEquals(255,binary.get(4,5)[0],0);assertEquals(0,binary.get(12,22)[0],0);
+            assertEquals(30,binary.rows());assertEquals(40,binary.cols());
+            binary.setTo(new Scalar(255));removeSpecks(binary,3,true,null);assertEquals(1200,Core.countNonZero(binary));
+        }finally{binary.release();}
+    }
+
+    @Test public void holeFillingOnlyChangesSmallComponentsInsideTheSelectedMask()throws Exception {
+        Mat binary=new Mat(30,40,CvType.CV_8UC1,new Scalar(0)),mask=new Mat(30,40,CvType.CV_8UC1,new Scalar(0));
+        try {
+            binary.put(4,5,new byte[]{(byte)255});binary.put(6,30,new byte[]{(byte)255});
+            Imgproc.rectangle(binary,new Point(20,15),new Point(24,20),new Scalar(255),-1);
+            Imgproc.rectangle(mask,new Point(0,0),new Point(15,29),new Scalar(255),-1);
+            removeSpecks(binary,3,false,mask);
+            assertEquals(0,binary.get(4,5)[0],0);assertEquals(255,binary.get(6,30)[0],0);assertEquals(255,binary.get(17,22)[0],0);
+            removeSpecks(binary,3,false,null);assertEquals(0,binary.get(6,30)[0],0);assertEquals(30,Core.countNonZero(binary));
+            binary.setTo(new Scalar(0));removeSpecks(binary,3,false,mask);assertEquals(0,Core.countNonZero(binary));
+        }finally{binary.release();mask.release();}
+    }
+
     private Mat page() {
         Mat image = new Mat(200, 300, CvType.CV_8UC3);
         byte[] row = new byte[300 * 3];

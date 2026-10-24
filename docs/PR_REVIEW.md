@@ -160,12 +160,13 @@ test failures but does not yet collect native execution coverage, so whole-proje
 100% remains unmet even if all tests pass. Native test output is saved alongside
 the device reports; an empty or ignored native suite cannot pass.
 
-Cloud API credentials now require recent device authentication. The optional Cloud
-conversion route confirms the screen lock before reading or saving credentials;
-devices without a secure lock cannot persist/use Cloud credentials. Existing
-ciphertext migrates to an authentication-bound v2 key after confirmation, and the
-legacy key is removed only after the new ciphertext is committed. Keystore and
-preference IO run on a worker. Local conversion does not require this confirmation.
+PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
+PaddleOCR/MNN engine and downloaded language packs as the embedded offline
+translator. The Google Cloud OCR transport, API-key UI and credential handlers
+have been removed. Word conversion never uploads pages to an OCR service.
+Model downloads remain explicit in OCR Languages; installed recognition works
+without network access. Native PDF text and local editable/appearance exports
+remain available. Cloud file export is a separate, user-requested file operation.
 
 References: [plans and limits](https://docs.sonarsource.com/sonarqube-cloud/administering-sonarcloud/managing-subscription/subscription-plans),
 [Gradle scanner](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/scanners/sonarscanner-for-gradle).
