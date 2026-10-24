@@ -2,23 +2,51 @@ name: Android PR checks
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
   push:
     branches: [main, master, feature/offline-translator]
   merge_group:
   workflow_dispatch:
+    inputs:
+      full_validation:
+        description: Run both emulators, native tests and all release APK variants
+        type: boolean
+        default: true
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
-  group: android-ci-${{ github.event.pull_request.number || github.ref }}
+  group: android-ci-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
+  plan:
+    if: github.event.action != 'labeled' || github.event.label.name == 'full-validation'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      full: ${{ steps.plan.outputs.full }}
+      pr_number: ${{ steps.plan.outputs.pr_number }}
+      pr_branch: ${{ steps.plan.outputs.pr_branch }}
+      pr_base: ${{ steps.plan.outputs.pr_base }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/ci/ci_plan.py
+
   language-runtime:
+    needs: [plan, checks]
+    if: needs.plan.outputs.full == 'true'
     uses: ./.github/workflows/language-runtime.yml
 
   checks:
+    needs: plan
     name: Unit tests, lint and translations
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -45,11 +73,22 @@ jobs:
       - name: CI tooling regression tests
         run: python3 -m unittest discover -s tools/ci -p 'test_*.py' -v
       - name: JVM tests and lint across modules
-        run: bash gradlew testDebugUnitTest lintDebug -PpaperflowAbi=x86_64 --stacktrace
+        run: bash gradlew testDebugUnitTest lintDebug coverageReport -PpaperflowAbi=x86_64 -PpaperflowCoverage=true --stacktrace
       - name: Verify complete JVM test reports
         run: |
           python3 tools/ci/check_test_results.py app/build/test-results/testDebugUnitTest app/src/test/java
           python3 tools/ci/check_test_results.py scanengine/build/test-results/testDebugUnitTest scanengine/src/test/java
+          python3 tools/ci/check_test_results.py translation/build/test-results/testDebugUnitTest translation/src/test/java
+      - name: Preserve compiled scanner inputs from this exact revision
+        run: |
+          mkdir -p build
+          find app/build scanengine/build translation/build -type f \( -name '*.class' -o -name '*.exec' -o -name '*.xml' -o -name 'R.jar' \) -print0 | tar --null -T - -czf build/sonar-inputs.tgz
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: sonar-inputs
+          path: build/sonar-inputs.tgz
+          if-no-files-found: error
+          retention-days: 3
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -57,7 +96,7 @@ jobs:
           path: |
             **/build/reports/
             **/build/test-results/
-          retention-days: 7
+          retention-days: 3
 
   build:
     needs: language-runtime
@@ -182,7 +221,7 @@ jobs:
           disk-size: 8G
           disable-animations: true
           pre-emulator-launch-script: grep -Fx 'target=android-${{ matrix.api }}' "$ANDROID_AVD_HOME/test.ini"
-          emulator-options: -no-window -no-snapshot -gpu swiftshader -noaudio -no-boot-anim -camera-back emulated
+          emulator-options: -no-window -no-snapshot -gpu swiftshader -feature GLESDynamicVersion -noaudio -no-boot-anim -camera-back emulated
           script: |
             bash tools/ci/run_native_tests.sh
             bash gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PpaperflowAbi=x86_64 -PpaperflowCoverage=true --stacktrace
@@ -207,7 +246,7 @@ jobs:
             app/build/outputs/androidTest-results/
             build/ci-device-reports/
             build/native-test-results/
-          retention-days: 7
+          retention-days: 3
 
       - name: Preserve instrumentation coverage
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -215,17 +254,23 @@ jobs:
           name: device-coverage-api-${{ matrix.api }}
           path: build/ci-device-coverage/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 3
 
   sonar:
-    needs: [checks, device-tests]
+    needs: [plan, checks, device-tests]
+    if: always() && needs.plan.result == 'success' && needs.checks.result == 'success'
     uses: ./.github/workflows/sonarqube-cloud.yml
+    with:
+      device-coverage: ${{ needs.device-tests.result == 'success' }}
+      pr-number: ${{ needs.plan.outputs.pr_number }}
+      pr-branch: ${{ needs.plan.outputs.pr_branch }}
+      pr-base: ${{ needs.plan.outputs.pr_base }}
     secrets: inherit
 
   pr-gate:
     name: PR gate
-    if: always()
-    needs: [checks, build, device-tests, language-runtime, sonar]
+    if: always() && needs.plan.result != 'skipped'
+    needs: [plan, checks, build, device-tests, language-runtime, sonar]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -236,9 +281,17 @@ jobs:
           BUILD: ${{ needs.build.result }}
           DEVICES: ${{ needs.device-tests.result }}
           SONAR: ${{ needs.sonar.result }}
+          FULL: ${{ needs.plan.outputs.full }}
+          PLAN: ${{ needs.plan.result }}
         run: |
-          test "$RUNTIME" = success
+          test "$PLAN" = success
           test "$CHECKS" = success
-          test "$BUILD" = success
-          test "$DEVICES" = success
           test "$SONAR" = success
+          if [ "$FULL" = true ]; then
+            test "$RUNTIME" = success
+            test "$BUILD" = success
+            test "$DEVICES" = success
+            echo 'Full validation completed for this revision.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Fast checks only. Full device/ABI acceptance has not been performed. Request full validation before release.' >> "$GITHUB_STEP_SUMMARY"
+          fi

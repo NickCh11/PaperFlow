@@ -8,7 +8,6 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
-import time
 
 ROOT = Path(__file__).resolve().parents[2]
 STATE = ROOT / "build/release-state.json"
@@ -44,6 +43,16 @@ def release_for(tag):
     return next((r for page in releases for r in page if r["tag_name"] == tag), None)
 
 
+def require_full_validation(jobs):
+    required = [f"Build {abi} debug and release" for abi in ABIS]
+    required += ["Device tests API 29", "Device tests API 37.0", "Unit tests, lint and translations", "SonarQube analysis"]
+    required += [f"native ({abi})" for abi in ("arm64-v8a", "armeabi-v7a", "x86_64")]
+    for name in required:
+        matches = [job for job in jobs if job.get("name") == name or job.get("name", "").endswith(" / " + name)]
+        if len(matches) != 1 or matches[0].get("conclusion") != "success":
+            raise RuntimeError(f"Full release validation is missing or unsuccessful: {name}")
+
+
 def prepare():
     name, code = version()
     tag = "v" + name
@@ -68,23 +77,22 @@ def prepare():
                 old = tuple(map(int, match.groups()))
                 if old >= tuple(map(int, name.split("."))):
                     raise ValueError("Release version must be newer than every published version")
-    deadline = time.monotonic() + 45 * 60
-    while time.monotonic() < deadline:
-        runs = api(f"actions/workflows/android-ci.yml/runs?head_sha={sha}&event=push&per_page=100")["workflow_runs"]
-        runs = [r for r in runs if r["head_sha"] == sha and r["head_branch"] == "main"]
-        if runs:
-            ci = max(runs, key=lambda r: r["run_number"])
-            if ci["status"] == "completed":
-                if ci["conclusion"] != "success":
-                    raise RuntimeError(f"Android CI did not pass: {ci['html_url']}")
-                STATE.parent.mkdir(parents=True, exist_ok=True)
-                STATE.write_text(json.dumps({"version": name, "code": code, "tag": tag,
-                                             "sha": sha, "run": ci["id"]}), encoding="utf-8")
-                print(f"Release {tag}: using successful CI run {ci['id']}", flush=True)
-                return
-        print("Waiting for Android CI on the exact main commit...", flush=True)
-        time.sleep(30)
-    raise RuntimeError("Android CI did not complete within 45 minutes")
+    runs = api(f"actions/workflows/android-ci.yml/runs?head_sha={sha}&per_page=100")["workflow_runs"]
+    runs = [r for r in runs if r["head_sha"] == sha and r["head_branch"] == "main" and r["status"] == "completed" and r["conclusion"] == "success" and r.get("event") in ("push", "workflow_dispatch")]
+    for ci in sorted(runs, key=lambda r: r["run_number"], reverse=True):
+        report = api(f"actions/runs/{ci['id']}/jobs?per_page=100")
+        if report.get("total_count", 0) > len(report["jobs"]):
+            raise RuntimeError("Incomplete job list; full release validation cannot be verified")
+        try:
+            require_full_validation(report["jobs"])
+        except RuntimeError:
+            continue
+        STATE.parent.mkdir(parents=True, exist_ok=True)
+        STATE.write_text(json.dumps({"version": name, "code": code, "tag": tag,
+                                     "sha": sha, "run": ci["id"]}), encoding="utf-8")
+        print(f"Release {tag}: using successful full CI run {ci['id']}", flush=True)
+        return
+    raise RuntimeError("Complete full Android validation on this exact main commit before publishing. A release runner will not wait and consume minutes.")
 
 
 def sign():

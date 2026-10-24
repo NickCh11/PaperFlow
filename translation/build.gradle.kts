@@ -41,7 +41,10 @@ android {
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_11; targetCompatibility = JavaVersion.VERSION_11 }
 }
-dependencies { implementation(libs.camera.core) }
+dependencies {
+    implementation(libs.camera.core)
+    testImplementation(libs.junit)
+}
 
 val requiredAbis = providers.gradleProperty("paperflowAbi").orNull?.let { listOf(it) }
     ?: listOf("arm64-v8a", "armeabi-v7a", "x86_64")

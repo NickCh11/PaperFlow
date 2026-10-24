@@ -2,6 +2,19 @@ name: SonarQube Cloud
 
 on:
   workflow_call:
+    inputs:
+      device-coverage:
+        type: boolean
+        default: false
+      pr-number:
+        type: string
+        default: ''
+      pr-branch:
+        type: string
+        default: ''
+      pr-base:
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -61,17 +74,33 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - name: Install pinned Android tools
         run: bash tools/ci/install_android_tools.sh
+      - name: Restore compiled inputs from this run
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: sonar-inputs
+          path: build/ci-inputs
+      - name: Unpack compiled inputs
+        run: tar -xzf build/ci-inputs/sonar-inputs.tgz
       - name: Restore device test coverage from this run
+        if: inputs.device-coverage
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           pattern: device-coverage-api-*
           path: build/device-coverage
-      - name: Compile, merge real test coverage and generate Android Lint reports
-        run: bash gradlew coverageReport lintDebug -PpaperflowAbi=x86_64 -PpaperflowCoverage=true
+      - name: Merge current-run coverage without recompiling or repeating JVM tests
+        run: bash gradlew coverageReport -x testDebugUnitTest -PpaperflowAbi=x86_64 -PpaperflowCoverage=true
+      - name: Identify measured scope
+        env:
+          DEVICE_COVERAGE: ${{ inputs.device-coverage }}
+        run: |
+          if [ "$DEVICE_COVERAGE" != true ]; then
+            echo 'Fast PR analysis imports JVM coverage only. Device/native coverage is not implied. Request full validation to add this revision’s device coverage.' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Verify JVM test reports
         run: |
           python3 tools/ci/check_test_results.py app/build/test-results/testDebugUnitTest app/src/test/java
           python3 tools/ci/check_test_results.py scanengine/build/test-results/testDebugUnitTest scanengine/src/test/java
+          python3 tools/ci/check_test_results.py translation/build/test-results/testDebugUnitTest translation/src/test/java
       - name: Report progress toward whole-project 100 percent coverage
         run: |
           status=0
@@ -86,9 +115,14 @@ jobs:
       - name: Analyze and wait for quality gate
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr-number }}
+          PR_BRANCH: ${{ inputs.pr-branch }}
+          PR_BASE: ${{ inputs.pr-base }}
         run: |
           args=()
-          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+          if [ -n "$PR_NUMBER" ]; then
+            args+=("-Dsonar.pullrequest.key=$PR_NUMBER" "-Dsonar.pullrequest.branch=$PR_BRANCH" "-Dsonar.pullrequest.base=$PR_BASE")
+          elif [ "$GITHUB_EVENT_NAME" != pull_request ]; then
             args+=("-Dsonar.branch.name=$GITHUB_REF_NAME")
           fi
           bash gradlew sonar -PpaperflowAbi=x86_64 -PpaperflowCoverage=true "${args[@]}" -Dsonar.qualitygate.wait=true -Dsonar.qualitygate.timeout=600 --info
@@ -99,6 +133,7 @@ jobs:
           path: |
             app/build/test-results/testDebugUnitTest/
             scanengine/build/test-results/testDebugUnitTest/
+            translation/build/test-results/testDebugUnitTest/
             **/build/reports/jacoco/coverageReport/
             build/coverage/
-          retention-days: 7
+          retention-days: 3

@@ -36,11 +36,14 @@ The workflow also generates the Android Lint reports expected by the scanner,
 uses the release version from `version.properties`, and ignores generated
 `.sonar` / `.scannerwork` files.
 
-PaperFlow is currently a **private GitHub repository**. The documented Cloud Free
+PaperFlow became a **public GitHub repository** on 2026-10-25 after reviewing the
+complete Git history for credentials. Standard Ubuntu Actions runners are now
+eligible for GitHub's public-repository compute allowance. The existing Sonar
+project remains private; changing GitHub visibility does not change its plan.
+The documented Cloud Free
 plan supports private projects up to **50,000 analyzed LOC across the organization**
 and PR analysis targeting the project's main branch. The separate OSS plan is for
-public projects. Keep the GitHub repository and Cloud project private; making the
-repository public is not part of this setup. Plan eligibility must be confirmed
+public projects. Plan eligibility must be confirmed
 in the actual Sonar account. Excluded vendor files/tests/comments do not count
 toward Sonar's analyzed production LOC; a local source line count is only an estimate.
 
@@ -79,9 +82,12 @@ toward Sonar's analyzed production LOC; a local source line count is only an est
    conditionally skipped check mandatory.
 
 Android PR checks calls the reusable Sonar workflow for **every PR**, after the
-JVM and device suites pass. Pushes to `feature/offline-translator` and manual
-dispatch through Android PR checks refresh the baseline. The analysis downloads
-coverage artifacts from the same run; it never imports another revision’s data.
+fast correctness checks pass. Scanner inputs come from that run's already compiled
+classes, JVM tests and Lint reports. The scanner does not repeat compilation or
+JVM tests. An explicit full run adds device coverage from the same run; it never
+imports another revision's data. Fast runs report JVM-only coverage honestly and
+still enforce the unchanged Sonar quality gate, which may fail until full coverage
+is available. Pushes to the selected Sonar main branch refresh its baseline.
 For trusted PRs it reports a failing **setup required** configuration check when
 keys/token are missing; the analysis job cannot start until onboarding is done.
 The target branch must also be supported by the Cloud subscription. Triggering
@@ -98,6 +104,28 @@ and generate reports with `coverageReport`. Sonar imports these XML files.
 Generated classes and native code are outside this JVM coverage measurement;
 production Java/Kotlin sources are not excluded to improve the percentage.
 The Sonar way quality gate, including 80% coverage on new code, is unchanged.
+
+## Controlling Actions consumption
+
+Normal PR updates run Python/JVM tests, Android Lint and Sonar. They do not rebuild
+all native engines, create release APKs or start two emulators. Add the
+`full-validation` label to request the full matrix for the current PR revision,
+or dispatch Android PR checks with `full_validation=true`. Subsequent PR pushes
+return to fast checks; remove/reapply the label or dispatch again for a new final
+revision. Manual runs discover an open PR so Sonar analyzes its actual PR context.
+
+Main/master pushes and merge-queue runs require the full matrix. Releases verify
+successful emulator, native, APK and Sonar jobs on the **exact main commit**; a
+green fast check cannot authorize publishing. If full validation is absent, the
+release stops immediately instead of waiting on a paid runner for 45 minutes.
+
+Native binary caches require an exact key covering native source, fixtures,
+Cargo manifests/lockfile, build script and toolchain workflow. Native tests still
+execute during full validation even when their binaries are reused. Independent
+native push triggers and the duplicate translation workflow were removed. Weekly
+model link checks remain; full model downloads are manual. Reports/native
+artifacts expire after three days; release APK inputs remain available for seven.
+The account's existing Actions $0 hard budget was verified, not duplicated.
 
 ## Whole-project coverage target
 
