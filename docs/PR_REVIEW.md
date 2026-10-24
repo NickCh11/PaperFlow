@@ -14,6 +14,30 @@ workflow does not purchase credits or activate a subscription.
 
 ## SonarQube Cloud onboarding
 
+Configured on 2026-10-24: private project `NickCh11_PaperFlow` in organization
+`nickch11`, on the Free plan. Both Actions variables and the encrypted
+`SONAR_TOKEN` secret are installed. Automatic analysis is off; Gradle CI is used.
+At the owner's request, the Sonar main branch is `feature/offline-translator`;
+GitHub's default branch remains `main`. Free PR analysis therefore applies to
+PRs targeting `feature/offline-translator`. Change the Sonar main branch and the
+workflow's push filter together when development moves back to `main`.
+
+The initial baseline was scanned from target commit
+`1c9eeaf265481018c7795169bf0d13dc5d1a0adb`, using a temporary copy of the scanner
+build configuration without changing its application sources. PR #1 was then
+analyzed from GitHub commit `b11136310d83a4718a3de7aed36850c6ce8c8241` against
+that target. This verifies actual Cloud analysis and PR decoration, not only
+authentication. The first PR quality gate **failed**: ten reported issues and
+0% reported coverage on 241 new lines to cover. No JaCoCo XML was supplied, so
+test execution must not be confused with measured coverage. Reports include
+autoboxing and volatile-counter findings that need semantic review; they are
+not all confirmed runtime bugs. No findings have been dismissed or quality-gate
+thresholds weakened to make the check green. The existing Sonar way gate remains.
+
+The workflow also generates the Android Lint reports expected by the scanner,
+uses the release version from `version.properties`, and ignores generated
+`.sonar` / `.scannerwork` files.
+
 PaperFlow is currently a **private GitHub repository**. The documented Cloud Free
 plan supports private projects up to **50,000 analyzed LOC across the organization**
 and PR analysis targeting the project's main branch. The separate OSS plan is for
@@ -26,7 +50,8 @@ toward Sonar's analyzed production LOC; a local source line count is only an est
    the organization for `NickCh11`, choosing the **Free** plan for a private project.
    If the UI requests payment, stop and review eligibility; do not start a paid plan.
 2. Install/configure SonarQube Cloud's GitHub App for **only PaperFlow**, then import
-   `NickCh11/PaperFlow` as a **private** project with `main` as its main branch.
+   `NickCh11/PaperFlow` as a **private** project. Set `feature/offline-translator`
+   as its Sonar main branch for the current development workflow.
 3. Choose **CI-based analysis / GitHub Actions**, and disable automatic analysis
    for this project if enabled. Android Java/Kotlin analysis uses compiled outputs
    via the pinned SonarScanner for Gradle plugin, not the generic scan action.
@@ -42,10 +67,9 @@ toward Sonar's analyzed production LOC; a local source line count is only an est
 5. Generate an analysis token with the minimum supported analysis permissions
    and an expiration date in Sonar. Store it directly in GitHub **Actions secrets**
    as `SONAR_TOKEN`. Never paste it into source, a PR, chat, or a workflow log.
-6. Merge this setup PR. Run **Actions → SonarQube Cloud → Run workflow** on `main`
-   to establish the target-branch baseline. Then open a PR targeting `main`. For the current PR targeting
-   `feature/offline-translator`, Free only supports it if that is the Sonar
-   project's main branch. PRs targeting other branches require a plan that
+6. Establish a baseline from the actual `feature/offline-translator` source
+   before the first PR analysis. After this setup PR is merged into that branch,
+   its pushes refresh the baseline automatically. PRs targeting other branches require a plan that
    supports those targets. The workflow does not buy a plan or disguise a PR
    as a main-branch analysis.
 7. Verify **SonarQube analysis** runs, the Cloud dashboard has all three JVM modules,
@@ -56,7 +80,8 @@ toward Sonar's analyzed production LOC; a local source line count is only an est
    gate. Fork/dependabot secret availability must be considered before making a
    conditionally skipped check mandatory.
 
-The workflow triggers for **every PR**, pushes to `main`, and manual dispatch.
+The workflow triggers for **every PR**, pushes to `feature/offline-translator`,
+and manual dispatch (choose the Sonar main branch for a branch analysis).
 For trusted PRs it reports a failing **setup required** configuration check when
 keys/token are missing; the analysis job cannot start until onboarding is done.
 The target branch must also be supported by the Cloud subscription. Triggering

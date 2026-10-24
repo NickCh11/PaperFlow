@@ -93,7 +93,10 @@ boxes and export with a deliberately blocked preview worker. The 50 JVM tests,
 28 CI-tool tests, 22 localization-tool tests and debug builds passed; Lint had
 zero errors. The next GitHub run must verify the complete API 29/37 suites.
 
-SonarQube Cloud now has a separate workflow triggered on every PR. Actual cloud
-analysis still requires account/project onboarding, the two repository variables
-and the Actions secret documented in `PR_REVIEW.md`. Missing setup fails the
-configuration check explicitly. No successful Cloud analysis is claimed.
+SonarQube Cloud now has a separate workflow triggered on every PR. Onboarding,
+repository variables and the encrypted Actions secret were completed, with
+`feature/offline-translator` selected as the Sonar main branch by the owner.
+The real target commit was scanned before the first GitHub PR analysis. Cloud
+analysis and PR decoration are verified; the first PR quality gate failed on
+reported security/reliability issues and absent coverage data. The thresholds
+have not been weakened. See `PR_REVIEW.md` for the result and scope.
