@@ -18,7 +18,8 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: android-ci-${{ github.head_ref || github.ref_name }}
+  # Unrelated labels skip validation and must never replace its running or pending run.
+  group: android-ci-${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'full-validation' && format('ignored-label-{0}', github.run_id) || github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
