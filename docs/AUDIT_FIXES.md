@@ -71,3 +71,29 @@ external launch of the now-private MainActivity was rejected by Android.
 Physical-camera, biometric hardware, ARM, production memory/energy
 benchmarks and actual cloud-backup transport still require their normal device
 acceptance checks.
+
+## PR #1 follow-up
+
+The first GitHub run passed builds, native runtime compilation, JVM tests and
+lint. Both device matrices failed the same two checks: the locale formatter
+test supplied only string arguments and missed integer placeholders; OCR
+whole-word search concatenated recognized word tokens whose boxes overlap.
+The formatter test now supplies integer/string samples, and OCR search retains
+explicit token boundaries without changing embedded PDF character handling.
+
+All three Greptile findings were confirmed and corrected: library selection
+survives pagination but clears on folder/filter/navigation changes; PDF page
+windows survive recreation; previews use a separate serial executor that reuses
+open documents per window, drops pending stale work and closes documents on that
+executor when leaving the window. Export does not wait for thumbnail work.
+
+Follow-up validation: 13 targeted API 29 device tests passed, including both
+previous failures, window restoration, selection preservation, overlapping OCR
+boxes and export with a deliberately blocked preview worker. The 50 JVM tests,
+28 CI-tool tests, 22 localization-tool tests and debug builds passed; Lint had
+zero errors. The next GitHub run must verify the complete API 29/37 suites.
+
+SonarQube Cloud now has a separate workflow triggered on every PR. Actual cloud
+analysis still requires account/project onboarding, the two repository variables
+and the Actions secret documented in `PR_REVIEW.md`. Missing setup fails the
+configuration check explicitly. No successful Cloud analysis is claimed.

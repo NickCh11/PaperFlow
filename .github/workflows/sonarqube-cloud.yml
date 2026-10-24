@@ -1,0 +1,80 @@
+name: SonarQube Cloud
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonar-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  configuration:
+    name: SonarQube configuration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: Check onboarding and trusted PR source
+        id: check
+        env:
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          IS_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          if [ "$IS_FORK" = true ]; then
+            echo '::notice::Sonar analysis is not run with secrets on fork PR code. Run the existing secret-free Android PR checks.'
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+          elif [ -z "$SONAR_ORGANIZATION" ] || [ -z "$SONAR_PROJECT_KEY" ] || [ -z "$SONAR_TOKEN" ]; then
+            echo '::error::SonarQube Cloud is not activated. Create a private Cloud project, set SONAR_ORGANIZATION and SONAR_PROJECT_KEY variables and the SONAR_TOKEN Actions secret. See docs/PR_REVIEW.md.'
+            echo '### SonarQube Cloud: setup required' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Analysis did not run. Follow docs/PR_REVIEW.md; this configuration check is not a quality-gate result.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            exit 1
+          else
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          fi
+
+  analysis:
+    name: SonarQube analysis
+    needs: configuration
+    if: needs.configuration.outputs.ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - name: Install pinned Android tools
+        run: bash tools/ci/install_android_tools.sh
+      - name: Compile and run JVM tests
+        run: bash gradlew testDebugUnitTest -PpaperflowAbi=x86_64
+      - name: Verify JVM test reports
+        run: python3 tools/ci/check_test_results.py app/build/test-results/testDebugUnitTest app/src/test/java
+      - name: Analyze and wait for quality gate
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: bash gradlew sonar -PpaperflowAbi=x86_64 -Dsonar.qualitygate.wait=true -Dsonar.qualitygate.timeout=600
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: sonar-jvm-test-reports
+          path: app/build/test-results/testDebugUnitTest/
+          retention-days: 7

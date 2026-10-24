@@ -90,9 +90,10 @@ public class AppLanguageTest {
             for(Field field:R.string.class.getFields()){
                 if(!field.getName().startsWith("ui_")&&!field.getName().startsWith("app_language_"))continue;
                 String value=UiText.get(field.getInt(null));
-                java.util.regex.Matcher matcher=java.util.regex.Pattern.compile("%(\\d+)\\$s").matcher(value);
-                int count=0;while(matcher.find())count=Math.max(count,Integer.parseInt(matcher.group(1)));
-                if(count>0){Object[] args=new Object[count];Arrays.fill(args,"Example");String formatted=UiText.format(field.getInt(null),args);assertFalse(field.getName()+" left a placeholder",formatted.matches("(?s).*%[0-9]+\\$s.*"));}
+                java.util.regex.Matcher matcher=java.util.regex.Pattern.compile("%(\\d+)\\$([sd])").matcher(value);
+                Map<Integer,Object> samples=new HashMap<>();int count=0;
+                while(matcher.find()){int position=Integer.parseInt(matcher.group(1));count=Math.max(count,position);samples.put(position,"d".equals(matcher.group(2))?Integer.valueOf(2):"Example");}
+                if(count>0){Object[] args=new Object[count];for(int i=0;i<count;i++)args[i]=samples.getOrDefault(i+1,"Example");String formatted=UiText.format(field.getInt(null),args);assertFalse(field.getName()+" left a placeholder",formatted.matches("(?s).*%[0-9]+\\$[sd].*"));}
             }
         }
     }

@@ -183,7 +183,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void renderHome() {
-        libraryVisible=false;selectedDocuments.clear();
+        libraryVisible=false;prepareLibrarySelection(true);
         selectNavigation("Home");
         content.removeAllViews();
         content.setPadding(dp(16), dp(10), dp(16), dp(24));
@@ -248,7 +248,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void renderAllDocuments() {
-        libraryVisible=true;selectedDocuments.clear();selectNavigation("All Documents");
+        libraryVisible=true;prepareLibrarySelection(false);selectNavigation("All Documents");
         content.removeAllViews();title(content,trashView ? UiText.get(R.string.ui_trash) : favoritesOnly ? UiText.get(R.string.ui_favorites) : folderTitle(),24);
         LinearLayout controls=new LinearLayout(this);content.addView(controls);
         String[] labels={"Folders","Sort",trashView?"Library":"Trash"};
@@ -264,6 +264,11 @@ public class MainActivity extends AppCompatActivity {
     private static final class LibraryRow {
         final long id,created;final String name,path;final int pages;final boolean favorite;
         LibraryRow(Cursor c,boolean home){id=c.getLong(0);name=c.getString(1);path=c.getString(2);pages=c.getInt(3);created=c.getLong(home?4:5);favorite=c.getInt(6)!=0;}
+    }
+    private void prepareLibrarySelection(boolean home){
+        String order=home?"last_opened DESC, created DESC":trashView?"deleted_at DESC":sortOrder;
+        String key=home+"|"+searchQuery+"|"+order+"|"+trashView+"|"+favoritesOnly+"|"+folderId;
+        if(!key.equals(libraryQueryKey)){libraryOffset=0;libraryQueryKey=key;selectedDocuments.clear();}
     }
     private void loadLibraryRows(boolean home){
         final String query=searchQuery,order=home?"last_opened DESC, created DESC":trashView?"deleted_at DESC":sortOrder;
@@ -684,6 +689,7 @@ public class MainActivity extends AppCompatActivity {
     }
     private void selectNavigation(String name) {
         libraryGeneration++;
+        if(!name.equals(section))selectedDocuments.clear();
         section=name;
         if(mainScroll!=null)mainScroll.post(()->mainScroll.scrollTo(0,0));
         if(cameraRow!=null)cameraRow.setVisibility(name.equals("Home")||name.equals("All Documents")?View.VISIBLE:View.GONE);

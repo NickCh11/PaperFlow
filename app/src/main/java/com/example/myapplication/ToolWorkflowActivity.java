@@ -82,6 +82,18 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
     private final ArrayList<Source> sources = new ArrayList<>(), selectedSources = new ArrayList<>();
     private final ArrayList<Bitmap> ownedBitmaps = new ArrayList<>();
     private int pageWindow;
+    // Only this executor owns the open preview documents. Exports use worker independently.
+    private final java.util.concurrent.ThreadPoolExecutor previewWorker=new java.util.concurrent.ThreadPoolExecutor(1,1,0,java.util.concurrent.TimeUnit.MILLISECONDS,new java.util.concurrent.LinkedBlockingQueue<>(),r->new Thread(r,"paperflow-preview"));
+    private PDDocument previewDocument,originalPreviewDocument;
+    private int previewDocumentEpoch=-1;
+    private void closePreviewDocuments(){
+        for(PDDocument doc:new PDDocument[]{previewDocument,originalPreviewDocument})if(doc!=null)try{doc.close();}catch(Exception ignored){}
+        previewDocument=null;originalPreviewDocument=null;previewDocumentEpoch=-1;
+    }
+    private void invalidatePreviewRequests(){
+        thumbnailEpoch++;thumbnailWaiters.clear();previewWorker.getQueue().clear();
+        previewWorker.execute(this::closePreviewDocuments);
+    }
     private volatile int thumbnailEpoch;
     private final android.util.LruCache<Integer,Bitmap> thumbnailCache=new android.util.LruCache<Integer,Bitmap>(4*1024*1024){@Override protected int sizeOf(Integer key,Bitmap value){return value.getAllocationByteCount();}};
     private final java.util.Map<Integer,ArrayList<java.util.function.Consumer<Bitmap>>> thumbnailWaiters=new java.util.HashMap<>();
@@ -153,7 +165,7 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
     }
 
     private void showSources() {
-        stage = "source"; thumbnailEpoch++;thumbnailWaiters.clear(); generation++; int version = generation; body.removeAllViews(); if(largeRotationPreview!=null&&!largeRotationPreview.isRecycled())largeRotationPreview.recycle();largeRotationPreview=null;releaseResultPreview();configureBottom(false);compressionSaveAction.setVisibility(View.GONE); primary.setEnabled(true); primary.setText(UiText.get(R.string.ui_next)); unlockOrientation();
+        stage = "source"; invalidatePreviewRequests(); generation++; int version = generation; body.removeAllViews(); if(largeRotationPreview!=null&&!largeRotationPreview.isRecycled())largeRotationPreview.recycle();largeRotationPreview=null;releaseResultPreview();configureBottom(false);compressionSaveAction.setVisibility(View.GONE); primary.setEnabled(true); primary.setText(UiText.get(R.string.ui_next)); unlockOrientation();
         if(operation.equals("OCR PDF"))note(UiText.get(R.string.ui_ocr_pdf_intro));
         title(UiText.format(R.string.ui_select_value, (operation.equals("Merge Files") ? "PDF files" : "a PDF"))); note(operation.equals("Merge Files") ? UiText.get(R.string.ui_choose_two_or_more_files_then_arrange_them_in_the_next_step) : UiText.get(R.string.ui_choose_a_document_from_your_library_or_import_a_pdf));
         TextView importButton = action(UiText.get(R.string.ui_import_pdf_files), false); body.addView(importButton, spaced(-1, dp(46), 14)); importButton.setOnClickListener(v -> importLauncher.launch(new String[]{"application/pdf"}));
@@ -186,7 +198,7 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
         if (operation.equals("Sign")) { Intent intent = new Intent(this, PdfViewerActivity.class); intent.putExtra("path", source.path); intent.putExtra("name", source.name); intent.putExtra("start_sign", true); startActivity(intent); finish(); return; }
         if (operation.equals("To Word")) { Intent intent = new Intent(this, MainActivity.class); intent.putExtra("document_action", "To Word"); intent.putExtra("path", source.path); intent.putExtra("name", source.name); intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP); startActivity(intent); finish(); return; }
         if (operation.equals("PDF to Long Image")) { startActivity(new Intent(this, LongImageActivity.class).putExtra("path", source.path).putExtra("name", source.name).putExtra("password", source.password)); return; }
-        clearThumbnails();pageWindow=0;watermarkSettingsLoaded=false;showProgress("Opening PDF…");
+        clearThumbnails();pageWindow=restoredOptions==null?0:restoredOptions.getInt("page_window",0);watermarkSettingsLoaded=false;showProgress("Opening PDF…");
         final ArrayList<Source> selection=new ArrayList<>(selectedSources);
         final Source chosen=source;final int epoch=thumbnailEpoch;
         worker.execute(()->{Source locked=null;try{
@@ -220,14 +232,21 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
 
     /** Small cache and windowed UI: no bitmap is allocated for unopened page windows. */
     private void requestThumbnail(int page,boolean original,java.util.function.Consumer<Bitmap> ready){
+        if(destroyed||!"options".equals(stage))return;
         int key=page*2+(original?1:0);Bitmap cached=thumbnailCache.get(key);
         if(cached!=null){ready.accept(cached);return;}
         ArrayList<java.util.function.Consumer<Bitmap>> waiting=thumbnailWaiters.get(key);
         if(waiting!=null){waiting.add(ready);return;}
         waiting=new ArrayList<>();waiting.add(ready);thumbnailWaiters.put(key,waiting);
         int epoch=thumbnailEpoch;String path=source.path,password=source.password;boolean clean=operation.equals("Add Watermark")&&!original;
-        worker.execute(()->{Bitmap bitmap=null;
-            try{if(destroyed||epoch!=thumbnailEpoch)return;try(PDDocument doc=PDDocument.load(new File(path),password,MemoryUsageSetting.setupMixed(24*1024*1024))){if(clean)PdfWatermark.remove(doc.getPage(page));bitmap=render(doc,page,160,200);}}
+        previewWorker.execute(()->{Bitmap bitmap=null;
+            try{if(destroyed||epoch!=thumbnailEpoch)return;
+                if(previewDocumentEpoch!=epoch){closePreviewDocuments();previewDocumentEpoch=epoch;}
+                PDDocument doc=original?originalPreviewDocument:previewDocument;
+                if(doc==null){doc=PDDocument.load(new File(path),password,MemoryUsageSetting.setupMixed(24*1024*1024));if(original)originalPreviewDocument=doc;else previewDocument=doc;}
+                if(destroyed||epoch!=thumbnailEpoch)return;
+                if(clean)PdfWatermark.remove(doc.getPage(page));bitmap=render(doc,page,160,200);
+            }
             catch(Exception|OutOfMemoryError ignored){}
             Bitmap result=bitmap;runOnUiThread(()->{if(destroyed||epoch!=thumbnailEpoch){if(result!=null)result.recycle();return;}
                 ArrayList<java.util.function.Consumer<Bitmap>> listeners=thumbnailWaiters.remove(key);
@@ -252,7 +271,7 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
 
     private void showOptions() {
         ArrayList<String> guarded=new ArrayList<>();for(Source item:selectedSources)guarded.add(item.path);FolderLock.guardAll(this,guarded);
-        stage = "options"; thumbnailEpoch++;thumbnailWaiters.clear(); generation++; body.removeAllViews(); if(largeRotationPreview!=null&&!largeRotationPreview.isRecycled())largeRotationPreview.recycle();largeRotationPreview=null;releaseResultPreview();configureBottom(operation.equals("Compress"));compressionSaveAction.setVisibility(View.GONE); pageChecks.clear(); primary.setEnabled(true); primary.setText(operation.equals("Print") ? UiText.get(R.string.ui_print) : operation.equals("Compress") ? UiText.get(R.string.ui_compress) : UiText.get(R.string.ui_continue)); if(!operation.equals("Compress")){title(source.name); note(UiText.get(R.string.ui_choose_your_settings_and_review_the_selected_pages));} unlockOrientation();
+        stage = "options"; invalidatePreviewRequests(); generation++; body.removeAllViews(); if(largeRotationPreview!=null&&!largeRotationPreview.isRecycled())largeRotationPreview.recycle();largeRotationPreview=null;releaseResultPreview();configureBottom(operation.equals("Compress"));compressionSaveAction.setVisibility(View.GONE); pageChecks.clear(); primary.setEnabled(true); primary.setText(operation.equals("Print") ? UiText.get(R.string.ui_print) : operation.equals("Compress") ? UiText.get(R.string.ui_compress) : UiText.get(R.string.ui_continue)); if(!operation.equals("Compress")){title(source.name); note(UiText.get(R.string.ui_choose_your_settings_and_review_the_selected_pages));} unlockOrientation();
         switch (operation) {
             case "Merge Files": showMergeOrder(); if(mergeNeedsPassword()){note(UiText.get(R.string.ui_a_source_is_protected_set_a_password_for_the_merged_pdf));showPasswordOptions();} return;
             case "Reorder Pages": note(UiText.get(R.string.ui_press_and_hold_to_drag_a_page_or_use_the_arrows_to_reorder)); showPageOrder(); return;
@@ -565,13 +584,13 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
         }
     }
 
-    private void showProgress(String message) { stage = "progress"; generation++; body.removeAllViews(); if(largeRotationPreview!=null&&!largeRotationPreview.isRecycled())largeRotationPreview.recycle();largeRotationPreview=null;releaseResultPreview();configureBottom(false);compressionSaveAction.setVisibility(View.GONE);if(operation.equals("Compress"))bottomBar.setVisibility(View.GONE); primary.setEnabled(false); primary.setText(UiText.get(R.string.ui_processing)); progressText = label(message, 16, INK); progressText.setGravity(Gravity.CENTER); body.addView(progressText, spaced(-1, dp(120), 20)); progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal); progressBar.setIndeterminate(true); body.addView(progressBar, spaced(-1, dp(8), 10)); if(operation.equals("OCR PDF")){TextView cancel=action(UiText.get(R.string.ui_cancel_ocr),false);body.addView(cancel,spaced(-1,dp(48),18));cancel.setOnClickListener(v->{ocrCancelled=true;cancel.setEnabled(false);progressText.setText(UiText.get(R.string.ui_cancelling_after_the_current_page));});} lockOrientation(); }
+    private void showProgress(String message) { stage = "progress"; invalidatePreviewRequests();generation++; body.removeAllViews(); if(largeRotationPreview!=null&&!largeRotationPreview.isRecycled())largeRotationPreview.recycle();largeRotationPreview=null;releaseResultPreview();configureBottom(false);compressionSaveAction.setVisibility(View.GONE);if(operation.equals("Compress"))bottomBar.setVisibility(View.GONE); primary.setEnabled(false); primary.setText(UiText.get(R.string.ui_processing)); progressText = label(message, 16, INK); progressText.setGravity(Gravity.CENTER); body.addView(progressText, spaced(-1, dp(120), 20)); progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal); progressBar.setIndeterminate(true); body.addView(progressBar, spaced(-1, dp(8), 10)); if(operation.equals("OCR PDF")){TextView cancel=action(UiText.get(R.string.ui_cancel_ocr),false);body.addView(cancel,spaced(-1,dp(48),18));cancel.setOnClickListener(v->{ocrCancelled=true;cancel.setEnabled(false);progressText.setText(UiText.get(R.string.ui_cancelling_after_the_current_page));});} lockOrientation(); }
     private void updateProgress(int done, int total) { runOnUiThread(() -> { if (destroyed || !stage.equals("progress")) return; progressBar.setIndeterminate(false); progressBar.setMax(total); progressBar.setProgress(done); progressText.setText(operation.equals("Compress") ? UiText.format(R.string.ui_compressing_value_value, done, total) : UiText.format(R.string.ui_processing_value_of_value, done, total)); }); }
     private void lockOrientation() { if (!orientationLocked) { originalOrientation = getRequestedOrientation(); orientationLocked = true; setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LOCKED); } }
     private void unlockOrientation() { if (orientationLocked) { orientationLocked = false; setRequestedOrientation(originalOrientation); } }
 
     @Override protected void onSaveInstanceState(Bundle state) {
-        state.putString("workflow_stage", stage); ArrayList<String> paths = new ArrayList<>(), names = new ArrayList<>(), passwords = new ArrayList<>(), chosen = new ArrayList<>(); ArrayList<Integer> counts = new ArrayList<>();
+        state.putInt("page_window",pageWindow);state.putString("workflow_stage", stage); ArrayList<String> paths = new ArrayList<>(), names = new ArrayList<>(), passwords = new ArrayList<>(), chosen = new ArrayList<>(); ArrayList<Integer> counts = new ArrayList<>();
         for (Source item : sources) { paths.add(item.path); names.add(item.name); passwords.add(item.password); counts.add(item.pages); }
         for (Source item : selectedSources) chosen.add(item.path);
         state.putStringArrayList("source_paths", paths); state.putStringArrayList("source_names", names); state.putStringArrayList("source_passwords", passwords); state.putIntegerArrayList("source_counts", counts); state.putStringArrayList("chosen_sources", chosen); state.putString("active_source", source == null ? null : source.path);
@@ -607,7 +626,7 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
     private Bitmap render(PDDocument document, int page, int maxWidth, int maxHeight) throws Exception { PDPage p = document.getPage(page); PDRectangle b = p.getCropBox(); boolean turn = Math.abs(p.getRotation()) % 180 == 90; float width = turn ? b.getHeight() : b.getWidth(), height = turn ? b.getWidth() : b.getHeight(); float scale = Math.min(maxWidth / width, maxHeight / height); return new PDFRenderer(document).renderImage(page, scale); }
     private void copy(InputStream in, OutputStream out) throws Exception { byte[] buffer = new byte[16384]; int n; while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n); }
     private File documentsDir() { File dir = new File(getFilesDir(), "documents"); if (!dir.exists() && !dir.mkdirs()) throw new IllegalStateException(UiText.get(R.string.ui_storage_unavailable)); return dir; }
-    private void clearThumbnails() { thumbnailEpoch++;thumbnailWaiters.clear();thumbnailCache.evictAll(); }
+    private void clearThumbnails() { invalidatePreviewRequests();thumbnailCache.evictAll(); }
     private void goBack() { if (stage.equals("progress")) { if(operation.equals("OCR PDF")){ocrCancelled=true;progressText.setText(UiText.get(R.string.ui_cancelling_after_the_current_page));}else toast(UiText.get(R.string.ui_please_wait_for_processing_to_finish)); return; } if (stage.equals("options")) showSources(); else if (stage.equals("result")) { if (pageSizes.isEmpty() && !operation.equals("Merge Files") && !operation.equals("Lock") && !operation.equals("Compress")) { restoredOptions = new Bundle(); restoredOptions.putIntegerArrayList("chosen_pages", new ArrayList<>(selectedPages)); restoredOptions.putIntegerArrayList("page_order", new ArrayList<>(pageOrder)); continueFromSources(); } else showOptions(); } else finish(); }
     @Override public void handleBackPressed() { goBack(); }
     private void title(String value) { TextView t = label(value, 20, INK); t.setTypeface(null,android.graphics.Typeface.BOLD); body.addView(t, spaced(-1, -2, 12)); }
@@ -620,5 +639,5 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
     private void toast(String value) { if (!destroyed) Toast.makeText(this, value, Toast.LENGTH_LONG).show(); }
     private static class Source { final String path, name; String password = ""; Bitmap thumbnail; ImageView preview; boolean thumbnailPending,encrypted; int pages; Source(String path, String name) { this.path = path; this.name = name == null ? new File(path).getName() : name; } }
     @Override protected void onResume(){super.onResume();ArrayList<String> paths=new ArrayList<>();for(Source selected:selectedSources)paths.add(selected.path);FolderLock.guardAll(this,paths);}
-    @Override protected void onDestroy() { destroyed = true; generation++; if (watermarkDialog != null) watermarkDialog.dismiss(); body.removeAllViews(); if(largeRotationPreview!=null&&!largeRotationPreview.isRecycled())largeRotationPreview.recycle();largeRotationPreview=null;releaseResultPreview(); clearThumbnails(); for (Bitmap b : ownedBitmaps) if (!b.isRecycled()) b.recycle(); ownedBitmaps.clear(); worker.shutdown(); super.onDestroy(); }
+    @Override protected void onDestroy() { destroyed = true; generation++; if (watermarkDialog != null) watermarkDialog.dismiss(); body.removeAllViews(); if(largeRotationPreview!=null&&!largeRotationPreview.isRecycled())largeRotationPreview.recycle();largeRotationPreview=null;releaseResultPreview(); clearThumbnails(); for (Bitmap b : ownedBitmaps) if (!b.isRecycled()) b.recycle(); ownedBitmaps.clear(); worker.shutdown();previewWorker.shutdown(); super.onDestroy(); }
 }

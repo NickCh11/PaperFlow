@@ -89,9 +89,9 @@ public class AuditRegressionTest {
             scenario.onActivity(a->{activity.set(a);set(a,"searchQuery",prefix);invoke(a,"renderHome");});
             UiTestWait.until(()->countNames((View)field(activity.get(),"content"),prefix)==30,"Library did not load its first bounded window");
             java.util.Set<String> first=new java.util.HashSet<>();scenario.onActivity(a->collectNames((View)field(a,"content"),prefix,first));
-            scenario.onActivity(a->{set(a,"libraryOffset",30);invoke(a,"renderHome");});
+            scenario.onActivity(a->{((java.util.Map<Long,String>)field(a,"selectedDocuments")).put(123456L,"owned-selection");set(a,"libraryOffset",30);invoke(a,"renderHome");});
             UiTestWait.until(()->countNames((View)field(activity.get(),"content"),prefix)==30,"Second library window did not load");
-            scenario.onActivity(a->{java.util.Set<String> next=new java.util.HashSet<>();collectNames((View)field(a,"content"),prefix,next);assertTrue(java.util.Collections.disjoint(first,next));});
+            scenario.onActivity(a->{java.util.Set<String> next=new java.util.HashSet<>();collectNames((View)field(a,"content"),prefix,next);assertTrue(java.util.Collections.disjoint(first,next));assertEquals("owned-selection",((java.util.Map<?,?>)field(a,"selectedDocuments")).get(123456L));set(a,"searchQuery",prefix+"changed");invoke(a,"renderHome");assertTrue(((java.util.Map<?,?>)field(a,"selectedDocuments")).isEmpty());});
         }finally{try(DocumentStore store=new DocumentStore(c)){store.db().delete("docs","name LIKE ?",new String[]{prefix+"%"});}}
     }
 
@@ -107,8 +107,34 @@ public class AuditRegressionTest {
             scenario.onActivity(a->{assertEquals(30,((java.util.List<?>)field(a,"pageChecks")).size());assertEquals(61,((java.util.Set<?>)field(a,"selectedPages")).size());set(a,"pageWindow",30);invoke(a,"showOptions");assertEquals(30,((java.util.List<?>)field(a,"pageChecks")).size());assertEquals(61,((java.util.Set<?>)field(a,"selectedPages")).size());assertTrue(((android.util.LruCache<?,?>)field(a,"thumbnailCache")).size()<=4*1024*1024);});
             scenario.recreate();scenario.onActivity(activity::set);
             UiTestWait.until(()->"options".equals(field(activity.get(),"stage")),"PDF options did not recover after recreation");
-            scenario.onActivity(a->assertEquals(61,((java.util.Set<?>)field(a,"selectedPages")).size()));
+            scenario.onActivity(a->{assertEquals(61,((java.util.Set<?>)field(a,"selectedPages")).size());assertEquals(30,field(a,"pageWindow"));});
         }finally{pdf.delete();}
+    }
+
+    @Test public void exportDoesNotWaitForQueuedThumbnails()throws Exception{
+        Context c=context();com.tom_roush.pdfbox.android.PDFBoxResourceLoader.init(c);
+        File pdf=File.createTempFile("audit-export-",".pdf",c.getCacheDir());
+        try(com.tom_roush.pdfbox.pdmodel.PDDocument doc=new com.tom_roush.pdfbox.pdmodel.PDDocument()){doc.addPage(new com.tom_roush.pdfbox.pdmodel.PDPage());doc.save(pdf);}
+        java.util.concurrent.CountDownLatch entered=new java.util.concurrent.CountDownLatch(1),release=new java.util.concurrent.CountDownLatch(1);
+        File[] output={null};
+        try(ActivityScenario<ToolWorkflowActivity> scenario=ActivityScenario.launch(new Intent(c,ToolWorkflowActivity.class).putExtra("operation","Extract PDF Pages").putExtra("path",pdf.getPath()))){
+            java.util.concurrent.atomic.AtomicReference<ToolWorkflowActivity> activity=new java.util.concurrent.atomic.AtomicReference<>();scenario.onActivity(activity::set);
+            UiTestWait.until(()->"options".equals(field(activity.get(),"stage")),"PDF options did not load");
+            scenario.onActivity(a->((java.util.concurrent.ExecutorService)field(a,"previewWorker")).execute(()->{entered.countDown();try{release.await();}catch(InterruptedException e){Thread.currentThread().interrupt();}}));
+            assertTrue(entered.await(5,java.util.concurrent.TimeUnit.SECONDS));
+            scenario.onActivity(a->invoke(a,"process"));
+            UiTestWait.until(()->"result".equals(field(activity.get(),"stage")),"Export waited for the blocked preview worker");
+            scenario.onActivity(a->output[0]=(File)field(a,"resultFile"));
+        }finally{release.countDown();pdf.delete();if(output[0]!=null)output[0].delete();}
+    }
+
+    @Test public void overlappingOcrWordBoxesStillHaveWholeWordBoundaries(){
+        java.util.ArrayList<PdfKeywordSearch.Glyph> words=new java.util.ArrayList<>();
+        android.graphics.RectF first=new android.graphics.RectF(.1f,.1f,.4f,.2f),second=new android.graphics.RectF(.38f,.1f,.7f,.2f);
+        words.add(new PdfKeywordSearch.Glyph("SECRET",first,first,true));words.add(new PdfKeywordSearch.Glyph("ALPHA",second,second,true));
+        assertEquals(1,PdfKeywordSearch.find(0,words,"secret",true).size());
+        assertEquals(1,PdfKeywordSearch.find(0,words,"secret alpha",true).size());
+        assertEquals(0,PdfKeywordSearch.find(0,words,"cret",true).size());
     }
 
     @Test public void closingTranslationReclaimsReturnedCameraFilesButKeepsBookDraft()throws Exception{
