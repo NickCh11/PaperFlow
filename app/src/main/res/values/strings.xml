@@ -709,7 +709,6 @@
     <!-- LanguageModels.java:39; LanguageModels.java:52; LanguageModels.java:66 -->
     <string name="ui_download_cancelled" formatted="false">Download cancelled</string>
     <!-- LanguageModels.java:60 -->
-    <string name="ui_download_server_returned_value">Download server returned %1$s</string>
     <!-- LanguageModels.java:66 -->
     <string name="ui_language_file_is_larger_than_expected" formatted="false">Language file is larger than expected</string>
     <!-- LanguageModels.java:71 -->
@@ -723,7 +722,6 @@
     <!-- LocalTranslationActivity.java:130 -->
     <string name="ui_reading_text_and_detecting_its_language" formatted="false">Reading text and detecting its language…</string>
     <!-- LocalTranslationActivity.java:157 -->
-    <string name="ui_translating_value_value">Translating %1$s / %2$s…</string>
     <!-- LocalTranslationActivity.java:164 -->
     <string name="ui_preparing_your_translation" formatted="false">Preparing your translation…</string>
     <!-- LocalTranslationActivity.java:221; LongImageActivity.java:63; PdfViewerActivity.java:99 -->
@@ -1145,7 +1143,6 @@
     <!-- OfficePackage.java:16 -->
     <string name="ui_unsupported_xml_declaration" formatted="false">Unsupported XML declaration</string>
     <!-- OfflineTranslator.java:16 -->
-    <string name="ui_download_the_value_translation_language_first">Download the %1$s translation language first</string>
     <!-- OfflineTranslator.java:19 -->
     <string name="ui_could_not_start_offline_translation" formatted="false">Could not start offline translation</string>
     <!-- OfflineTranslator.java:21 -->
@@ -1879,7 +1876,7 @@
     <!-- ToolWorkflowActivity.java:510; ToolWorkflowActivity.java:553 -->
     <string name="ui_cancelling_after_the_current_page" formatted="false">Cancelling after the current page…</string>
     <!-- ToolWorkflowActivity.java:511 -->
-    <string name="ui_compressing_value_value">Compressing...\n%1$s / %2$s</string>
+    <string name="ui_compressing_value_value">Compressing…\n%1$s / %2$s</string>
     <!-- ToolWorkflowActivity.java:511 -->
     <string name="ui_processing_value_of_value">Processing %1$s of %2$s…</string>
     <!-- ToolWorkflowActivity.java:545 -->

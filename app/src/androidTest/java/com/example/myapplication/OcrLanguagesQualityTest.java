@@ -42,7 +42,8 @@ public class OcrLanguagesQualityTest {
         // all-script CI fixture). Download/Delete controls the complete core pack.
         for(int i=0;i<catalog.length();i++){JSONObject candidate=catalog.getJSONObject(i);if(!LanguageModels.installed(context(),"translation",candidate)){chosen=candidate;break;}}
         assertNotNull("Need an uninstalled pack to test a fresh download",chosen);
-        final JSONObject pack=chosen;String code=pack.getString("code"),title=LanguageModels.title(pack);Activity activity=launch();
+        final JSONObject pack=chosen;String code=pack.getString("code"),title=LanguageModels.title(pack);
+        Map<File,byte[]> fixtures=preserveOcrFixtures(code);Activity activity=launch();
         long started=SystemClock.elapsedRealtime();
         try{
             LinearLayout initial=row(activity,title);assertEquals(LanguageModels.installed(context(),"ocr",pack),((CheckBox)initial.getChildAt(0)).isEnabled());assertEquals("Download",((Button)initial.getChildAt(1)).getText().toString());
@@ -62,9 +63,32 @@ public class OcrLanguagesQualityTest {
             assertEquals(LanguageModels.installed(context(),"ocr",pack),((CheckBox)row(activity,title).getChildAt(0)).isEnabled());
         }finally{
             inst.runOnMainSync(activity::finish);
-            LanguageModels.remove(context(),"ocr",pack);restore(original);
+            try{LanguageModels.remove(context(),"ocr",pack);}finally{
+                for(Map.Entry<File,byte[]> fixture:fixtures.entrySet()){java.nio.file.Files.createDirectories(fixture.getKey().toPath().getParent());java.nio.file.Files.write(fixture.getKey().toPath(),fixture.getValue());}
+                restore(original);
+            }
         }
         json("download-ui.json",new JSONObject().put("language",code).put("bytes",pack.getLong("size")).put("downloadSelectPersist",true).put("ms",SystemClock.elapsedRealtime()-started));
+    }
+
+    private Map<File,byte[]> preserveOcrFixtures(String language)throws Exception{
+        JSONObject catalog;
+        try(InputStream input=context().getAssets().open("index_v6.json");ByteArrayOutputStream bytes=new ByteArrayOutputStream()){
+            byte[] buffer=new byte[16384];int count;while((count=input.read(buffer))!=-1)bytes.write(buffer,0,count);
+            catalog=new JSONObject(bytes.toString("UTF-8"));
+        }
+        Map<File,byte[]> files=new HashMap<>();Set<String> seen=new HashSet<>();
+        JSONObject ocr=catalog.getJSONObject("languages").getJSONObject(language).getJSONObject("assets").getJSONObject("ocr");
+        for(Iterator<String> keys=ocr.keys();keys.hasNext();)preservePack(catalog,ocr.getString(keys.next()),seen,files);
+        return files;
+    }
+    private void preservePack(JSONObject catalog,String id,Set<String> seen,Map<File,byte[]> files)throws Exception{
+        if(!seen.add(id))return;JSONObject pack=catalog.getJSONObject("packs").getJSONObject(id);
+        JSONArray assets=pack.optJSONArray("files");if(assets!=null)for(int i=0;i<assets.length();i++){
+            File file=new File(LanguageModels.directory(context(),"ocr"),assets.getJSONObject(i).getString("installPath"));
+            if(file.isFile())files.put(file,java.nio.file.Files.readAllBytes(file.toPath()));
+        }
+        JSONArray dependencies=pack.optJSONArray("dependsOn");if(dependencies!=null)for(int i=0;i<dependencies.length();i++)preservePack(catalog,dependencies.getString(i),seen,files);
     }
 
     @Test public void interruptedAndCorruptDownloadsNeverInstall()throws Exception{

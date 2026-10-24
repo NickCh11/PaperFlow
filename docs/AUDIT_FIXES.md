@@ -125,3 +125,17 @@ the camera permission before starting the flow, matching their required setup.
 Twenty local API 29 tests passed, including all these checks and the audit suite.
 The earlier e210d3e CI passed the complete API 29 suite and all build variants;
 API 37 reported two Book-flow failures, so no all-green CI claim is made here.
+
+
+Validation with the native runtime built by GitHub Actions for this source:
+101 complete API 29 instrumentation tests passed without skips, plus three new
+library regressions passed on a separate isolated API 29 emulator. These cover
+empty final-page recovery, stale query rejection and favorite/trash separation.
+The Cloud test verifies a real authentication-required Keystore key, encrypted
+round-trip, UI validation and legacy migration using a temporary PIN exclusively
+on an unsecured emulator. It does not change existing device locks or credentials.
+OCR download/delete tests now restore pre-existing shared OCR fixtures, making
+later language-detection tests independent of execution order. Preview concurrency
+tests cover coalesced requests, cache reuse, retry after failure and stale-result
+rejection on invalidation/destruction. Text tests verify UTF-8 save/share and queued
+snapshot restoration. The quality gate remains enforced while coverage is improved.

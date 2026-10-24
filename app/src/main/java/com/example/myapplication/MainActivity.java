@@ -532,8 +532,8 @@ public class MainActivity extends AppCompatActivity {
     }
     static KeyGenParameterSpec googleKeySpec(String alias) {
         KeyGenParameterSpec.Builder builder=new KeyGenParameterSpec.Builder(alias,KeyProperties.PURPOSE_ENCRYPT|KeyProperties.PURPOSE_DECRYPT)
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setUserAuthenticationRequired(true);
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE);
+        builder.setUserAuthenticationRequired(true);
         if(android.os.Build.VERSION.SDK_INT>=30)builder.setUserAuthenticationParameters(300,KeyProperties.AUTH_DEVICE_CREDENTIAL|KeyProperties.AUTH_BIOMETRIC_STRONG);
         else builder.setUserAuthenticationValidityDurationSeconds(300);
         return builder.build();
@@ -591,11 +591,12 @@ public class MainActivity extends AppCompatActivity {
     }
     private void chooseCloudWordRoute(CloudRequest request){
         String path=request.path,name=request.name,password=request.password;
+        if(!FolderLock.ensureDocument(this,path,()->chooseCloudWordRoute(request)))return;
         pdfWorker.execute(()->{
             try{String key=readGoogleApiKey();runOnUiThread(()->{
                 if(isDestroyed()||isFinishing())return;
                 if(key.isEmpty()){promptGoogleApiKey(request);return;}
-                new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_upload_pages_to_google_cloud)).setMessage(UiText.get(R.string.ui_each_pdf_page_will_be_rendered_and_sent_to_google_cloud_vision_for_ocr_incl)).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_upload_and_convert),(d,w)->convertPdfToWord(path,name,password,WordConversion.CLOUD,key)).show();
+                new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_upload_pages_to_google_cloud)).setMessage(UiText.get(R.string.ui_each_pdf_page_will_be_rendered_and_sent_to_google_cloud_vision_for_ocr_incl)).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_upload_and_convert),(d,w)->{if(FolderLock.ensureDocument(this,path,()->chooseCloudWordRoute(request)))convertPdfToWord(path,name,password,WordConversion.CLOUD,key);}).show();
             });}catch(Exception error){runOnUiThread(()->{
                 if(isDestroyed()||isFinishing())return;
                 if(error instanceof android.security.keystore.UserNotAuthenticatedException)authenticateGoogleSettings(new CloudRequest(path,name,password,null));
