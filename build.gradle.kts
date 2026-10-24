@@ -8,6 +8,7 @@ plugins {
 sonar {
     properties {
         property("sonar.projectName", "PaperFlow")
+        property("sonar.host.url", "https://sonarcloud.io")
         property("sonar.sourceEncoding", "UTF-8")
         // Provision the private Cloud project first; never commit its analysis token.
         providers.environmentVariable("SONAR_ORGANIZATION").orNull?.let {
