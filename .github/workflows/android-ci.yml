@@ -47,7 +47,9 @@ jobs:
       - name: JVM tests and lint across modules
         run: bash gradlew testDebugUnitTest lintDebug -PpaperflowAbi=x86_64 --stacktrace
       - name: Verify complete JVM test reports
-        run: python3 tools/ci/check_test_results.py app/build/test-results/testDebugUnitTest app/src/test/java
+        run: |
+          python3 tools/ci/check_test_results.py app/build/test-results/testDebugUnitTest app/src/test/java
+          python3 tools/ci/check_test_results.py scanengine/build/test-results/testDebugUnitTest scanengine/src/test/java
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -122,6 +124,11 @@ jobs:
           pattern: language-runtime-*
           path: translation
           merge-multiple: true
+      - name: Restore Android Rust test executable
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: native-tests-x86_64
+          path: build/native-tests/x86_64
       - name: Free disk space for Android system images
         if: runner.environment == 'github-hosted'
         run: |
@@ -177,6 +184,7 @@ jobs:
           pre-emulator-launch-script: grep -Fx 'target=android-${{ matrix.api }}' "$ANDROID_AVD_HOME/test.ini"
           emulator-options: -no-window -no-snapshot -gpu swiftshader -noaudio -no-boot-anim -camera-back emulated
           script: |
+            bash tools/ci/run_native_tests.sh
             bash gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PpaperflowAbi=x86_64 -PpaperflowCoverage=true --stacktrace
             python3 tools/ci/prepare_models.py --all-ocr --install
             bash gradlew :app:connectedDebugAndroidTest -PpaperflowAbi=x86_64 -PpaperflowCoverage=true -Pandroid.testInstrumentationRunnerArguments.ci=true --stacktrace
@@ -198,6 +206,7 @@ jobs:
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
             build/ci-device-reports/
+            build/native-test-results/
           retention-days: 7
 
       - name: Preserve instrumentation coverage

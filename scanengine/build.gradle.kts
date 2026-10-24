@@ -12,6 +12,7 @@ android {
     androidResources { noCompress += "tflite" }
 }
 dependencies {
+    testImplementation(libs.junit)
     api(libs.opencv.android)
     implementation("com.google.ai.edge.litert:litert:1.4.1")
     implementation("com.google.ai.edge.litert:litert-support-api:1.4.1")

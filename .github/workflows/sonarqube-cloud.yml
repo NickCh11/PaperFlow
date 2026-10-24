@@ -69,7 +69,20 @@ jobs:
       - name: Compile, merge real test coverage and generate Android Lint reports
         run: bash gradlew coverageReport lintDebug -PpaperflowAbi=x86_64 -PpaperflowCoverage=true
       - name: Verify JVM test reports
-        run: python3 tools/ci/check_test_results.py app/build/test-results/testDebugUnitTest app/src/test/java
+        run: |
+          python3 tools/ci/check_test_results.py app/build/test-results/testDebugUnitTest app/src/test/java
+          python3 tools/ci/check_test_results.py scanengine/build/test-results/testDebugUnitTest scanengine/src/test/java
+      - name: Report progress toward whole-project 100 percent coverage
+        run: |
+          status=0
+          python3 tools/ci/check_coverage.py --target 100 --json build/coverage/whole-project.json --markdown build/coverage/whole-project.md || status=$?
+          if [ "$status" -gt 1 ]; then
+            exit "$status"
+          fi
+          cat build/coverage/whole-project.md >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -eq 1 ]; then
+            echo '::warning::Whole-project 100 percent coverage has not been reached. See the coverage report for uncovered lines, branches and unmeasured native code. The Sonar quality gate is checked separately.'
+          fi
       - name: Analyze and wait for quality gate
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -85,5 +98,7 @@ jobs:
           name: sonar-jvm-test-reports
           path: |
             app/build/test-results/testDebugUnitTest/
+            scanengine/build/test-results/testDebugUnitTest/
             **/build/reports/jacoco/coverageReport/
+            build/coverage/
           retention-days: 7

@@ -24,15 +24,13 @@ workflow's push filter together when development moves back to `main`.
 
 The initial baseline was scanned from target commit
 `1c9eeaf265481018c7795169bf0d13dc5d1a0adb`, using a temporary copy of the scanner
-build configuration without changing its application sources. PR #1 was then
-analyzed from GitHub commit `b11136310d83a4718a3de7aed36850c6ce8c8241` against
-that target. This verifies actual Cloud analysis and PR decoration, not only
-authentication. The first PR quality gate **failed**: ten reported issues and
-0% reported coverage on 241 new lines to cover. No JaCoCo XML was supplied, so
-test execution must not be confused with measured coverage. Reports include
-autoboxing and volatile-counter findings that need semantic review; they are
-not all confirmed runtime bugs. No findings have been dismissed or quality-gate
-thresholds weakened to make the check green. The existing Sonar way gate remains.
+build configuration without changing its application sources. The latest verified
+Cloud analysis of production revision `95d43588ad8cfa3a02aa847e29cbf1f0dace94f4`
+reported zero open new issues and A ratings for security, reliability and
+maintainability. Its new-code coverage was 71.4%, so the quality gate still failed
+the unchanged 80% coverage requirement. Later tests must be remeasured rather
+than inferred from their passing result. No findings have been dismissed or
+quality-gate thresholds weakened to make the check green.
 
 The workflow also generates the Android Lint reports expected by the scanner,
 uses the release version from `version.properties`, and ignores generated
@@ -100,6 +98,39 @@ and generate reports with `coverageReport`. Sonar imports these XML files.
 Generated classes and native code are outside this JVM coverage measurement;
 production Java/Kotlin sources are not excluded to improve the percentage.
 The Sonar way quality gate, including 80% coverage on new code, is unchanged.
+
+## Whole-project coverage target
+
+The requested target is **100% of executable production lines and branches across
+the entire project**, including owned Rust code. A passing new-code Sonar gate
+does not establish that target. No production Java/Kotlin files are excluded to
+raise coverage.
+
+Each Sonar CI run publishes `build/coverage/whole-project.md` and `.json`, with
+separate results for `app`, `scanengine`, `translation`, and native Rust. The job
+summary explicitly reports `TARGET NOT MET` until all measurements meet 100%.
+Missing native measurement is reported as unmeasured, never as zero or 100%.
+This progress report is advisory; the existing required Sonar quality gate
+remains enforced separately. Measurement errors fail the report step.
+
+To check the target locally after generating current-revision JaCoCo reports:
+
+```sh
+python3 tools/ci/check_coverage.py --target 100 \
+  --json build/coverage/whole-project.json \
+  --markdown build/coverage/whole-project.md
+```
+
+The checker exits 0 only when the target is met, 1 for incomplete coverage, and
+2 for invalid measurements. `--native-lcov path/to/native.lcov` imports separate
+native execution records. A host-only Rust run cannot replace measurements for
+Android-only JNI files; every owned native source needs line data and the native
+report needs branch instrumentation. CI builds an Android x86_64 Rust test
+executable from the same locked dependencies and runs the existing font-catalog
+tests on both emulators before the Java instrumentation suite. This catches native
+test failures but does not yet collect native execution coverage, so whole-project
+100% remains unmet even if all tests pass. Native test output is saved alongside
+the device reports; an empty or ignored native suite cannot pass.
 
 Cloud API credentials now require recent device authentication. The optional Cloud
 conversion route confirms the screen lock before reading or saving credentials;

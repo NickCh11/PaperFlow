@@ -43,6 +43,28 @@ public class CloudKeyStoreRegressionTest {
             @Override public void perform(androidx.test.espresso.UiController controller,android.view.View view){assertTrue(view.performClick());controller.loopMainThreadUntilIdle();}
         });
     }
+    private boolean containsVisibleLabel(android.view.View view,String label){
+        if(!view.isShown())return false;
+        if(view instanceof android.widget.TextView){
+            android.widget.TextView text=(android.widget.TextView)view;
+            if(label.contentEquals(text.getText())||label.contentEquals(text.getHint()==null?"":text.getHint()))return true;
+        }
+        if(view instanceof android.view.ViewGroup){
+            android.view.ViewGroup group=(android.view.ViewGroup)view;
+            for(int i=0;i<group.getChildCount();i++)if(containsVisibleLabel(group.getChildAt(i),label))return true;
+        }
+        return false;
+    }
+    private void awaitDialog(int label){
+        String expected=UiText.get(label);
+        UiTestWait.until(()->{
+            for(android.view.View root:android.view.inspector.WindowInspector.getGlobalWindowViews()){
+                android.view.View button=root.findViewById(android.R.id.button1);
+                if(root.isAttachedToWindow()&&button!=null&&button.isShown()&&button.isEnabled()&&containsVisibleLabel(root,expected))return true;
+            }
+            return false;
+        },"Cloud dialog was not ready: "+expected);
+    }
 
     @Test public void authenticatedStorageRoundTripsAndMigratesLegacyCiphertext()throws Exception{
         Context context=inst.getTargetContext();
@@ -58,13 +80,15 @@ public class CloudKeyStoreRegressionTest {
             String result=shell("locksettings set-pin "+FIXTURE_PIN);pinCreated=context.getSystemService(KeyguardManager.class).isDeviceSecure();assertTrue(result,pinCreated);
             assertTrue(shell("locksettings verify --old "+FIXTURE_PIN).contains("verified"));
             scenario.onActivity(a->{
-                new androidx.lifecycle.ViewModelProvider(a).get(MainActivity.WordState.class).pendingCloud=new MainActivity.CloudRequest("/fixture/report.pdf","Fixture","","");
+                new androidx.lifecycle.ViewModelProvider(a).get(MainActivity.WordState.class).pendingCloud=new MainActivity.CloudRequest("/fixture/report.pdf","Fixture","",null);
                 try{call(a,"finishGoogleUnlock",new Class<?>[]{int.class},android.app.Activity.RESULT_OK);}catch(Exception error){throw new AssertionError(error);}
             });
+            awaitDialog(R.string.ui_google_cloud_api_key);
             press(UiText.get(R.string.ui_save));
             onView(withClassName(org.hamcrest.Matchers.equalTo(android.widget.EditText.class.getName()))).check(matches(hasErrorText(UiText.get(R.string.ui_enter_your_google_cloud_api_key)))).perform(replaceText("fixture-api-value"),closeSoftKeyboard());
             press(UiText.get(R.string.ui_save));
             UiTestWait.until(()->preferences.getInt("key_version",0)==2,"Authenticated settings were not saved");
+            awaitDialog(R.string.ui_upload_pages_to_google_cloud);
             onView(withText(UiText.get(R.string.ui_upload_pages_to_google_cloud))).check(matches(isDisplayed()));
             press(UiText.get(R.string.ui_cancel));
             assertArrayEquals(new String[]{"fixture-api-value","en"},(String[])worker.submit(()->call(activity.get(),"readGoogleSettings",new Class<?>[0])).get(5,TimeUnit.SECONDS));
