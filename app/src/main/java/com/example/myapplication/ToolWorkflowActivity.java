@@ -91,10 +91,10 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
         previewDocument=null;originalPreviewDocument=null;previewDocumentEpoch=-1;
     }
     private void invalidatePreviewRequests(){
-        thumbnailEpoch++;thumbnailWaiters.clear();previewWorker.getQueue().clear();
+        thumbnailEpoch.incrementAndGet();thumbnailWaiters.clear();previewWorker.getQueue().clear();
         previewWorker.execute(this::closePreviewDocuments);
     }
-    private volatile int thumbnailEpoch;
+    private final java.util.concurrent.atomic.AtomicInteger thumbnailEpoch = new java.util.concurrent.atomic.AtomicInteger();
     private final android.util.LruCache<Integer,Bitmap> thumbnailCache=new android.util.LruCache<Integer,Bitmap>(4*1024*1024){@Override protected int sizeOf(Integer key,Bitmap value){return value.getAllocationByteCount();}};
     private final java.util.Map<Integer,ArrayList<java.util.function.Consumer<Bitmap>>> thumbnailWaiters=new java.util.HashMap<>();
     private final ArrayList<float[]> pageSizes = new ArrayList<>();
@@ -200,7 +200,7 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
         if (operation.equals("PDF to Long Image")) { startActivity(new Intent(this, LongImageActivity.class).putExtra("path", source.path).putExtra("name", source.name).putExtra("password", source.password)); return; }
         clearThumbnails();pageWindow=restoredOptions==null?0:restoredOptions.getInt("page_window",0);watermarkSettingsLoaded=false;showProgress("Opening PDF…");
         final ArrayList<Source> selection=new ArrayList<>(selectedSources);
-        final Source chosen=source;final int epoch=thumbnailEpoch;
+        final Source chosen=source;final int epoch=thumbnailEpoch.get();
         worker.execute(()->{Source locked=null;try{
             ArrayList<float[]> sizes=new ArrayList<>();org.json.JSONObject saved=null;
             for(Source item:selection){
@@ -209,16 +209,16 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
                     int total=doc.getNumberOfPages();if(total==0)throw new IllegalStateException(UiText.get(R.string.ui_the_pdf_has_no_pages));
                     boolean encrypted=doc.isEncrypted();
                     if(item==chosen)for(int i=0;i<total;i++){
-                        if(destroyed||epoch!=thumbnailEpoch)return;
+                        if(destroyed||epoch!=thumbnailEpoch.get())return;
                         PDPage p=doc.getPage(i);PDRectangle b=p.getCropBox();boolean rotated=Math.abs(p.getRotation())%180==90;
                         sizes.add(new float[]{rotated?b.getHeight():b.getWidth(),rotated?b.getWidth():b.getHeight()});
                         if(saved==null&&operation.equals("Add Watermark"))saved=PdfWatermark.settings(p);
                     }
-                    runOnUiThread(()->{if(!destroyed&&epoch==thumbnailEpoch){item.encrypted=encrypted;item.pages=total;}});
+                    runOnUiThread(()->{if(!destroyed&&epoch==thumbnailEpoch.get()){item.encrypted=encrypted;item.pages=total;}});
                 }
             }
             final org.json.JSONObject settings=saved;
-            runOnUiThread(()->{if(destroyed||epoch!=thumbnailEpoch)return;
+            runOnUiThread(()->{if(destroyed||epoch!=thumbnailEpoch.get())return;
                 pageSizes.clear();pageSizes.addAll(sizes);selectedPages.clear();pageOrder.clear();
                 for(int i=0;i<sizes.size();i++){if(!operation.equals("OCR PDF"))selectedPages.add(i);pageOrder.add(i);}
                 if(settings!=null&&restoredOptions==null){watermarkSettingsLoaded=true;watermark=settings.optString("text",watermark);watermarkColor=settings.optInt("color",watermarkColor);opacity=settings.optInt("opacity",opacity);watermarkSize=settings.optInt("size",watermarkSize);angle=settings.optInt("angle",angle);watermarkTile=settings.optBoolean("tile",watermarkTile);watermarkSpacing=settings.optInt("spacing",watermarkSpacing);}
@@ -226,8 +226,8 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
                 if(restoredRotationState!=null){for(int page=0;page<sizes.size();page++)if(restoredRotationState.containsKey("page_rotation_"+page))pageRotations.put(page,restoredRotationState.getInt("page_rotation_"+page));restoredRotationState=null;}
                 showOptions();
             });
-        }catch(InvalidPasswordException e){Source item=locked;runOnUiThread(()->{if(!destroyed&&epoch==thumbnailEpoch)askPassword(item);});}
-        catch(Exception|OutOfMemoryError e){runOnUiThread(()->{if(!destroyed&&epoch==thumbnailEpoch){showSources();toast(UiText.format(R.string.ui_could_not_open_pdf_value,e.getMessage()));}});}});
+        }catch(InvalidPasswordException e){Source item=locked;runOnUiThread(()->{if(!destroyed&&epoch==thumbnailEpoch.get())askPassword(item);});}
+        catch(Exception|OutOfMemoryError e){runOnUiThread(()->{if(!destroyed&&epoch==thumbnailEpoch.get()){showSources();toast(UiText.format(R.string.ui_could_not_open_pdf_value,e.getMessage()));}});}});
     }
 
     /** Small cache and windowed UI: no bitmap is allocated for unopened page windows. */
@@ -238,24 +238,24 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
         ArrayList<java.util.function.Consumer<Bitmap>> waiting=thumbnailWaiters.get(key);
         if(waiting!=null){waiting.add(ready);return;}
         waiting=new ArrayList<>();waiting.add(ready);thumbnailWaiters.put(key,waiting);
-        int epoch=thumbnailEpoch;String path=source.path,password=source.password;boolean clean=operation.equals("Add Watermark")&&!original;
+        int epoch=thumbnailEpoch.get();String path=source.path,password=source.password;boolean clean=operation.equals("Add Watermark")&&!original;
         previewWorker.execute(()->{Bitmap bitmap=null;
-            try{if(destroyed||epoch!=thumbnailEpoch)return;
+            try{if(destroyed||epoch!=thumbnailEpoch.get())return;
                 if(previewDocumentEpoch!=epoch){closePreviewDocuments();previewDocumentEpoch=epoch;}
                 PDDocument doc=original?originalPreviewDocument:previewDocument;
                 if(doc==null){doc=PDDocument.load(new File(path),password,MemoryUsageSetting.setupMixed(24*1024*1024));if(original)originalPreviewDocument=doc;else previewDocument=doc;}
-                if(destroyed||epoch!=thumbnailEpoch)return;
+                if(destroyed||epoch!=thumbnailEpoch.get())return;
                 if(clean)PdfWatermark.remove(doc.getPage(page));bitmap=render(doc,page,160,200);
             }
             catch(Exception|OutOfMemoryError ignored){}
-            Bitmap result=bitmap;runOnUiThread(()->{if(destroyed||epoch!=thumbnailEpoch){if(result!=null)result.recycle();return;}
+            Bitmap result=bitmap;runOnUiThread(()->{if(destroyed||epoch!=thumbnailEpoch.get()){if(result!=null)result.recycle();return;}
                 ArrayList<java.util.function.Consumer<Bitmap>> listeners=thumbnailWaiters.remove(key);
                 if(result!=null)thumbnailCache.put(key,result);
                 if(listeners!=null)for(java.util.function.Consumer<Bitmap> listener:listeners)listener.accept(result);
             });
         });
     }
-    private void bindThumbnail(ImageView image,int page){int epoch=thumbnailEpoch;requestThumbnail(page,false,b->{if(!destroyed&&epoch==thumbnailEpoch&&image.isAttachedToWindow())image.setImageBitmap(b);});}
+    private void bindThumbnail(ImageView image,int page){int epoch=thumbnailEpoch.get();requestThumbnail(page,false,b->{if(!destroyed&&epoch==thumbnailEpoch.get()&&image.isAttachedToWindow())image.setImageBitmap(b);});}
     private void pageWindowControls(){
         pageWindow=PageWindow.start(pageWindow,pageSizes.size());
         if(pageSizes.size()<=PageWindow.SIZE)return;
@@ -462,11 +462,11 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
     private void showRotationOptions(){
         rotationPreview=new ImageView(this);rotationPreview.setScaleType(ImageView.ScaleType.FIT_CENTER);rotationPreview.setContentDescription(UiText.get(R.string.ui_live_rotation_preview));body.addView(rotationPreview,new LinearLayout.LayoutParams(-1,dp(360)));
         rotationLabel=label("",14,INK);body.addView(rotationLabel);LinearLayout controls=new LinearLayout(this);body.addView(controls);
-        for(String title:new String[]{"Previous","Rotate left","Rotate right","Next"}){TextView button=label(title,13,BRAND);button.setGravity(Gravity.CENTER);controls.addView(button,new LinearLayout.LayoutParams(0,dp(52),1));button.setOnClickListener(v->{if(title.equals("Previous"))rotationPage=Math.max(0,rotationPage-1);else if(title.equals("Next"))rotationPage=Math.min(pageSizes.size()-1,rotationPage+1);else pageRotations.put(rotationPage,(pageRotations.getOrDefault(rotationPage,0)+(title.equals("Rotate left")?270:90))%360);refreshRotation();});}
-        TextView apply=label(UiText.get(R.string.ui_apply_this_rotation_to_selected_pages),14,BRAND);apply.setPadding(8,16,8,16);body.addView(apply);apply.setOnClickListener(v->{int delta=pageRotations.getOrDefault(rotationPage,0);for(int page:selectedPages)pageRotations.put(page,delta);refreshRotation();});refreshRotation();
+        for(String title:new String[]{"Previous","Rotate left","Rotate right","Next"}){TextView button=label(title,13,BRAND);button.setGravity(Gravity.CENTER);controls.addView(button,new LinearLayout.LayoutParams(0,dp(52),1));button.setOnClickListener(v->{if(title.equals("Previous"))rotationPage=Math.max(0,rotationPage-1);else if(title.equals("Next"))rotationPage=Math.min(pageSizes.size()-1,rotationPage+1);else pageRotations.put(rotationPage,(pageRotations.getOrDefault(Integer.valueOf(rotationPage),0)+(title.equals("Rotate left")?270:90))%360);refreshRotation();});}
+        TextView apply=label(UiText.get(R.string.ui_apply_this_rotation_to_selected_pages),14,BRAND);apply.setPadding(8,16,8,16);body.addView(apply);apply.setOnClickListener(v->{int delta=pageRotations.getOrDefault(Integer.valueOf(rotationPage),0);for(int page:selectedPages)pageRotations.put(page,delta);refreshRotation();});refreshRotation();
     }
     private void refreshRotation(){
-        if(rotationPreview==null||pageSizes.isEmpty())return;rotationPage=Math.max(0,Math.min(pageSizes.size()-1,rotationPage));int page=rotationPage,delta=pageRotations.getOrDefault(page,0);rotationLabel.setText(UiText.format(R.string.ui_page_value_value_value_fff4ffc6, (page+1), pageSizes.size(), delta));
+        if(rotationPreview==null||pageSizes.isEmpty())return;rotationPage=Math.max(0,Math.min(pageSizes.size()-1,rotationPage));int page=rotationPage,delta=pageRotations.getOrDefault(Integer.valueOf(page),0);rotationLabel.setText(UiText.format(R.string.ui_page_value_value_value_fff4ffc6, (page+1), pageSizes.size(), delta));
         rotationPreview.setRotation(0);final ImageView target=rotationPreview;requestThumbnail(page,false,b->{if(rotationPreview==target&&rotationPage==page&&largeRotationPreview==null)target.setImageBitmap(b);});final int token=++generation;
         worker.execute(()->{Bitmap image=null;try(PDDocument document=load(source)){image=render(document,page,1000,1400);if(delta!=0){android.graphics.Matrix matrix=new android.graphics.Matrix();matrix.postRotate(delta);Bitmap rotated=Bitmap.createBitmap(image,0,0,image.getWidth(),image.getHeight(),matrix,true);if(rotated!=image)image.recycle();image=rotated;}Bitmap ready=image;runOnUiThread(()->{if(destroyed||token!=generation||rotationPreview==null){ready.recycle();return;}Bitmap old=largeRotationPreview;largeRotationPreview=ready;rotationPreview.setImageBitmap(ready);if(old!=null&&!old.isRecycled())old.recycle();});}catch(Exception ignored){if(image!=null)image.recycle();}});
     }
@@ -487,7 +487,7 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
             else try (PDDocument document = load(source)) {
                 switch(operation){case "Rotate PDF":case "OCR PDF":case "Lock":case "Compress":PdfPermissions.modify(document);break;case "Extract PDF Pages":case "Reorder Pages":PdfPermissions.assemble(document);break;case "PDF to Images":case "PDF to Long Image":PdfPermissions.extract(document);break;}
                 switch (operation) {
-                    case "Rotate PDF": for (int page : selected) document.getPage(page).setRotation((document.getPage(page).getRotation() + pageRotations.getOrDefault(page,0)) % 360); saveProtectedCopy(document, output); break;
+                    case "Rotate PDF": for (int page : selected) document.getPage(page).setRotation((document.getPage(page).getRotation() + pageRotations.getOrDefault(Integer.valueOf(page),0)) % 360); saveProtectedCopy(document, output); break;
                     case "OCR PDF":
                         PdfOcr.apply(this,document,selected,this::updateProgress,()->ocrCancelled||destroyed);
                         if(ocrCancelled||destroyed)throw new java.io.InterruptedIOException(UiText.get(R.string.ui_ocr_cancelled));
@@ -567,6 +567,7 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
 
     private class WatermarkPreview extends View {
         Bitmap bitmap; final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+        final RectF destination = new RectF();
         WatermarkPreview() { super(ToolWorkflowActivity.this); setBackgroundColor(Color.WHITE); }
         @Override protected void onDraw(Canvas canvas) {
             if (bitmap == null || bitmap.isRecycled()) return;
@@ -574,7 +575,8 @@ public class ToolWorkflowActivity extends BackHandlingActivity {
             float scale = Math.min(getWidth() / dimensions[0], getHeight() / dimensions[1]);
             float w = dimensions[0] * scale, h = dimensions[1] * scale;
             float x = (getWidth() - w) / 2, y = (getHeight() - h) / 2;
-            paint.setColor(Color.WHITE); canvas.drawBitmap(bitmap, null, new RectF(x, y, x + w, y + h), paint);
+            destination.set(x, y, x + w, y + h);
+            paint.setColor(Color.WHITE); canvas.drawBitmap(bitmap, null, destination, paint);
             if (!watermarkRemove && selectedPages.contains(watermarkPage)) {
                 canvas.save(); canvas.translate(x, y); canvas.scale(scale, scale);
                 PdfWatermark.draw(canvas, dimensions[0], dimensions[1], watermark, watermarkColor,

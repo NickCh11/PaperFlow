@@ -80,8 +80,10 @@ toward Sonar's analyzed production LOC; a local source line count is only an est
    gate. Fork/dependabot secret availability must be considered before making a
    conditionally skipped check mandatory.
 
-The workflow triggers for **every PR**, pushes to `feature/offline-translator`,
-and manual dispatch (choose the Sonar main branch for a branch analysis).
+Android PR checks calls the reusable Sonar workflow for **every PR**, after the
+JVM and device suites pass. Pushes to `feature/offline-translator` and manual
+dispatch through Android PR checks refresh the baseline. The analysis downloads
+coverage artifacts from the same run; it never imports another revision’s data.
 For trusted PRs it reports a failing **setup required** configuration check when
 keys/token are missing; the analysis job cannot start until onboarding is done.
 The target branch must also be supported by the Cloud subscription. Triggering
@@ -92,9 +94,19 @@ PR checks still apply. There is no `pull_request_target` execution of PR code.
 Scope: Java/Kotlin and Android sources selected by Gradle across `app`, `scanengine`
 and `translation`. Vendored `third-party`, generated build directories and binary
 assets are excluded. C/C++ analysis is disabled until a compilation-database/capture
-pipeline is added; this setup makes no native-analysis claim. Test results are
-available, but no JaCoCo coverage report is generated and no coverage percentage is
-claimed. Configure coverage separately if needed by the chosen quality gate.
+pipeline is added; this setup makes no native-analysis claim. JaCoCo 0.8.15 merges real JVM execution data and instrumented device execution
+data into one XML report per module. Enable collection with `-PpaperflowCoverage=true`
+and generate reports with `coverageReport`. Sonar imports these XML files.
+Generated classes and native code are outside this JVM coverage measurement;
+production Java/Kotlin sources are not excluded to improve the percentage.
+The Sonar way quality gate, including 80% coverage on new code, is unchanged.
+
+Cloud API credentials now require recent device authentication. The optional Cloud
+conversion route confirms the screen lock before reading or saving credentials;
+devices without a secure lock cannot persist/use Cloud credentials. Existing
+ciphertext migrates to an authentication-bound v2 key after confirmation, and the
+legacy key is removed only after the new ciphertext is committed. Keystore and
+preference IO run on a worker. Local conversion does not require this confirmation.
 
 References: [plans and limits](https://docs.sonarsource.com/sonarqube-cloud/administering-sonarcloud/managing-subscription/subscription-plans),
 [Gradle scanner](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/scanners/sonarscanner-for-gradle).

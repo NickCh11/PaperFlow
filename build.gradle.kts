@@ -1,8 +1,36 @@
+import org.gradle.testing.jacoco.tasks.JacocoReport
+import org.gradle.testing.jacoco.plugins.JacocoPluginExtension
+
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
     alias(libs.plugins.android.application) apply false
     id("com.android.library") version "9.4.1" apply false
     id("org.sonarqube") version "7.5.0.8588"
+}
+
+subprojects {
+    apply(plugin = "jacoco")
+    extensions.configure<JacocoPluginExtension> { toolVersion = "0.8.15" }
+    tasks.register<JacocoReport>("coverageReport") {
+        description = "Merge JVM and device coverage for SonarQube Cloud."
+        dependsOn("testDebugUnitTest")
+        sourceDirectories.from(file("src/main/java"), file("src/main/kotlin"))
+        classDirectories.from(
+            fileTree(layout.buildDirectory.dir("intermediates/javac/debug/compileDebugJavaWithJavac/classes")),
+            fileTree(layout.buildDirectory.dir("intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"))
+        )
+        executionData.from(fileTree(layout.buildDirectory.dir("outputs/unit_test_code_coverage")) { include("**/*.exec") })
+        executionData.from(rootProject.fileTree("build/device-coverage") { include("**/*.ec") })
+        reports {
+            xml.required = true
+            html.required = true
+        }
+    }
+    sonar {
+        properties {
+            property("sonar.coverage.jacoco.xmlReportPaths", layout.buildDirectory.file("reports/jacoco/coverageReport/coverageReport.xml").get().asFile)
+        }
+    }
 }
 
 sonar {

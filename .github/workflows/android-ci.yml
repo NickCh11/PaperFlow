@@ -3,7 +3,7 @@ name: Android PR checks
 on:
   pull_request:
   push:
-    branches: [main, master]
+    branches: [main, master, feature/offline-translator]
   merge_group:
   workflow_dispatch:
 
@@ -143,7 +143,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Build test application
-        run: bash gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PpaperflowAbi=x86_64 --stacktrace
+        run: bash gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PpaperflowAbi=x86_64 -PpaperflowCoverage=true --stacktrace
       - name: Download and verify public language fixtures
         run: python3 tools/ci/prepare_models.py --all-ocr
       - name: Install emulator image with download retries
@@ -177,16 +177,18 @@ jobs:
           pre-emulator-launch-script: grep -Fx 'target=android-${{ matrix.api }}' "$ANDROID_AVD_HOME/test.ini"
           emulator-options: -no-window -no-snapshot -gpu swiftshader -noaudio -no-boot-anim -camera-back emulated
           script: |
-            bash gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PpaperflowAbi=x86_64 --stacktrace
+            bash gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PpaperflowAbi=x86_64 -PpaperflowCoverage=true --stacktrace
             python3 tools/ci/prepare_models.py --all-ocr --install
-            bash gradlew :app:connectedDebugAndroidTest -PpaperflowAbi=x86_64 -Pandroid.testInstrumentationRunnerArguments.ci=true --stacktrace
+            bash gradlew :app:connectedDebugAndroidTest -PpaperflowAbi=x86_64 -PpaperflowCoverage=true -Pandroid.testInstrumentationRunnerArguments.ci=true --stacktrace
             python3 tools/ci/check_test_results.py app/build/outputs/androidTest-results/connected app/src/androidTest/java
             mkdir -p build/ci-device-reports
             cp -R app/build/outputs/androidTest-results/connected build/ci-device-reports/full-suite
+            mkdir -p build/ci-device-coverage/full-suite
+            cp -R app/build/outputs/code_coverage/. build/ci-device-coverage/full-suite/
             adb shell wm size 640x1280
             adb shell wm density 320
             adb shell settings put system font_scale 1.3
-            bash gradlew :app:connectedDebugAndroidTest -PpaperflowAbi=x86_64 -Pandroid.testInstrumentationRunnerArguments.ci=true -Pandroid.testInstrumentationRunnerArguments.class=com.example.myapplication.AppearanceTest --stacktrace
+            bash gradlew :app:connectedDebugAndroidTest -PpaperflowAbi=x86_64 -PpaperflowCoverage=true -Pandroid.testInstrumentationRunnerArguments.ci=true -Pandroid.testInstrumentationRunnerArguments.class=com.example.myapplication.AppearanceTest --stacktrace
             python3 tools/ci/check_test_results.py app/build/outputs/androidTest-results/connected
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
@@ -198,10 +200,23 @@ jobs:
             build/ci-device-reports/
           retention-days: 7
 
+      - name: Preserve instrumentation coverage
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: device-coverage-api-${{ matrix.api }}
+          path: build/ci-device-coverage/
+          if-no-files-found: error
+          retention-days: 7
+
+  sonar:
+    needs: [checks, device-tests]
+    uses: ./.github/workflows/sonarqube-cloud.yml
+    secrets: inherit
+
   pr-gate:
     name: PR gate
     if: always()
-    needs: [checks, build, device-tests, language-runtime]
+    needs: [checks, build, device-tests, language-runtime, sonar]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -211,8 +226,10 @@ jobs:
           CHECKS: ${{ needs.checks.result }}
           BUILD: ${{ needs.build.result }}
           DEVICES: ${{ needs.device-tests.result }}
+          SONAR: ${{ needs.sonar.result }}
         run: |
           test "$RUNTIME" = success
           test "$CHECKS" = success
           test "$BUILD" = success
           test "$DEVICES" = success
+          test "$SONAR" = success

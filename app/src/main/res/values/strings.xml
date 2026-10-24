@@ -1945,4 +1945,6 @@
     <string name="ui_appearance_light">Light</string>
     <string name="ui_appearance_dark">Dark</string>
     <string name="ui_appearance_help">System default follows the light or dark appearance of your device.</string>
+    <string name="ui_cloud_requires_device_lock" formatted="false">Set a screen lock on your device before saving or using a Google Cloud API key.</string>
+    <string name="ui_cloud_unlock_reason" formatted="false">Confirm your screen lock to access the Google Cloud API key.</string>
 </resources>

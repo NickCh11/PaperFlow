@@ -11,6 +11,7 @@
     <application
         android:name=".PaperFlowApplication"
         android:localeConfig="@xml/app_locales"
+        tools:targetApi="tiramisu"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -62,7 +63,7 @@
         <activity android:name=".ScanCodeActivity" android:exported="false" />
         <activity android:name=".IdPhotoMakerActivity" android:exported="false" />
         <activity android:name=".EraseMarksActivity" android:exported="false" />
-        <activity android:name=".CameraCaptureActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".CameraCaptureActivity" android:exported="false" />
         <provider android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files" android:exported="false"
             android:grantUriPermissions="true">

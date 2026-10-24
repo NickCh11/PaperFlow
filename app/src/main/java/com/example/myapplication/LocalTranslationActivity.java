@@ -216,12 +216,14 @@ public class LocalTranslationActivity extends BackHandlingActivity {
                 main.post(()->{if(disposed||cancelled){for(File file:imported)file.delete();if(!disposed)fail(new InterruptedIOException(UiText.get(R.string.ui_translation_cancelled)));return;}importedSources.addAll(imported);capturedPages.clear();for(File file:imported)capturedPages.add(file.getPath());pageSnapshots.clear();capturedIndex=0;captureMode="Photo";busy=false;load(Uri.fromFile(imported.get(0)));});
             }catch(Exception|OutOfMemoryError error){for(File file:imported)file.delete();fail(error);}});
         }
+        private static final class BatchSession extends TranslationSession {
+            BatchSession(Application app){super(app);}
+            @Override void publishResult(TranslationRenderer.Result output,ArrayList<TranslationRenderer.Block> ready,String from,String to,boolean fallback)throws Exception{
+                try{checkCancelled();snapshot=TranslationSnapshot.write(getApplication(),source,output,ready,from,to,sourceOverride,true,fallback);}finally{output.bitmap.recycle();}
+            }
+        }
         File translateBatchPage(String path)throws Exception {
-            checkCancelled();TranslationSession page=new TranslationSession(getApplication()){
-                @Override void publishResult(TranslationRenderer.Result output,ArrayList<TranslationRenderer.Block> ready,String from,String to,boolean fallback)throws Exception{
-                    try{checkCancelled();snapshot=TranslationSnapshot.write(getApplication(),source,output,ready,from,to,sourceOverride,true,fallback);}finally{output.bitmap.recycle();}
-                }
-            };
+            checkCancelled();TranslationSession page=new BatchSession(getApplication());
             page.parentCancelled=()->cancelled||disposed||parentCancelled.getAsBoolean();page.sourceOverride=sourceOverride;page.target=target;page.explicitTarget=true;
             try {
                 BitmapFactory.Options options=new BitmapFactory.Options();options.inJustDecodeBounds=true;BitmapFactory.decodeFile(path,options);options.inJustDecodeBounds=false;options.inSampleSize=1;
@@ -431,10 +433,10 @@ public class LocalTranslationActivity extends BackHandlingActivity {
     private LinearLayout.LayoutParams space(int width,int height,int top){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(width,height);lp.topMargin=dp(top);return lp;}
     private int dp(int value){return Math.round(value*getResources().getDisplayMetrics().density);}
     private class PreviewView extends View {
-        Bitmap bitmap;float zoom=1,panX,panY,lastX,lastY,downX,downY;boolean multitouch;final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);final ScaleGestureDetector pinch;
+        final RectF destination=new RectF();Bitmap bitmap;float zoom=1,panX,panY,lastX,lastY,downX,downY;boolean multitouch;final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);final ScaleGestureDetector pinch;
         PreviewView(){super(LocalTranslationActivity.this);setContentDescription(UiText.get(R.string.ui_translation_preview_pinch_to_zoom_drag_to_move));pinch=new ScaleGestureDetector(getContext(),new ScaleGestureDetector.SimpleOnScaleGestureListener(){@Override public boolean onScale(ScaleGestureDetector detector){zoom=Math.max(1,Math.min(6,zoom*detector.getScaleFactor()));if(zoom==1)panX=panY=0;invalidate();return true;}});}
         void setBitmap(Bitmap value){if(bitmap!=value){bitmap=value;zoom=1;panX=panY=0;invalidate();}}
-        @Override protected void onDraw(Canvas canvas){if(bitmap==null||bitmap.isRecycled())return;float fit=Math.min(getWidth()/(float)bitmap.getWidth(),getHeight()/(float)bitmap.getHeight());float w=bitmap.getWidth()*fit*zoom,h=bitmap.getHeight()*fit*zoom;canvas.drawBitmap(bitmap,null,new RectF((getWidth()-w)/2+panX,(getHeight()-h)/2+panY,(getWidth()+w)/2+panX,(getHeight()+h)/2+panY),paint);}
+        @Override protected void onDraw(Canvas canvas){if(bitmap==null||bitmap.isRecycled())return;float fit=Math.min(getWidth()/(float)bitmap.getWidth(),getHeight()/(float)bitmap.getHeight());float w=bitmap.getWidth()*fit*zoom,h=bitmap.getHeight()*fit*zoom;destination.set((getWidth()-w)/2+panX,(getHeight()-h)/2+panY,(getWidth()+w)/2+panX,(getHeight()+h)/2+panY);canvas.drawBitmap(bitmap,null,destination,paint);}
         @Override public boolean onTouchEvent(MotionEvent event){if(bitmap==null)return false;pinch.onTouchEvent(event);if(event.getActionMasked()==MotionEvent.ACTION_DOWN){downX=lastX=event.getX();downY=lastY=event.getY();multitouch=false;}else if(event.getPointerCount()>1)multitouch=true;else if(event.getActionMasked()==MotionEvent.ACTION_MOVE&&!pinch.isInProgress()){if(zoom>1){panX+=event.getX()-lastX;panY+=event.getY()-lastY;invalidate();}lastX=event.getX();lastY=event.getY();}else if(event.getActionMasked()==MotionEvent.ACTION_UP&&!multitouch&&zoom<=1.01f){float dx=event.getX()-downX,dy=event.getY()-downY;if(Math.abs(dx)>dp(60)&&Math.abs(dx)>Math.abs(dy)*1.5f)showPage(session.capturedIndex+(dx<0?1:-1));else performClick();}return true;}
         @Override public boolean performClick(){super.performClick();return true;}
     }

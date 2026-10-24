@@ -51,6 +51,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            enableUnitTestCoverage = providers.gradleProperty("paperflowCoverage").orNull == "true"
+            enableAndroidTestCoverage = providers.gradleProperty("paperflowCoverage").orNull == "true"
+        }
         release {
             proguardFiles("proguard-rules.pro")
             optimization {
@@ -64,6 +68,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
     testOptions { animationsDisabled = true }
+    testCoverage { jacocoVersion = "0.8.15" }
 }
 
 dependencies {

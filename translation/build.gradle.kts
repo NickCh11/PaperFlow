@@ -26,6 +26,11 @@ abstract class CheckLanguageRuntimeTask : DefaultTask() {
 }
 android {
     namespace = "com.paperflow.translation"
+    buildTypes.named("debug") {
+        enableUnitTestCoverage = providers.gradleProperty("paperflowCoverage").orNull == "true"
+        enableAndroidTestCoverage = providers.gradleProperty("paperflowCoverage").orNull == "true"
+    }
+    testCoverage { jacocoVersion = "0.8.15" }
     compileSdk = 37
     ndkVersion = "27.2.12479018"
     providers.gradleProperty("paperflowNdkPath").orNull?.let { ndkPath = it }
