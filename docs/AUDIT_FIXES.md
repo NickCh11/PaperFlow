@@ -100,3 +100,28 @@ The real target commit was scanned before the first GitHub PR analysis. Cloud
 analysis and PR decoration are verified; the first PR quality gate failed on
 reported security/reliability issues and absent coverage data. The thresholds
 have not been weakened. See `PR_REVIEW.md` for the result and scope.
+
+
+### Sonar follow-up, 24 October 2026
+
+The PR now collects opt-in JaCoCo execution data from JVM tests and the full
+API 29/37 instrumentation matrix, and imports a merged XML report per JVM
+module. Android PR checks invokes the reusable Sonar workflow after its test
+jobs; the PR gate also requires that workflow. The existing Sonar way thresholds
+remain unchanged.
+
+Sonar findings addressed: atomic preview/library generations, explicit boxed
+map/set lookup keys (equivalent Java autoboxing was reported incorrectly),
+reused drawing objects, a static batch translation session, editor accessibility,
+and camera orientation support. Cloud credentials use an authentication-bound
+v2 key; migration and persistence run on a worker. Pending conversion arguments
+survive rotation and process recreation without persisting an API key in saved
+state. Invalidated keys can be replaced through the authenticated settings flow.
+
+Two further Greptile regressions were confirmed: a trashed card remained in bulk
+selection, and rotation during device authentication lost the conversion. Both
+have focused permanent regression tests. Book review tests now explicitly grant
+the camera permission before starting the flow, matching their required setup.
+Twenty local API 29 tests passed, including all these checks and the audit suite.
+The earlier e210d3e CI passed the complete API 29 suite and all build variants;
+API 37 reported two Book-flow failures, so no all-green CI claim is made here.

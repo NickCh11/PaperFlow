@@ -17,6 +17,9 @@ import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class)
 public class BookReviewFlowTest {
     private final Instrumentation inst=InstrumentationRegistry.getInstrumentation();
+    @Before public void allowCameraForTheBookFlow(){
+        inst.getUiAutomation().grantRuntimePermission(inst.getTargetContext().getPackageName(),android.Manifest.permission.CAMERA);
+    }
     @Test public void repeatedBookCaptureReviewAndDoneSavesOnePdf()throws Exception{
         Context context=inst.getTargetContext();BookDraftStore store=new BookDraftStore(context);File index=new File(context.getFilesDir(),"book-draft.json");byte[] previous=index.isFile()?read(index):null;store.complete();
         File documents=new File(context.getFilesDir(),"documents");Set<String> before=new HashSet<>();if(documents.list()!=null)Collections.addAll(before,documents.list());
