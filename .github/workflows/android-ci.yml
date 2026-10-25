@@ -169,6 +169,16 @@ jobs:
         with:
           name: native-tests-x86_64
           path: build/native-tests/x86_64
+      - name: Restore instrumented JNI objects for API 29 coverage
+        if: matrix.api == '29'
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: native-coverage-x86_64
+          path: build/native-coverage/x86_64
+      - name: Use the separate instrumented library only in the coverage test APK
+        if: matrix.api == '29'
+        run: |
+          cp build/native-coverage/x86_64/libpaperflow_runtime.so translation/src/main/jniLibs/x86_64/libpaperflow_runtime.so
       - name: Free disk space for Android system images
         if: runner.environment == 'github-hosted'
         run: |
@@ -225,10 +235,12 @@ jobs:
           emulator-options: -no-window -no-snapshot -gpu swiftshader -feature GLESDynamicVersion -noaudio -no-boot-anim -camera-back emulated
           script: |
             bash tools/ci/run_native_tests.sh
+            if [ '${{ matrix.api }}' = 29 ]; then python3 tools/ci/native_coverage.py run-unit; fi
             bash gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PpaperflowAbi=x86_64 -PpaperflowCoverage=true --stacktrace
             python3 tools/ci/prepare_models.py --all-ocr --install
-            bash gradlew :app:connectedDebugAndroidTest -PpaperflowAbi=x86_64 -PpaperflowCoverage=true -Pandroid.testInstrumentationRunnerArguments.ci=true --stacktrace
+            bash gradlew :app:connectedDebugAndroidTest -PpaperflowAbi=x86_64 -PpaperflowCoverage=true -Pandroid.testInstrumentationRunnerArguments.ci=true -Pandroid.testInstrumentationRunnerArguments.nativeCoverage=${{ matrix.api == '29' }} --stacktrace
             python3 tools/ci/check_test_results.py app/build/outputs/androidTest-results/connected app/src/androidTest/java
+            if [ '${{ matrix.api }}' = 29 ]; then python3 tools/ci/native_coverage.py collect-app; fi
             mkdir -p build/ci-device-reports
             cp -R app/build/outputs/androidTest-results/connected build/ci-device-reports/full-suite
             mkdir -p build/ci-device-coverage/full-suite

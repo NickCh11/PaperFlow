@@ -76,24 +76,28 @@ mod packet_tests {
     use super::*;
 
     // These golden packets are also decoded by FrameResultProtocolTest on the JVM.
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
     #[test]
     fn signed_packet_keeps_all_fields_and_flags() {
         assert_eq!(pack_result(PlanarTrackerState::Locked, 0x1234, 37, 1.25, true, true, true) as u64,
                    0xa004_a246_9800_0500);
     }
 
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
     #[test]
     fn oversized_payload_saturates_and_anchor_wraps_without_changing_flags() {
         assert_eq!(pack_result(PlanarTrackerState::Lost, 0x1_ffff, u32::MAX, f32::INFINITY, false, false, false) as u64,
                    0xdfff_ffff_e01f_ffff);
     }
 
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
     #[test]
     fn scale_clamps_negative_values_and_rounds_to_nearest_fixed_point() {
         assert_eq!(pack_result(PlanarTrackerState::Idle, 0, 0, -2.0, false, false, false), 0);
         assert_eq!(pack_result(PlanarTrackerState::Idle, 0, 0, 1.0006, false, false, false), 1025);
     }
 
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
     #[test]
     fn every_tracker_state_uses_its_assigned_wire_bits() {
         for (state, expected) in [

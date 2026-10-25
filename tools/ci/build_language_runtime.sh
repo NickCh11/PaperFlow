@@ -34,6 +34,7 @@ if [ "$mode" = library ]; then
 else
   destination="$root/build/native-tests/$abi"
   mkdir -p "$destination"
-  cargo ndk --target "$target" --platform 26 --link-libcxx-shared test --locked --release --lib --no-run --message-format=json > "$destination/cargo-artifacts.json"
+  # cargo-ndk consumes compiler-artifact JSON internally; ndk-test forwards it.
+  cargo ndk-test --target "$target" --platform 26 --link-cxx-shared --locked --release --lib --no-run --message-format=json > "$destination/cargo-artifacts.json"
   python3 "$root/tools/ci/collect_native_tests.py" "$destination/cargo-artifacts.json" "$destination/paperflow-runtime-tests"
 fi

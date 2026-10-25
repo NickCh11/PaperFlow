@@ -20,8 +20,17 @@ class NativeTestCollectionTest(unittest.TestCase):
         result.update(overrides)
         return result
 
-    def write(self, *records):
-        self.messages.write_text("\n".join(json.dumps(row) for row in records), encoding="utf-8")
+    def write(self, *records, finished=True):
+        rows=list(records)
+        if finished is not None:
+            rows.append(dict(reason="build-finished",success=finished))
+        self.messages.write_text("\n".join(json.dumps(row) for row in rows), encoding="utf-8")
+
+    def test_wrapper_exit_zero_cannot_hide_failed_or_incomplete_cargo_build(self):
+        for finished in (None,False):
+            self.write(self.record(),finished=finished)
+            with self.assertRaises(ValueError):
+                collect(self.messages,self.output)
 
     def test_collects_the_test_binary_while_ignoring_other_cargo_artifacts(self):
         self.write(self.record(reason="build-script-executed"), self.record(profile=dict(test=False)), self.record(target=dict(name="dependency")), self.record())

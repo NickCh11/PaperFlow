@@ -89,6 +89,18 @@ jobs:
           path: build/device-coverage
       - name: Merge current-run coverage without recompiling or repeating JVM tests
         run: bash gradlew coverageReport -x testDebugUnitTest -PpaperflowAbi=x86_64 -PpaperflowCoverage=true
+      - name: Restore matching instrumented native objects
+        if: inputs.device-coverage
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: native-coverage-x86_64
+          path: build/native-coverage/x86_64
+      - name: Export real Android JNI and Rust unit-test branch coverage
+        if: inputs.device-coverage
+        run: |
+          toolchain=$(cat tools/ci/native_coverage_toolchain.txt)
+          rustup toolchain install "$toolchain" --profile minimal --component llvm-tools-preview
+          python3 tools/ci/export_native_coverage.py --profiles build/device-coverage
       - name: Identify measured scope
         env:
           DEVICE_COVERAGE: ${{ inputs.device-coverage }}
@@ -104,7 +116,9 @@ jobs:
       - name: Report progress toward whole-project 100 percent coverage
         run: |
           status=0
-          python3 tools/ci/check_coverage.py --target 100 --json build/coverage/whole-project.json --markdown build/coverage/whole-project.md || status=$?
+          native=()
+          if [ -f build/coverage/native.lcov ]; then native+=(--native-lcov build/coverage/native.lcov); fi
+          python3 tools/ci/check_coverage.py --target 100 "${native[@]}" --json build/coverage/whole-project.json --markdown build/coverage/whole-project.md || status=$?
           if [ "$status" -gt 1 ]; then
             exit "$status"
           fi

@@ -496,6 +496,7 @@ mod tests {
         ("zh_hant", "Hant"),
     ];
 
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
     #[test]
     fn every_index_language_maps_correctly() {
         for &(code, script) in INDEX_LANGUAGES {
@@ -514,6 +515,7 @@ mod tests {
         }
     }
 
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
     #[test]
     fn every_non_latin_script_resolves_in_api28_fonts_xml() {
         let families = parse_fonts_xml(FONTS_XML_API28);
@@ -561,6 +563,7 @@ mod tests {
         }
     }
 
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
     #[test]
     fn zh_hant_routes_to_traditional_family() {
         let families = parse_fonts_xml(FONTS_XML_API28);
@@ -579,6 +582,7 @@ mod tests {
         );
     }
 
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
     #[test]
     fn parses_default_sans_serif() {
         let families = parse_fonts_xml(FONTS_XML_API28);
@@ -600,6 +604,7 @@ mod tests {
         );
     }
 
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
     #[test]
     fn parses_lang_tagged_arabic() {
         let families = parse_fonts_xml(FONTS_XML_API28);
@@ -611,6 +616,7 @@ mod tests {
         );
     }
 
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
     #[test]
     fn parses_ttc_index_for_cjk() {
         let families = parse_fonts_xml(FONTS_XML_API28);

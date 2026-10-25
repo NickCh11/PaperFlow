@@ -154,11 +154,29 @@ The checker exits 0 only when the target is met, 1 for incomplete coverage, and
 native execution records. A host-only Rust run cannot replace measurements for
 Android-only JNI files; every owned native source needs line data and the native
 report needs branch instrumentation. CI builds an Android x86_64 Rust test
-executable from the same locked dependencies and runs the existing font-catalog
-tests on both emulators before the Java instrumentation suite. This catches native
-test failures but does not yet collect native execution coverage, so whole-project
-100% remains unmet even if all tests pass. Native test output is saved alongside
-the device reports; an empty or ignored native suite cannot pass.
+executable from the same locked dependencies and runs the font-catalog and packed
+frame-result tests on both emulators before the Java instrumentation suite. An
+empty, incomplete or ignored native suite cannot pass. Cargo's successful
+`build-finished` record is required because the pinned `cargo-ndk-test` wrapper
+does not propagate the compiler's exit code; `cargo ndk` itself consumes the JSON
+artifact records, so it cannot be used as their stdout source.
+
+Full CI additionally builds a separate x86_64 library/test executable with the
+pinned coverage-only nightly in `tools/ci/native_coverage_toolchain.txt`. API 29
+uses this library for the instrumentation suite and flushes real LLVM profiles
+through a JNI hook that exists only with the `ci-coverage` feature. API 37 and all
+release APK builds retain the normal stable-Rust runtime. Native branch profiles
+from Rust unit tests and the real app/JNI calls are merged with that toolchain's
+LLVM tools. The exporter checks object hashes, revision, source-file scope and
+branch data before the whole-project report imports `build/coverage/native.lcov`.
+Rust test functions and the CI-only flush hook are outside production coverage;
+no production Rust functions are excluded. Coverage objects expire after one day
+and are rebuilt only when their exact cache key changes.
+
+A successful build or a standalone profiler smoke test does not establish native
+production coverage. Only profiles from the actual current-run app and unit tests
+can produce a measured result. The 100% target remains unmet until every module's
+line and branch counters reach it, including the owned native sources.
 
 PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
 PaddleOCR/MNN engine and downloaded language packs as the embedded offline

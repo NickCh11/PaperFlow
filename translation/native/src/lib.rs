@@ -1,5 +1,23 @@
 //! PaperFlow adapter for the pinned offline-translator engine. GPL-3.0-or-later.
 //! No document or camera data leaves this library or the device.
+#![cfg_attr(feature = "ci-coverage", feature(coverage_attribute))]
+
+// Only the instrumented CI library exports this hook; release libraries have no profiler.
+#[cfg(feature = "ci-coverage")]
+mod ci_coverage {
+    use jni::{JNIEnv, objects::JClass, sys::jint};
+    unsafe extern "C" {
+        fn __llvm_profile_write_file() -> i32;
+    }
+    #[coverage(off)]
+    #[unsafe(no_mangle)]
+    pub extern "system" fn Java_com_example_myapplication_NativeCoverage_writeProfile(
+        _: JNIEnv, _: JClass,
+    ) -> jint {
+        // LLVM_PROFILE_FILE is set by the instrumentation runner before loading JNI.
+        unsafe { __llvm_profile_write_file() }
+    }
+}
 mod android_font_provider;
 #[cfg(target_os = "android")]
 mod live_pipeline_jni;

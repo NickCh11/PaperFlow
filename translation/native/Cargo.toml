@@ -10,6 +10,7 @@ crate-type = ["cdylib"]
 
 [features]
 default = ["planar-tracker", "gpu"]
+ci-coverage = []
 planar-tracker = ["translator/planar-tracker"]
 gpu = ["translator/gpu"]
 

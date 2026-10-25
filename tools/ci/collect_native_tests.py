@@ -7,15 +7,21 @@ import sys
 
 def collect(messages, destination):
     executables = set()
+    completed = []
     for line in Path(messages).read_text("utf-8").splitlines():
         if not line.strip():
             continue
         row = json.loads(line)
+        if row.get("reason") == "build-finished":
+            completed.append(row.get("success"))
         if (row.get("reason") == "compiler-artifact"
                 and row.get("target", {}).get("name") == "paperflow_runtime"
                 and row.get("profile", {}).get("test") is True
                 and row.get("executable")):
             executables.add(Path(row["executable"]))
+    # cargo-ndk-test 4.1.2 does not propagate Cargo's exit status. Check Cargo itself.
+    if completed != [True]:
+        raise ValueError("Cargo did not report one successfully completed test build")
     if len(executables) != 1:
         raise ValueError(f"Expected one native test executable, found {len(executables)}")
     source = executables.pop()
