@@ -145,9 +145,17 @@ class OcrDocument(
             ?: COSDictionary().also {
                 resources.cosObject.setItem(COSName.FONT, it)
             }
-        fontResources.setItem(COSName.getPDFName("PF_OCR_GLYPHLESS"), fontDict)
+        // Each writer assigns its own character IDs. Keep existing mappings
+        // intact when another OCR pass appends text, including shared resources.
+        var suffix = 0
+        var fontName = COSName.getPDFName("PF_OCR_GLYPHLESS")
+        while (fontResources.containsKey(fontName) && fontResources.getDictionaryObject(fontName) !== fontDict) {
+            suffix++
+            fontName = COSName.getPDFName("PF_OCR_GLYPHLESS_$suffix")
+        }
+        fontResources.setItem(fontName, fontDict)
 
-        val textStream = "q\n1 0 0 1 ${page.cropBox.lowerLeftX} ${page.cropBox.lowerLeftY} cm\n" + buildTextStream(ocrTextBoxes, dimensions) + "Q\n"
+        val textStream = "q\n1 0 0 1 ${page.cropBox.lowerLeftX} ${page.cropBox.lowerLeftY} cm\n" + buildTextStream(ocrTextBoxes, dimensions, fontName.name) + "Q\n"
         unicodeStream!!.createOutputStream().use {
             it.write(buildToUnicodeCMap().toByteArray(Charsets.US_ASCII))
         }
@@ -160,6 +168,7 @@ class OcrDocument(
     private fun buildTextStream(
         ocrTextBoxes: List<OcrTextBox>,
         dimensions: PageDimensions,
+        fontName: String,
     ): String {
         val scaleX = dimensions.pageWidth / dimensions.imageWidth
         val scaleY = dimensions.pageHeight / dimensions.imageHeight
@@ -187,7 +196,7 @@ class OcrDocument(
             }
 
             sb.append("BT\n")
-            sb.append(String.format(Locale.US, "/PF_OCR_GLYPHLESS %.3f Tf\n", fontSize))
+            sb.append(String.format(Locale.US, "/%s %.3f Tf\n", fontName, fontSize))
             sb.append(String.format(Locale.US,"%.3f Tz\n", hScale))
             sb.append("3 Tr\n")
             sb.append(String.format(Locale.US,"%.3f %.3f Td\n", x, baselineY))

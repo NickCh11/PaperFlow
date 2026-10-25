@@ -111,4 +111,41 @@ public class OcrPdfTextContractTest {
             try (PDDocument reloaded = PDDocument.load(save(document))) { assertTrue(new PDFTextStripper().getText(reloaded).contains("Retained")); }
         }
     }
+
+    @Test public void independentOcrPassesPreserveEarlierCharacterMapsAfterReload() throws Exception {
+        byte[] firstPass;
+        try(PDDocument document=new PDDocument()) {
+            writer(document).addPage(page(document),Collections.singletonList(box("First Ω \uD83D\uDE03")),dimensions);
+            firstPass=save(document);
+        }
+        try(PDDocument document=PDDocument.load(firstPass)) {
+            PDPage page=document.getPage(0);COSName originalName=COSName.getPDFName("PF_OCR_GLYPHLESS");
+            COSDictionary fonts=(COSDictionary)page.getResources().getCOSObject().getDictionaryObject(COSName.FONT);
+            Object originalMap=fonts.getDictionaryObject(originalName);
+            OcrDocument second=writer(document);
+            second.addPage(page,Collections.singletonList(new OcrTextBox("Later 日本語 \uD840\uDC00",new ImageRect(20,200,500,250),50,250)),dimensions);
+            second.addPage(page,Collections.singletonList(new OcrTextBox("More Ελληνικά",new ImageRect(20,360,500,410),50,410)),dimensions);
+            assertSame("A new OCR pass replaced the earlier font",originalMap,fonts.getDictionaryObject(originalName));
+            assertEquals("Repeated pages from one writer reuse its font",2,fonts.size());
+            try(PDDocument reloaded=PDDocument.load(save(document))) {
+                String text=new PDFTextStripper().getText(reloaded);
+                for(String expected:new String[]{"First Ω \uD83D\uDE03","Later 日本語 \uD840\uDC00","More Ελληνικά"})assertTrue(text,text.contains(expected));
+            }
+        }
+    }
+
+    @Test public void sharedPageResourcesRetainEveryIndependentOcrFont() throws Exception {
+        try(PDDocument document=new PDDocument()) {
+            PDPage first=page(document),second=page(document);PDResources shared=new PDResources();first.setResources(shared);second.setResources(shared);
+            writer(document).addPage(first,Collections.singletonList(box("Alphabet ABC")),dimensions);
+            writer(document).addPage(second,Collections.singletonList(box("Ελληνικά Ω")),dimensions);
+            writer(document).addPage(first,Collections.singletonList(new OcrTextBox("日本語 \uD840\uDC00",new ImageRect(20,200,500,250),50,250)),dimensions);
+            COSDictionary fonts=(COSDictionary)shared.getCOSObject().getDictionaryObject(COSName.FONT);
+            assertEquals("Every writer needs its own mapping even with shared resources",3,fonts.size());
+            try(PDDocument reloaded=PDDocument.load(save(document))) {
+                String text=new PDFTextStripper().getText(reloaded);
+                for(String expected:new String[]{"Alphabet ABC","Ελληνικά Ω","日本語 \uD840\uDC00"})assertTrue(text,text.contains(expected));
+            }
+        }
+    }
 }

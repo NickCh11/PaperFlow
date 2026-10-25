@@ -71,6 +71,50 @@ public class LibraryManagementFlowTest {
         }
     }
 
+    @Test public void favoriteActionsOnlyUpdateTheChosenDocument() throws Exception {
+        try(Fixture fixture=new Fixture();ActivityScenario<MainActivity> scenario=ActivityScenario.launch(new Intent(context,MainActivity.class))) {
+            long first=fixture.document("-first",0,false),second=fixture.document("-second",0,false);
+            scenario.onActivity(a->{call(a,"showDocumentMenu",new Class<?>[]{long.class,String.class,String.class,boolean.class},first,fixture.prefix,fixture.files.get(0).getPath(),false);choose(0);});
+            scenario.onActivity(a->{assertEquals(1,number("SELECT favorite FROM docs WHERE id=?",Long.toString(first)));assertEquals(0,number("SELECT favorite FROM docs WHERE id=?",Long.toString(second)));call(a,"showDocumentMenu",new Class<?>[]{long.class,String.class,String.class,boolean.class},first,fixture.prefix,fixture.files.get(0).getPath(),true);choose(0);});
+            scenario.onActivity(a->{assertEquals(0,number("SELECT favorite FROM docs WHERE id=?",Long.toString(first)));assertEquals(0,number("SELECT favorite FROM docs WHERE id=?",Long.toString(second)));});
+            for(File file:fixture.files)assertTrue(file.isFile());
+        }
+    }
+
+    @Test public void renamingRejectsBlankNamesAndKeepsTheDocumentFileAndOtherRows() throws Exception {
+        try(Fixture fixture=new Fixture();ActivityScenario<MainActivity> scenario=ActivityScenario.launch(new Intent(context,MainActivity.class))) {
+            long first=fixture.document("-first",0,false),second=fixture.document("-second",0,false);String path=fixture.files.get(0).getPath();
+            scenario.onActivity(a->{call(a,"showDocumentMenu",new Class<?>[]{long.class,String.class,String.class,boolean.class},first,fixture.prefix+"-first",path,false);choose(1);save("   ");});
+            scenario.onActivity(a->{assertEquals(fixture.prefix+"-first",value("SELECT name FROM docs WHERE id=?",Long.toString(first)));call(a,"showDocumentMenu",new Class<?>[]{long.class,String.class,String.class,boolean.class},first,fixture.prefix+"-first",path,false);choose(1);save("  "+fixture.prefix+"-Σημειώσεις '2026'  ");});
+            scenario.onActivity(a->{assertEquals(fixture.prefix+"-Σημειώσεις '2026'",value("SELECT name FROM docs WHERE id=?",Long.toString(first)));assertEquals(path,value("SELECT path FROM docs WHERE id=?",Long.toString(first)));assertEquals(fixture.prefix+"-second",value("SELECT name FROM docs WHERE id=?",Long.toString(second)));});
+            for(File file:fixture.files)assertTrue(file.isFile());
+        }
+    }
+
+    @Test public void searchTrimsInputSurvivesRecreationAndIgnoresCancelledChanges() {
+        String query="Σημειώσεις '2026' "+UUID.randomUUID();
+        try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(new Intent(context,MainActivity.class))) {
+            scenario.onActivity(a->{call(a,"showSearchDialog",new Class<?>[]{});save("  "+query+"  ");});
+            scenario.onActivity(a->assertEquals(query,field(a,"searchQuery")));
+            scenario.recreate();
+            scenario.onActivity(a->{assertEquals(query,field(a,"searchQuery"));call(a,"showSearchDialog",new Class<?>[]{});EditText input=find(dialog(),EditText.class);assertNotNull(input);assertEquals(query,input.getText().toString());input.setText("Discard this edit");assertTrue(((Button)dialog().findViewById(android.R.id.button2)).performClick());});
+            scenario.onActivity(a->{assertEquals(query,field(a,"searchQuery"));call(a,"showSearchDialog",new Class<?>[]{});save("   ");});
+            scenario.onActivity(a->assertEquals("",field(a,"searchQuery")));
+        }
+    }
+
+    @Test public void everySortChoicePersistsAndRecreationRestoresTheLastChoice() {
+        SharedPreferences preferences=context.getSharedPreferences("MainActivity",0);String old=preferences.getString("library_sort",null);
+        String[] orders={"last_opened DESC, created DESC","created DESC","created ASC","name COLLATE NOCASE ASC","name COLLATE NOCASE DESC"};
+        try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(new Intent(context,MainActivity.class))) {
+            for(int i=0;i<orders.length;i++){
+                int choice=i;scenario.onActivity(a->{call(a,"chooseSort",new Class<?>[]{});choose(choice);});
+                scenario.onActivity(a->{assertEquals(orders[choice],field(a,"sortOrder"));assertEquals(orders[choice],a.getPreferences(0).getString("library_sort",""));});
+            }
+            scenario.recreate();scenario.onActivity(a->assertEquals(orders[4],field(a,"sortOrder")));
+        } finally { SharedPreferences.Editor edit=preferences.edit();if(old==null)edit.remove("library_sort");else edit.putString("library_sort",old);assertTrue(edit.commit()); }
+    }
+
     @Test public void folderCreationRenameAndEmptyDeletionKeepNamesAndParentsConsistent() throws Exception {
         try (Fixture fixture = new Fixture(); ActivityScenario<MainActivity> scenario = ActivityScenario.launch(new Intent(context, MainActivity.class))) {
             long parent = fixture.folder("-parent", 0);

@@ -221,6 +221,10 @@ Gallery-copy and automatic-cleanup settings keep their choice lists visible next
 to their explanations. Combining `AlertDialog.setMessage` with a choice list hid
 the choices. Device tests reproduce that failure and verify Apply, Cancel, saved
 checkbox state, settings recreation and denied storage permission handling.
+Independent OCR passes choose an unused PDF font resource name, reusing it only
+for the same writer's mapping. Repeated OCR no longer replaces an earlier
+ToUnicode map, including after save/reload or when pages share resources. Two
+regressions reproduce the previous collision and verify all text survives.
 
 PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
 PaddleOCR/MNN engine and downloaded language packs as the embedded offline
