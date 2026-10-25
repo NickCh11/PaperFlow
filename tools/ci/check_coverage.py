@@ -76,7 +76,7 @@ def read_jacoco(path):
 def read_native(path, expected_sources):
     """Require all owned Rust sources and genuine line/branch execution records."""
     if path is None:
-        return dict(status="unmeasured", missing_sources=sorted(expected_sources), line=None, branch=None)
+        return dict(status="unmeasured", missing_sources=sorted(expected_sources), line=None, branch=None, files=[])
     if not path.is_file():
         raise ValueError(f"Native coverage report does not exist: {path}")
     records = {}
@@ -111,9 +111,17 @@ def read_native(path, expected_sources):
     missing = sorted(name for name in expected_sources if not records.get(name, {}).get("lines"))
     lines = [hits for row in records.values() for hits in row["lines"].values()]
     branches = [hits for row in records.values() for hits in row["branches"].values()]
+    files = []
+    for name, row in sorted(records.items()):
+        file_lines, file_branches = list(row["lines"].values()), list(row["branches"].values())
+        files.append(dict(path=name,
+                          line=Counter(sum(hit > 0 for hit in file_lines), sum(hit == 0 for hit in file_lines)).data(),
+                          branch=Counter(sum(hit > 0 for hit in file_branches), sum(hit == 0 for hit in file_branches)).data(),
+                          uncovered_lines=sorted(number for number, hits in row["lines"].items() if hits == 0),
+                          uncovered_branch_lines=sorted({int(key[0]) for key, hits in row["branches"].items() if hits == 0})))
     return dict(status="measured" if not missing and branches else "partial", missing_sources=missing,
                 line=Counter(sum(hit > 0 for hit in lines), sum(hit == 0 for hit in lines)).data(),
-                branch=Counter(sum(hit > 0 for hit in branches), sum(hit == 0 for hit in branches)).data())
+                branch=Counter(sum(hit > 0 for hit in branches), sum(hit == 0 for hit in branches)).data(), files=files)
 
 
 def evaluate(reports, target, native_path=None, native_sources=()):
@@ -159,6 +167,10 @@ def markdown(result):
             rows.append(f"- `{name}/{row['path']}`: {missed} uncovered executable lines, {row['branch']['missed']} uncovered branches.")
     if result["native"]["missing_sources"]:
         rows.extend(["", "Native files without complete measurement:", ""] + [f"- `{path}`" for path in result["native"]["missing_sources"]])
+    if result["native"].get("files"):
+        rows.extend(["", "## Remaining owned Rust gaps", ""])
+        for row in sorted(result["native"]["files"], key=lambda item: item["line"]["missed"], reverse=True):
+            rows.append(f"- `{row['path']}`: {row['line']['missed']} uncovered executable lines, {row['branch']['missed']} uncovered branches.")
     return "\n".join(rows) + "\n"
 
 

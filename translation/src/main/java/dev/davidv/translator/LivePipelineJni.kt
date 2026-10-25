@@ -137,7 +137,7 @@ internal object LivePipelineJni {
   /** DEBUG: read back the canonical RGBA frame (top-down, `cw*ch*4` bytes) the
    *  tracker/recognizer sees, for on-device inspection. Call on the GL thread
    *  after a [processFrameGl] (so the external source + uv are set). Empty on
-   *  failure. */
+   *  failure. Existing JVM exceptions propagate unchanged. */
   @JvmStatic
   external fun debugReadCanonicalRgba(
     rendererPtr: Long,

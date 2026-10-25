@@ -45,6 +45,22 @@ class WholeProjectCoverageTest(unittest.TestCase):
         self.assertEqual(100.0, counter.data()["percent"])
         self.assertFalse(counter.passes(Decimal(100)))
 
+    def test_native_report_locates_actual_uncovered_lines_and_branches_per_source(self):
+        result=read_native(self.lcov(hits="0"),self.native)
+        self.assertEqual(self.native,{row["path"] for row in result["files"]})
+        for row in result["files"]:
+            self.assertEqual([7],row["uncovered_lines"])
+            self.assertEqual([7],row["uncovered_branch_lines"])
+            self.assertEqual(1,row["line"]["missed"])
+            self.assertEqual(2,row["branch"]["missed"])
+        self.assertEqual(sum(row["line"]["total"] for row in result["files"]),result["line"]["total"])
+
+    def test_unmeasured_native_scope_cannot_invent_file_counters(self):
+        native=read_native(None,self.native)
+        self.assertEqual([],native["files"])
+        self.assertIsNone(native["line"])
+        self.assertEqual(self.native,set(native["missing_sources"]))
+
     def test_no_branches_is_not_reported_as_measured_one_hundred_percent(self):
         self.assertIsNone(Counter(0, 0).data()["percent"])
         self.assertTrue(Counter(0, 0).passes(Decimal(100)))

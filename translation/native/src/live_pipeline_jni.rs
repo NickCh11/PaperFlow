@@ -536,6 +536,16 @@ pub extern "system" fn Java_dev_davidv_translator_LivePipelineJni_screenMonitorT
     pack_monitor(action, pipeline.wants_tick())
 }
 
+#[cfg(feature = "gpu")]
+fn empty_bytes_or_exception<'local>(env: &JNIEnv<'local>) -> jni::objects::JByteArray<'local> {
+    // NewByteArray is forbidden while a JVM exception is pending; preserve it on return.
+    if env.exception_check().unwrap_or(true) {
+        jni::objects::JByteArray::default()
+    } else {
+        env.new_byte_array(0).unwrap_or_default()
+    }
+}
+
 /// DEBUG: read back the canonical RGBA frame (top-down) for on-device
 /// inspection of orientation / mirror / text size. Returns an empty array on
 /// failure. Must run on the GL thread after a `processFrameGl` so the external
@@ -551,7 +561,7 @@ pub extern "system" fn Java_dev_davidv_translator_LivePipelineJni_debugReadCanon
     display_xform: jni::objects::JFloatArray<'local>,
 ) -> jni::objects::JByteArray<'local> {
     if renderer_ptr == 0 || canonical_w <= 0 || canonical_h <= 0 {
-        return env.new_byte_array(0).unwrap_or_default();
+        return empty_bytes_or_exception(&env);
     }
     // SAFETY: ptr came from `createGlRenderer`; used only on its owning thread.
     let renderer = unsafe { &mut *(renderer_ptr as *mut GlesRenderer) };
@@ -560,13 +570,13 @@ pub extern "system" fn Java_dev_davidv_translator_LivePipelineJni_debugReadCanon
         .get_float_array_region(&display_xform, 0, &mut dx)
         .is_err()
     {
-        return env.new_byte_array(0).unwrap_or_default();
+        return empty_bytes_or_exception(&env);
     }
     let Some(rgba) = renderer.read_camera_rgba(canonical_w as u32, canonical_h as u32, &dx) else {
-        return env.new_byte_array(0).unwrap_or_default();
+        return empty_bytes_or_exception(&env);
     };
     let Ok(arr) = env.new_byte_array(rgba.len() as i32) else {
-        return env.new_byte_array(0).unwrap_or_default();
+        return empty_bytes_or_exception(&env);
     };
     let signed: &[i8] =
         unsafe { std::slice::from_raw_parts(rgba.as_ptr() as *const i8, rgba.len()) };

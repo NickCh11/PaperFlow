@@ -60,6 +60,32 @@ public class NativeGraphicsRegressionTest {
         LivePipelineJni.setRendererOverlayOnly(0); LivePipelineJni.setRendererOverlayAlpha(0, 1); LivePipelineJni.destroyGlRenderer(0);
     }
 
+    @Test public void invalidLiveGeometryAndShortTransformsAreRejectedBeforeRendering()throws Exception{
+        android.content.Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
+        com.paperflow.translation.OfflineRuntime runtime=com.paperflow.translation.OfflineRuntime.get(context);long pipeline=runtime.createLive("en","en");assertTrue(pipeline!=0);
+        try{
+            GlEgl.EglCore core=GlEgl.INSTANCE.initContext(new int[]{EGL14.EGL_RENDERABLE_TYPE,GlEgl.EGL_OPENGL_ES3_BIT,EGL14.EGL_SURFACE_TYPE,EGL14.EGL_PBUFFER_BIT,EGL14.EGL_NONE});assertNotNull(core);
+            EGLSurface surface=EGL14.EGL_NO_SURFACE;long renderer=0;int texture=0;
+            try{
+                surface=EGL14.eglCreatePbufferSurface(core.getDisplay(),core.getConfig(),new int[]{EGL14.EGL_WIDTH,32,EGL14.EGL_HEIGHT,32,EGL14.EGL_NONE},0);assertNotEquals(EGL14.EGL_NO_SURFACE,surface);assertTrue(EGL14.eglMakeCurrent(core.getDisplay(),surface,surface,core.getContext()));
+                renderer=LivePipelineJni.createGlRenderer();assertTrue(renderer!=0);texture=GlEgl.INSTANCE.createExternalOesTexture();assertTrue(texture!=0);
+                float[] identity={1,0,0,0,1,0,0,0,1};
+                assertEquals(0,LivePipelineJni.processFrameGl(pipeline,0,texture,32,32,32,32,identity,identity,1));
+                for(int index=0;index<5;index++)for(int value:new int[]{0,-1}){
+                    int[] dimensions={texture,32,32,32,32};dimensions[index]=value;
+                    assertEquals(0,LivePipelineJni.processFrameGl(pipeline,renderer,dimensions[0],dimensions[1],dimensions[2],dimensions[3],dimensions[4],identity,identity,1));
+                }
+                assertArrayEquals(new byte[0],LivePipelineJni.debugReadCanonicalRgba(renderer,0,32,identity));assertArrayEquals(new byte[0],LivePipelineJni.debugReadCanonicalRgba(renderer,32,0,identity));
+                final long gl=renderer;final int cameraTexture=texture;
+                assertThrows(IndexOutOfBoundsException.class,()->LivePipelineJni.processFrameGl(pipeline,gl,cameraTexture,32,32,32,32,new float[8],identity,1));
+                assertThrows(IndexOutOfBoundsException.class,()->LivePipelineJni.processFrameGl(pipeline,gl,cameraTexture,32,32,32,32,identity,new float[8],1));
+                assertThrows(IndexOutOfBoundsException.class,()->LivePipelineJni.debugReadCanonicalRgba(gl,32,32,new float[8]));
+            }finally{
+                if(renderer!=0)LivePipelineJni.destroyGlRenderer(renderer);if(texture!=0)GLES20.glDeleteTextures(1,new int[]{texture},0);EGL14.eglMakeCurrent(core.getDisplay(),EGL14.EGL_NO_SURFACE,EGL14.EGL_NO_SURFACE,EGL14.EGL_NO_CONTEXT);if(surface!=EGL14.EGL_NO_SURFACE)EGL14.eglDestroySurface(core.getDisplay(),surface);GlEgl.INSTANCE.destroyContext(core.getDisplay(),core.getContext());
+            }
+        }finally{runtime.destroyLive(pipeline);}
+    }
+
     @Test public void liveSurfaceReleasesItsGlThreadAndCanBeAttachedAgain() {
         android.content.Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
         AtomicReference<LiveGlSurfaceView> view=new AtomicReference<>(); AtomicReference<android.widget.FrameLayout> parent=new AtomicReference<>();
