@@ -258,6 +258,10 @@ selected document, between chunks and before reporting success. A device
 regression reproduced a queued cancelled save replacing existing destination
 bytes before the fix; three permanent tests verify cancellation preserves that
 destination, successful saves copy every byte, and missing exports report errors.
+Four photo-session regressions exercise large-photo downsampling followed by
+real offline OCR and rendering, corrupt inputs, cancellation while queued, and
+language changes with a stale preview. Failed/cancelled input retains the
+previous visible image; a successful replacement recycles its old bitmaps.
 
 PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
 PaddleOCR/MNN engine and downloaded language packs as the embedded offline
