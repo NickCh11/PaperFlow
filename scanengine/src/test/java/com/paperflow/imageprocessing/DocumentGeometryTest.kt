@@ -1,6 +1,7 @@
 package com.paperflow.imageprocessing
 
 import com.paperflow.imageprocessing.quad.convexHull
+import com.paperflow.imageprocessing.quad.findQuadFromContourOrientation
 import com.paperflow.imageprocessing.quad.minAreaRect
 import kotlin.math.abs
 import kotlin.math.cos
@@ -9,6 +10,20 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class DocumentGeometryTest {
+    @Test fun unresolvableContourIntersectionsReturnNoQuadInsteadOfUnstableCorners() {
+        fun rectangle(offset: Double): List<org.opencv.core.Point> = buildList {
+            val edge = 32768.0
+            for (i in 0 until 32) add(org.opencv.core.Point(offset + i * 1024.0, offset))
+            for (i in 0 until 32) add(org.opencv.core.Point(offset + edge, offset + i * 1024.0))
+            for (i in 0 until 32) add(org.opencv.core.Point(offset + edge - i * 1024.0, offset + edge))
+            for (i in 0 until 32) add(org.opencv.core.Point(offset, offset + edge - i * 1024.0))
+        }
+        assertEquals(4, findQuadFromContourOrientation(rectangle(0.0))!!.size)
+        // These points remain distinct, but adding a unit direction to their
+        // fitted centers cannot be represented accurately by a Double.
+        assertNull(findQuadFromContourOrientation(rectangle(Math.scalb(1.0, 60))))
+    }
+
     @Test fun nonfiniteAndOverflowingCropCornersAreNeverAcceptedAsConvex() {
         val valid = listOf(Point(0, 0), Point(100, 0), Point(100, 200), Point(0, 200))
         for (corner in valid.indices) for (value in listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)) {

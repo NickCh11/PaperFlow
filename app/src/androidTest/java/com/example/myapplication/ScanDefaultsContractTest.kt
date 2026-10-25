@@ -6,6 +6,7 @@ import com.paperflow.imageprocessing.Point
 import com.paperflow.imageprocessing.Quad
 import com.paperflow.imageprocessing.binarizeDocument
 import com.paperflow.imageprocessing.autoColorMode
+import com.paperflow.imageprocessing.enhanceCapturedImage
 import com.paperflow.imageprocessing.extractDocument
 import com.paperflow.imageprocessing.toImageSize
 import com.paperflow.scanengine.ScanEngine
@@ -73,6 +74,9 @@ class ScanDefaultsContractTest {
                 assertTrue(pixels.any { it == 0.toByte() })
                 assertTrue(pixels.any { it == 255.toByte() })
                 assertEquals(20.0,source.get(50,70)[0],0.0)
+                val enhanced = enhanceCapturedImage(source,ColorMode.BLACK_AND_WHITE)
+                try { assertEquals(0.0,Core.norm(binary,enhanced,Core.NORM_INF),0.0) }
+                finally { enhanced.release() }
             } finally { binary.release() }
         } finally { source.release() }
     }

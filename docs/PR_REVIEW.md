@@ -225,6 +225,13 @@ Independent OCR passes choose an unused PDF font resource name, reusing it only
 for the same writer's mapping. Repeated OCR no longer replaces an earlier
 ToUnicode map, including after save/reload or when pages share resources. Two
 regressions reproduce the previous collision and verify all text survives.
+The scan engine's local JVM/device measurements now cover 100% of executable
+lines and 91.53% of branches. Tests exercise the real JPEG dimension rejection,
+invalid inpainting-mask sizes and numerically unresolvable contour intersections.
+Grayscale processing validates empty/unsupported inputs before native allocation
+and accumulates its single-channel Retinex result without an extra image copy.
+Tool-grid regressions also verify outgoing destinations, capture modes, operation
+names and supported import MIME types without launching external pickers.
 
 PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
 PaddleOCR/MNN engine and downloaded language packs as the embedded offline

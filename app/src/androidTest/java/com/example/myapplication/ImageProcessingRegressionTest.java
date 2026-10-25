@@ -136,6 +136,48 @@ public class ImageProcessingRegressionTest {
         } finally { image.release(); for (Mat mat : new Mat[]{decoded, jpeg, small, clone}) if (mat != null) mat.release(); }
     }
 
+    @Test public void rejectedJpegDimensionsReportAnIoErrorWithoutReleasingTheSource() {
+        // libjpeg's dimension limit is 65500, independently of the pixel budget.
+        // This is only a 64 KiB grayscale image, not a large allocation.
+        Mat source=new Mat(1,65501,CvType.CV_8UC1,new Scalar(127));
+        try {
+            java.io.IOException error=assertThrows(java.io.IOException.class,()->UtilsKt.encodeJpeg(source,90));
+            assertTrue(error.getMessage().contains("Failed to encode JPEG"));
+            assertEquals(65501,source.cols());assertEquals(1,source.rows());assertEquals(127,source.get(0,65500)[0],0);
+        } finally { source.release(); }
+    }
+
+    @Test public void unsupportedGrayscaleInputsFailBeforeNativeConversion() {
+        Mat empty=new Mat();
+        try {
+            IllegalArgumentException error=assertThrows(IllegalArgumentException.class,()->PostProcessingKt.enhanceGrayscaleImage(empty));
+            assertTrue(error.getMessage().contains("pixels"));assertTrue(empty.empty());
+        } finally { empty.release(); }
+        for(int channels:new int[]{2,5}) {
+            Mat source=new Mat(8,8,CvType.makeType(CvType.CV_8U,channels));
+            try {
+                IllegalArgumentException error=assertThrows(IllegalArgumentException.class,()->PostProcessingKt.enhanceGrayscaleImage(source));
+                assertTrue(error.getMessage().contains("grayscale, BGR or BGRA"));
+                assertThrows(IllegalArgumentException.class,()->PostProcessingKt.binarizeDocument(source,0));
+                assertEquals(8,source.rows());assertEquals(8,source.cols());assertEquals(channels,source.channels());
+            } finally { source.release(); }
+        }
+    }
+
+    @Test public void mismatchedInpaintingMasksAreRejectedWithoutRecyclingInputs() {
+        android.graphics.Bitmap source=android.graphics.Bitmap.createBitmap(8,6,android.graphics.Bitmap.Config.ARGB_8888);
+        try {
+            for(int[] size:new int[][]{{7,6},{8,5},{7,5}}) {
+                android.graphics.Bitmap mask=android.graphics.Bitmap.createBitmap(size[0],size[1],android.graphics.Bitmap.Config.ARGB_8888);
+                try {
+                    IllegalArgumentException error=assertThrows(IllegalArgumentException.class,()->com.paperflow.scanengine.Inpainter.inpaint(source,mask));
+                    assertTrue(error.getMessage().contains("dimensions must match"));assertFalse(source.isRecycled());assertFalse(mask.isRecycled());
+                } finally { mask.recycle(); }
+            }
+            assertEquals(8,source.getWidth());assertEquals(6,source.getHeight());
+        } finally { source.recycle(); }
+    }
+
     @Test public void documentMasksDetectPageCornersAndReleaseTheirNativeCopy() {
         Mat probability = new Mat(200, 300, CvType.CV_32FC1, new Scalar(0));
         Imgproc.rectangle(probability, new Point(40, 30), new Point(260, 170), new Scalar(.99), -1);
