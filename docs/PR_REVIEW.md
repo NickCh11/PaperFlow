@@ -195,8 +195,10 @@ native JNI validation, library folder/trash operations and searchable OCR PDFs.
 OCR PDF text uses character IDs mapped to complete Unicode scalars, so supplementary
 characters survive save/reload; mapping batches and later pages retain earlier
 text. Invalid nonfinite crop coordinates are rejected before OpenCV processing.
-Still-image OCR bounds detector input to 960² pixels while preserving the original
-RGB image for recognition and mapping detected boxes back to its coordinates.
+Still-image OCR retains the upstream 1500²-pixel detector budget and the original
+RGB image for recognition, mapping detected boxes back to its coordinates. A
+960²-pixel trial completed the 2 GiB suite without process death, but degraded
+Korean/Uyghur language recognition; the all-language image test rejected it.
 Before the native session opens, the global Rayon pool is limited to one worker
 on low-RAM devices or devices with at most 3 GiB RAM, and two on larger devices.
 The upstream ink engine retains a model session per global worker, so this bounds
@@ -208,6 +210,10 @@ camera owners defer release. Rebuilding an idle session retains the current
 catalog and install root; ABI 4 prevents older artifacts from skipping this API.
 The API 29 emulator uses 2 GiB RAM to exercise this constrained-device path; API
 37 retains 4 GiB to cover the larger-device policy in the same full-validation run.
+White balance borrows its document mask even when no pixels are selected. Releasing
+that mask early caused automatic color detection to fail in OpenCV; regression
+tests cover empty/partial masks, missing color channels, capture fallback geometry
+and the public Kotlin defaults for crop and bitonal export.
 
 PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
 PaddleOCR/MNN engine and downloaded language packs as the embedded offline

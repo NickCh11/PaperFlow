@@ -158,11 +158,11 @@ fn reverse_visual_to_logical(text: &str) -> String {
     if !run.is_empty(){units.push(run);}units.into_iter().rev().collect()
 }
 
-// Bound the detector's convolution workspace (~0.92 MP), while recognizers
-// still read the full-resolution image. The previous 2.25 MP budget could
-// exhaust a 2 GB Android device before the JVM could report an exception.
+// Keep the upstream 2.25 MP detector budget: a smaller budget loses dense
+// Korean/Uyghur glyphs before recognition. Bound retained models and worker
+// copies instead; recognizers still read the full-resolution image.
 fn build_still_image(rgba: &[u8], width: u32, height: u32) -> Result<translator::live_frame::StillImage, String> {
-    translator::ocr_runtime::build_still_image(rgba, width, height, 960).map_err(|error| error.to_string())
+    translator::ocr_runtime::build_still_image(rgba, width, height, 1500).map_err(|error| error.to_string())
 }
 
 #[unsafe(no_mangle)]
@@ -299,10 +299,22 @@ mod still_image_tests {
         let still = build_still_image(&rgba, width, height).unwrap();
         assert_eq!((still.rgb.width(), still.rgb.height()), (width, height));
         assert_eq!(still.rgb.as_rgb8().unwrap().get_pixel(width - 1, height - 1).0, [10, 80, 160]);
-        assert!(u64::from(still.rgb_det.width()) * u64::from(still.rgb_det.height()) <= 960 * 960);
+        assert!(u64::from(still.rgb_det.width()) * u64::from(still.rgb_det.height()) <= 1500 * 1500);
         assert!(still.det_to_full > 1.0);
         assert!((still.rgb_det.width() as f32 * still.det_to_full - width as f32).abs() < 3.0);
         assert!((still.rgb_det.height() as f32 * still.det_to_full - height as f32).abs() < 3.0);
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn document_sized_images_preserve_detector_resolution_for_dense_scripts() {
+        // This is the size of the all-language photo regression fixture.
+        // Reducing it before detection lost Korean and Uyghur glyph details.
+        let (width, height) = (1600u32, 1050u32);
+        let rgba = vec![255u8; width as usize * height as usize * 4];
+        let still = build_still_image(&rgba, width, height).unwrap();
+        assert_eq!((still.rgb_det.width(), still.rgb_det.height()), (width, height));
+        assert_eq!(still.det_to_full, 1.0);
     }
 
     #[cfg_attr(feature = "ci-coverage", coverage(off))]

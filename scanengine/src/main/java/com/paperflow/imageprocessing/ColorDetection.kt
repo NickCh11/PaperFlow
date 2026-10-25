@@ -175,7 +175,6 @@ fun applyGrayWorldToDocument(
 
     val nonZero = Core.countNonZero(docMask)
     if (nonZero == 0) {
-        docMask.release()
         return img.clone()
     }
 
