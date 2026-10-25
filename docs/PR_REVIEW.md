@@ -226,7 +226,7 @@ for the same writer's mapping. Repeated OCR no longer replaces an earlier
 ToUnicode map, including after save/reload or when pages share resources. Two
 regressions reproduce the previous collision and verify all text survives.
 The scan engine's local JVM/device measurements now cover 100% of executable
-lines and 91.53% of branches. Tests exercise the real JPEG dimension rejection,
+lines and 93.14% of branches. Tests exercise the real JPEG dimension rejection,
 invalid inpainting-mask sizes and numerically unresolvable contour intersections.
 Grayscale processing validates empty/unsupported inputs before native allocation
 and accumulates its single-channel Retinex result without an extra image copy.
@@ -235,6 +235,12 @@ names and supported import MIME types without launching external pickers.
 The PR workflow grants pull-request read access only to its planning job, which
 needs it to resolve manually dispatched validation to the existing PR. Other
 jobs retain only repository read access; the Sonar security gate stays enforced.
+Physical-size reconstruction checks the angle using a normalized plane normal,
+rejecting almost edge-on views while preserving the projection used for normal
+millimeter measurements. Rectangle fitting accumulates rotated bounds in one
+pass without allocating a point/list per angle. JVM tests cover both parallel
+orientations, inconsistent vanishing points, overflow and partially supplied
+clipping bounds; `Perspective.kt` and `MinAreaRect.kt` have full line/branch coverage.
 
 PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
 PaddleOCR/MNN engine and downloaded language packs as the embedded offline

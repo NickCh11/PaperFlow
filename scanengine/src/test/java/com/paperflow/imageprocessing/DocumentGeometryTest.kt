@@ -96,6 +96,19 @@ class DocumentGeometryTest {
         assertEquals(24.0, clipped.maxOf { it.y }, 0.0)
     }
 
+    @Test fun rectangleClippingRequiresBothImageDimensions() {
+        val polygon = listOf(Point(-5,-8),Point(30,-8),Point(30,40),Point(-5,40))
+        val unconstrained = minAreaRect(polygon)
+        assertEquals(unconstrained,minAreaRect(polygon,imgWidth=20))
+        assertEquals(unconstrained,minAreaRect(polygon,imgHeight=25))
+        assertTrue(unconstrained!!.any { it.x < 0 || it.y < 0 })
+    }
+
+    @Test fun rectangleWithUnrepresentableAreaReturnsNoCandidate() {
+        val scale = 1e200
+        assertNull(minAreaRect(listOf(Point(-scale,-scale),Point(scale,-scale),Point(scale,scale),Point(-scale,scale))))
+    }
+
     @Test fun paperSnappingRespectsOrientationSizeAndRatioTolerances() {
         for (format in PaperFormats.all) {
             assertEquals(format, EstimatedDimensions.Physical(format.widthMm * 1.01, format.heightMm * 1.01).snapToStandardFormat())
@@ -117,9 +130,35 @@ class DocumentGeometryTest {
         assertEquals(500f, cameraIntrinsics(5f, 10f)!!.focalLengthInPixels(1000), 0f)
     }
 
-    private fun projectedDocument(): Quad {
+    @Test fun oneParallelPairUsesStableSideLengthsInEitherOrientation() {
+        val trapezoid = Quad(Point(100,100),Point(400,100),Point(350,500),Point(150,500))
+        val rotated = trapezoid.rotate90(1,ImageSize(1000,1000))
+        val side = Math.hypot(50.0,400.0)
+        for (optics in listOf(null,OpticalMeasures(CameraIntrinsics(5f,10f),1000f))) {
+            assertEquals(EstimatedDimensions.Ratio(250.0,side),estimateRealDimensions(trapezoid,1000,1000,optics))
+            assertEquals(EstimatedDimensions.Ratio(side,250.0),estimateRealDimensions(rotated,1000,1000,optics))
+        }
+    }
+
+    @Test fun grazingViewDoesNotClaimReliablePhysicalDimensions() {
+        val quad = projectedDocument(89.0)
+        val dimensions = estimateRealDimensions(quad,1000,1000,OpticalMeasures(CameraIntrinsics(5f,10f),1000f))
+        assertTrue("An almost edge-on page must not claim calibrated millimeter dimensions",dimensions is EstimatedDimensions.Ratio)
+        assertTrue(dimensions.aspectRatio.isFinite())
+        assertEquals(1.5,dimensions.aspectRatio,1e-5)
+    }
+
+    @Test fun incompatibleVanishingPointsUseFiniteSideLengthsWithoutCalibration() {
+        val quad = Quad(Point(100,100),Point(400,150),Point(350,500),Point(150,450))
+        assertTrue(quad.isConvex())
+        val dimensions = estimateRealDimensions(quad,1000,1000,null)
+        val width = (Math.hypot(300.0,50.0)+Math.hypot(200.0,50.0))/2
+        assertEquals(EstimatedDimensions.Ratio(width,Math.hypot(50.0,350.0)),dimensions)
+    }
+
+    private fun projectedDocument(tiltDegrees: Double = 24.0): Quad {
         // Independently project a 200 x 300 mm plane through a pinhole camera.
-        val ax = Math.toRadians(24.0); val ay = Math.toRadians(31.0)
+        val ax = Math.toRadians(tiltDegrees); val ay = Math.toRadians(31.0)
         fun project(x: Double, y: Double): Point {
             val yy = y * cos(ax); val zz = y * sin(ax)
             val xx = x * cos(ay) + zz * sin(ay); val z = -x * sin(ay) + zz * cos(ay) + 1000
