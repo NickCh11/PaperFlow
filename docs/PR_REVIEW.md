@@ -265,6 +265,8 @@ Four permanent tests verify queued cancellation preserves the destination,
 in-flight cancellation finishes it, successful saves copy every byte, and
 missing exports report errors. A debug-only pipe-backed document provider
 pauses a real write after the first bytes to make the timing deterministic.
+That debug-only provider and its nested control objects are excluded from the
+production JaCoCo class set; no source under `src/main` is excluded for this.
 Four photo-session regressions exercise large-photo downsampling followed by
 real offline OCR and rendering, corrupt inputs, cancellation while queued, and
 language changes with a stale preview. Failed/cancelled input retains the

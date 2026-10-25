@@ -16,7 +16,11 @@ subprojects {
         dependsOn("testDebugUnitTest")
         sourceDirectories.from(file("src/main/java"), file("src/main/kotlin"))
         classDirectories.from(
-            fileTree(layout.buildDirectory.dir("intermediates/javac/debug/compileDebugJavaWithJavac/classes")),
+            fileTree(layout.buildDirectory.dir("intermediates/javac/debug/compileDebugJavaWithJavac/classes")) {
+                // This src/debug-only SAF provider and its nested control objects
+                // are test fixtures, not code shipped in the release application.
+                exclude("com/example/myapplication/TranslationTestDocumentsProvider*.class")
+            },
             fileTree(layout.buildDirectory.dir("intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"))
         )
         executionData.from(fileTree(layout.buildDirectory.dir("outputs/unit_test_code_coverage")) { include("**/*.exec") })
