@@ -232,6 +232,9 @@ Grayscale processing validates empty/unsupported inputs before native allocation
 and accumulates its single-channel Retinex result without an extra image copy.
 Tool-grid regressions also verify outgoing destinations, capture modes, operation
 names and supported import MIME types without launching external pickers.
+The PR workflow grants pull-request read access only to its planning job, which
+needs it to resolve manually dispatched validation to the existing PR. Other
+jobs retain only repository read access; the Sonar security gate stays enforced.
 
 PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
 PaddleOCR/MNN engine and downloaded language packs as the embedded offline
