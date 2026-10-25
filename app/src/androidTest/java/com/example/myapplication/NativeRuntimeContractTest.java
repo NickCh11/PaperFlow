@@ -68,4 +68,20 @@ public class NativeRuntimeContractTest {
             }finally{RuntimeNative.destroyLive(pipeline);}
         }
     }
+
+    @Test public void idleModelReleasePreservesCatalogAndDefersToLiveOwners() throws Exception {
+        Set<String> before = codes(new JSONArray(RuntimeNative.call(request("languages").toString())));
+        assertTrue(invoke(request("releaseIdleModels")).getBoolean("released"));
+        long pipeline = RuntimeNative.createLive("en", "en"); assertTrue(pipeline != 0);
+        try {
+            assertFalse(invoke(request("releaseIdleModels")).getBoolean("released"));
+            RuntimeNative.controlLive(pipeline, true, false, true);
+            assertEquals(before, codes(new JSONArray(RuntimeNative.call(request("languages").toString()))));
+        } finally { RuntimeNative.destroyLive(pipeline); }
+        UiTestWait.until(() -> {
+            try { return invoke(request("releaseIdleModels")).getBoolean("released"); }
+            catch (Exception error) { throw new AssertionError(error); }
+        }, "Released live pipeline still owns the offline model cache");
+        assertEquals(before, codes(new JSONArray(RuntimeNative.call(request("languages").toString()))));
+    }
 }

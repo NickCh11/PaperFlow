@@ -58,6 +58,35 @@ public class OfflineWordRecognitionTest {
         }finally{preferences.edit().putStringSet("ocr-enabled",before).commit();source.delete();}
     }
 
+    @Test public void largePhotographsKeepSmallTextAndOriginalWordCoordinates() throws Exception {
+        OfflineRuntime runtime = OfflineRuntime.get(context);
+        Bitmap photograph = Bitmap.createBitmap(2400, 3200, Bitmap.Config.ARGB_8888);
+        try {
+            Canvas canvas = new Canvas(photograph); canvas.drawColor(Color.WHITE);
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG); paint.setColor(Color.BLACK);
+            paint.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL)); paint.setTextSize(52);
+            canvas.drawText("OFFLINE DOCUMENT 12345", 320, 500, paint);
+            canvas.drawText("Small text remains readable", 320, 1000, paint);
+            canvas.drawText("98765", 1800, 2800, paint);
+            org.json.JSONObject result = runtime.recognize(photograph, "en", 50f);
+            String text = result.getString("text").toUpperCase(Locale.ROOT);
+            for (String expected : new String[]{"OFFLINE", "12345", "SMALL", "98765"}) assertTrue(text, text.contains(expected));
+            boolean found = false; org.json.JSONArray words = result.getJSONArray("words");
+            for (int i = 0; i < words.length(); i++) {
+                org.json.JSONObject word = words.getJSONObject(i);
+                if (word.getString("text").contains("98765")) {
+                    assertTrue(word.toString(), word.getDouble("left") > 1500);
+                    assertTrue(word.toString(), word.getDouble("top") > 2400);
+                    assertTrue(word.getDouble("right") <= photograph.getWidth());
+                    assertTrue(word.getDouble("bottom") <= photograph.getHeight()); found = true;
+                }
+            }
+            assertTrue("OCR lost the word at the original photograph coordinates", found);
+            assertEquals(2400, photograph.getWidth()); assertEquals(3200, photograph.getHeight());
+            assertEquals(Color.WHITE, photograph.getPixel(0, 0));
+        } finally { photograph.recycle(); }
+    }
+
     private RadioGroup group(View view){if(view instanceof RadioGroup)return (RadioGroup)view;if(view instanceof ViewGroup){ViewGroup parent=(ViewGroup)view;for(int i=0;i<parent.getChildCount();i++){RadioGroup found=group(parent.getChildAt(i));if(found!=null)return found;}}return null;}
     @Test public void wordRouteChooserContainsOnlyLocalOptionsWithStableRouteIdentifiers()throws Exception{
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(new Intent(context,MainActivity.class))){

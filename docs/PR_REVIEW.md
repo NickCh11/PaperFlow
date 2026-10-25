@@ -166,8 +166,12 @@ pinned coverage-only nightly in `tools/ci/native_coverage_toolchain.txt`. API 29
 uses this library for the instrumentation suite and flushes real LLVM profiles
 through a JNI hook that exists only with the `ci-coverage` feature. API 37 and all
 release APK builds retain the normal stable-Rust runtime. Native branch profiles
-from Rust unit tests and the real app/JNI calls are merged with that toolchain's
-LLVM tools. The exporter checks object hashes, revision, source-file scope and
+from Rust unit tests and the real app/JNI calls are merged separately for their
+matching executable/library with that toolchain's LLVM tools. The exporter then
+unions hits by source line and branch coordinates, rather than object-specific
+branch IDs. It audits every zero-hash unused definition from locked third-party
+crates and rejects any owned-function mismatch, nonzero hash or unexplained
+diagnostic. The exporter checks object hashes, revision, source-file scope and
 branch data before the whole-project report imports `build/coverage/native.lcov`.
 Rust test functions and the CI-only flush hook are outside production coverage;
 no production Rust functions are excluded. Coverage objects expire after one day
@@ -193,6 +197,15 @@ characters survive save/reload; mapping batches and later pages retain earlier
 text. Invalid nonfinite crop coordinates are rejected before OpenCV processing.
 Still-image OCR bounds detector input to 960² pixels while preserving the original
 RGB image for recognition and mapping detected boxes back to its coordinates.
+Before the native session opens, the global Rayon pool is limited to one worker
+on low-RAM devices or devices with at most 3 GiB RAM, and two on larger devices.
+The upstream ink engine retains a model session per global worker, so this bounds
+those copies independently of its separate recognition pool.
+On constrained devices, script changes and automatic OCR release idle model
+caches before the next native inference. Explicit-language PDF pages reuse their
+warm recognizer. Native read locks protect in-flight calls, and retained live
+camera owners defer release. Rebuilding an idle session retains the current
+catalog and install root; ABI 4 prevents older artifacts from skipping this API.
 
 PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
 PaddleOCR/MNN engine and downloaded language packs as the embedded offline

@@ -28,8 +28,19 @@ public final class OfflineRuntime {
     private final ReentrantLock installationLock=new ReentrantLock();
     private final Map<String,String> recognizerPacks=new ConcurrentHashMap<>();
     private final Map<String,String> languageScripts=new ConcurrentHashMap<>();
+    private final boolean boundedModelCache;
+    private String warmRecognizer;
+    static int workerCount(boolean lowRam,long totalMemory){return lowRam||totalMemory<=3L*1024*1024*1024?1:2;}
     private OfflineRuntime(Context context)throws Exception {
         root=new File(context.getFilesDir(),"offline-language-packs");ensureDirectory(root);
+        android.app.ActivityManager manager=(android.app.ActivityManager)context.getSystemService(Context.ACTIVITY_SERVICE);
+        android.app.ActivityManager.MemoryInfo memory=new android.app.ActivityManager.MemoryInfo();
+        if(manager!=null)manager.getMemoryInfo(memory);
+        // Set this before opening the native session/initializing Rayon's global
+        // pool: upstream keeps an ink-model session per global worker.
+        int workers=workerCount(manager==null||manager.isLowRamDevice(),memory.totalMem);
+        boundedModelCache=workers==1;
+        android.system.Os.setenv("RAYON_NUM_THREADS",Integer.toString(workers),true);
         // The new engine never interprets old Tesseract/slimt models as current packs.
         try(InputStream input=context.getAssets().open("index_v6.json")){
             String catalog=new String(readAll(input),StandardCharsets.UTF_8);
@@ -199,7 +210,14 @@ public final class OfflineRuntime {
             default:return false;
         }
     }
-    private ImageResult imageOnce(Bitmap image,String source,String target,float confidence,JSONObject edits)throws Exception {
+    private synchronized ImageResult imageOnce(Bitmap image,String source,String target,float confidence,JSONObject edits)throws Exception {
+        // Auto/fallback can otherwise keep four native model sessions for every
+        // installed script. Reuse explicit-language pages, but evict idle models
+        // before changing scripts on constrained devices. Live owners defer it.
+        if(boundedModelCache&&(source.equals("auto")||!source.equals(warmRecognizer))){
+            boolean released=invoke(new JSONObject().put("operation","releaseIdleModels")).getBoolean("released");
+            warmRecognizer=released?source:null;
+        }
         // Android ARGB_8888 is native little endian RGBA, as expected by upstream.
         Bitmap rgba=image.getConfig()==Bitmap.Config.ARGB_8888?image:image.copy(Bitmap.Config.ARGB_8888,false);
         try {
