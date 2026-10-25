@@ -206,6 +206,8 @@ caches before the next native inference. Explicit-language PDF pages reuse their
 warm recognizer. Native read locks protect in-flight calls, and retained live
 camera owners defer release. Rebuilding an idle session retains the current
 catalog and install root; ABI 4 prevents older artifacts from skipping this API.
+The API 29 emulator uses 2 GiB RAM to exercise this constrained-device path; API
+37 retains 4 GiB to cover the larger-device policy in the same full-validation run.
 
 PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
 PaddleOCR/MNN engine and downloaded language packs as the embedded offline

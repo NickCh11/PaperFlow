@@ -253,7 +253,8 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_createLive(m
         let r=runtime()?;
         let source=str_arg(&mut env,&source)?;let target=str_arg(&mut env,&target)?;
         let session=r.session()?;
-        let pipeline=LiveTrackerPipeline::new(Arc::clone(&*session),Arc::new(android_font_provider::AndroidFontProvider));
+        let host=Arc::clone(&*session);
+        let pipeline=LiveTrackerPipeline::new(host,Arc::new(android_font_provider::AndroidFontProvider));
         pipeline.set_languages(if source=="auto" {"en"} else {&source},&target,source=="auto");
         Ok::<_,String>(Arc::into_raw(pipeline) as jlong)
     })();
