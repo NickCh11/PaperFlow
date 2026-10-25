@@ -275,7 +275,8 @@ jobs:
 
   sonar:
     needs: [plan, checks, device-tests]
-    if: always() && needs.plan.result == 'success' && needs.checks.result == 'success'
+    # Preserve diagnostics after failures, but let superseded runs stop.
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.checks.result == 'success' }}
     uses: ./.github/workflows/sonarqube-cloud.yml
     with:
       # Keep successful current-run coverage when another API fails; pr-gate
@@ -288,7 +289,7 @@ jobs:
 
   pr-gate:
     name: PR gate
-    if: always() && needs.plan.result != 'skipped'
+    if: ${{ !cancelled() && needs.plan.result != 'skipped' }}
     needs: [plan, checks, build, device-tests, language-runtime, sonar]
     runs-on: ubuntu-24.04
     timeout-minutes: 2

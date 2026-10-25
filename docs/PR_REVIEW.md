@@ -235,6 +235,9 @@ names and supported import MIME types without launching external pickers.
 The PR workflow grants pull-request read access only to its planning job, which
 needs it to resolve manually dispatched validation to the existing PR. Other
 jobs retain only repository read access; the Sonar security gate stays enforced.
+Sonar and the PR gate still run after validation failures, but stop when a
+workflow is cancelled. Using `!cancelled()` avoids an obsolete Sonar analysis
+holding the workflow's concurrency slot after newer code has superseded it.
 Physical-size reconstruction checks the angle using a normalized plane normal,
 rejecting almost edge-on views while preserving the projection used for normal
 millimeter measurements. Rectangle fitting accumulates rotated bounds in one
