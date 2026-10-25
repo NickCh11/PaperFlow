@@ -256,11 +256,15 @@ The real language-download UI test chooses the smallest fresh core pack,
 reports the language/size/latest status on timeout, and cancels and joins an
 active download before cleanup. Cleanup errors are attached to the original
 failure instead of replacing it, and delete confirmation must be visible.
-Single-file translation exports now honor cancellation before opening a
-selected document, between chunks and before reporting success. A device
-regression reproduced a queued cancelled save replacing existing destination
-bytes before the fix; three permanent tests verify cancellation preserves that
-destination, successful saves copy every byte, and missing exports report errors.
+Single-file translation exports honor cancellation before opening a selected
+document. Once writing starts, they finish the current document because a SAF
+provider may overwrite an existing file and cannot atomically roll it back.
+Device regressions reproduced both a queued cancelled save replacing existing
+bytes and an in-flight cancellation leaving only 131,072 of 1,048,595 bytes.
+Four permanent tests verify queued cancellation preserves the destination,
+in-flight cancellation finishes it, successful saves copy every byte, and
+missing exports report errors. A debug-only pipe-backed document provider
+pauses a real write after the first bytes to make the timing deterministic.
 Four photo-session regressions exercise large-photo downsampling followed by
 real offline OCR and rendering, corrupt inputs, cancellation while queued, and
 language changes with a stale preview. Failed/cancelled input retains the

@@ -273,10 +273,11 @@ public class LocalTranslationActivity extends BackHandlingActivity {
                 // Check first so opening with "w" cannot truncate that document.
                 checkCancelled();
                 try(InputStream in=new FileInputStream(file);OutputStream out=getApplication().getContentResolver().openOutputStream(uri,"w")){
-                    if(out==null)throw new IOException(UiText.get(R.string.ui_could_not_open_the_selected_location));byte[] buffer=new byte[65536];int n;while((n=in.read(buffer))!=-1){checkCancelled();out.write(buffer,0,n);}
+                    // Once writing starts, finish this document. SAF may replace
+                    // an existing file and cannot atomically roll it back on cancel.
+                    if(out==null)throw new IOException(UiText.get(R.string.ui_could_not_open_the_selected_location));byte[] buffer=new byte[65536];int n;while((n=in.read(buffer))!=-1)out.write(buffer,0,n);
                 }
-                checkCancelled();
-                main.post(()->{if(disposed)return;if(cancelled){fail(new InterruptedIOException(UiText.get(R.string.ui_translation_cancelled)));return;}busy=false;error=false;message=UiText.get(R.string.ui_saved_to_device);publish();});
+                main.post(()->{if(disposed)return;busy=false;error=false;message=UiText.get(R.string.ui_saved_to_device);publish();});
             }catch(Exception problem){fail(problem);}});
         }
         void copyImages(Uri tree){

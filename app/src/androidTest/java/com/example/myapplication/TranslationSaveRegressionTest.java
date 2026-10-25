@@ -56,6 +56,25 @@ public class TranslationSaveRegressionTest {
         }finally{release.countDown();session.worker.shutdownNow();source.delete();DocumentsContract.deleteDocument(context.getContentResolver(),target);}
     }
 
+    @Test public void cancellationAfterTheFirstChunkFinishesTheCurrentDocument()throws Exception{
+        LocalTranslationActivity.TranslationSession session=session();File source=File.createTempFile("inflight-save-",".pdf",context.getCacheDir());Uri target=destination();
+        byte[] bytes=new byte[1024*1024+19];new java.util.Random(928).nextBytes(bytes);Files.write(source.toPath(),bytes);
+        TranslationTestDocumentsProvider.ControlledWrite controlled=new TranslationTestDocumentsProvider.ControlledWrite(DocumentsContract.getDocumentId(target));
+        assertTrue(TranslationTestDocumentsProvider.nextWrite.compareAndSet(null,controlled));
+        try{
+            inst.runOnMainSync(()->{session.lastExport=source;session.copyOutput(target);});
+            assertTrue("Document provider never received the first chunk",controlled.firstChunk.await(5,TimeUnit.SECONDS));
+            inst.runOnMainSync(session::cancel);controlled.release.countDown();drain(session);
+            assertTrue("Provider did not finish the current document",controlled.completed.await(5,TimeUnit.SECONDS));assertNull(controlled.failure);
+            assertArrayEquals("Cancelling an in-flight save must not leave a truncated document",bytes,read(target));
+            assertFalse(session.message,session.error);assertEquals(context.getString(R.string.ui_saved_to_device),session.message);
+        }finally{
+            controlled.release.countDown();TranslationTestDocumentsProvider.nextWrite.compareAndSet(controlled,null);
+            session.worker.shutdownNow();session.worker.awaitTermination(5,TimeUnit.SECONDS);controlled.completed.await(5,TimeUnit.SECONDS);
+            source.delete();DocumentsContract.deleteDocument(context.getContentResolver(),target);
+        }
+    }
+
     @Test public void missingExportReportsAnErrorAndLeavesTheDestinationUntouched()throws Exception{
         LocalTranslationActivity.TranslationSession session=session();Uri target=destination();
         try{

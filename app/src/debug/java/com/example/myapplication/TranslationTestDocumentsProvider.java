@@ -4,10 +4,20 @@ import android.database.*;
 import android.os.*;
 import android.provider.*;
 import java.io.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Debug-only SAF destination used to verify saving several translated images. */
 public class TranslationTestDocumentsProvider extends DocumentsProvider {
     static final String[] COLUMNS={DocumentsContract.Document.COLUMN_DOCUMENT_ID,DocumentsContract.Document.COLUMN_DISPLAY_NAME,DocumentsContract.Document.COLUMN_MIME_TYPE,DocumentsContract.Document.COLUMN_FLAGS,DocumentsContract.Document.COLUMN_SIZE};
+    /** Debug-only pipe lets tests pause a real SAF write after its first bytes. */
+    static final class ControlledWrite {
+        final String documentId;
+        final CountDownLatch firstChunk=new CountDownLatch(1),release=new CountDownLatch(1),completed=new CountDownLatch(1);
+        volatile Exception failure;
+        ControlledWrite(String documentId){this.documentId=documentId;}
+    }
+    static final AtomicReference<ControlledWrite> nextWrite=new AtomicReference<>();
     File root;
     @Override public boolean onCreate(){root=new File(getContext().getCacheDir(),"translation-test-destination");return root.isDirectory()||root.mkdirs();}
     File file(String id)throws FileNotFoundException {
@@ -21,7 +31,26 @@ public class TranslationTestDocumentsProvider extends DocumentsProvider {
     @Override public String createDocument(String parent,String mime,String name)throws FileNotFoundException {
         if(!parent.equals("root"))throw new FileNotFoundException();File file=file(name);try{if(!file.createNewFile())throw new FileNotFoundException("Duplicate test destination");return file.getName();}catch(IOException error){throw new FileNotFoundException(error.getMessage());}
     }
-    @Override public ParcelFileDescriptor openDocument(String id,String mode,CancellationSignal signal)throws FileNotFoundException {return ParcelFileDescriptor.open(file(id),ParcelFileDescriptor.parseMode(mode));}
+    @Override public ParcelFileDescriptor openDocument(String id,String mode,CancellationSignal signal)throws FileNotFoundException {
+        ControlledWrite controlled=nextWrite.get();
+        if(mode.contains("w")&&controlled!=null&&controlled.documentId.equals(id)&&nextWrite.compareAndSet(controlled,null)){
+            File destination=file(id);
+            try{
+                ParcelFileDescriptor[] pipe=ParcelFileDescriptor.createPipe();
+                Thread writer=new Thread(()->{
+                    try(InputStream input=new ParcelFileDescriptor.AutoCloseInputStream(pipe[0]);OutputStream output=new FileOutputStream(destination)){
+                        byte[] bytes=new byte[8192];int count;boolean first=true;
+                        while((count=input.read(bytes))!=-1){
+                            output.write(bytes,0,count);
+                            if(first){first=false;controlled.firstChunk.countDown();if(!controlled.release.await(10,TimeUnit.SECONDS))throw new IOException("Timed out waiting for the test writer to resume");}
+                        }
+                    }catch(Exception error){controlled.failure=error;if(error instanceof InterruptedException)Thread.currentThread().interrupt();}
+                    finally{controlled.completed.countDown();}
+                },"controlled-document-write");writer.setDaemon(true);writer.start();return pipe[1];
+            }catch(IOException error){throw new FileNotFoundException(error.getMessage());}
+        }
+        return ParcelFileDescriptor.open(file(id),ParcelFileDescriptor.parseMode(mode));
+    }
     @Override public boolean isChildDocument(String parent,String child){try{return parent.equals("root")&&!child.equals("root")&&file(child).isFile();}catch(FileNotFoundException error){return false;}}
     @Override public void deleteDocument(String id)throws FileNotFoundException {if(id.equals("root")||!file(id).delete())throw new FileNotFoundException(id);}
 }
