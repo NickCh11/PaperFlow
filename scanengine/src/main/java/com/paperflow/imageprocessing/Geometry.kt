@@ -62,7 +62,7 @@ data class Quad(
             val b = pts[(i + 1) % 4]
             val c = pts[(i + 2) % 4]
             val cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x)
-            if (cross <= 0.0) return false
+            if (!cross.isFinite() || cross <= 0.0) return false
         }
         return true
     }

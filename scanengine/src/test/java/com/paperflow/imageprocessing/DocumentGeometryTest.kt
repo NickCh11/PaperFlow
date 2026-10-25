@@ -9,6 +9,19 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class DocumentGeometryTest {
+    @Test fun nonfiniteAndOverflowingCropCornersAreNeverAcceptedAsConvex() {
+        val valid = listOf(Point(0, 0), Point(100, 0), Point(100, 200), Point(0, 200))
+        for (corner in valid.indices) for (value in listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)) {
+            for (axis in 0..1) {
+                val points = valid.toMutableList()
+                points[corner] = if (axis == 0) Point(value, points[corner].y) else Point(points[corner].x, value)
+                assertFalse("Invalid corner $corner/$axis/$value", Quad(points[0], points[1], points[2], points[3]).isConvex())
+            }
+        }
+        assertFalse(Quad(Point(0, 0), Point(Double.MAX_VALUE, 0.0), Point(Double.MAX_VALUE, Double.MAX_VALUE), Point(0.0, Double.MAX_VALUE)).isConvex())
+        assertTrue(Quad(valid[0], valid[1], valid[2], valid[3]).isConvex())
+    }
+
     @Test fun quadRotationsPreserveThePageCornersAndSideLengths() {
         val quad = Quad(Point(10, 15), Point(70, 15), Point(70, 50), Point(10, 50))
         val size = ImageSize(100, 80)

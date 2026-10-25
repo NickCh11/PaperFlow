@@ -178,6 +178,17 @@ production coverage. Only profiles from the actual current-run app and unit test
 can produce a measured result. The 100% target remains unmet until every module's
 line and branch counters reach it, including the owned native sources.
 
+Instrumentation keeps the tested app installed until LLVM profiles have been
+copied out of its private data directory. AndroidX Test/Espresso uses stable
+versions that avoid the removed `InputManager.getInstance` API on Android 17.
+
+Regression coverage includes real loopback HTTPS downloads (plain/gzip, retries,
+size checks, cancellation and cleanup), PDF viewer lifecycle and bitmap ownership,
+native JNI validation, library folder/trash operations and searchable OCR PDFs.
+OCR PDF text uses character IDs mapped to complete Unicode scalars, so supplementary
+characters survive save/reload; mapping batches and later pages retain earlier
+text. Invalid nonfinite crop coordinates are rejected before OpenCV processing.
+
 PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
 PaddleOCR/MNN engine and downloaded language packs as the embedded offline
 translator. The Google Cloud OCR transport, API-key UI and credential handlers
