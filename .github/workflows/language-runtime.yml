@@ -36,8 +36,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             translation/native/target
-          key: offline-runtime-v3-${{ matrix.abi }}-${{ hashFiles('translation/native/Cargo.toml', 'translation/native/Cargo.lock', 'tools/ci/build_language_runtime.sh', 'tools/ci/build_native_coverage.sh', 'tools/ci/native_coverage_toolchain.txt') }}
+          key: offline-runtime-v4-${{ matrix.abi }}-${{ hashFiles('translation/native/Cargo.toml', 'translation/native/Cargo.lock', 'tools/ci/build_language_runtime.sh', 'tools/ci/build_native_coverage.sh', 'tools/ci/native_coverage_toolchain.txt') }}
           restore-keys: |
+            offline-runtime-v4-${{ matrix.abi }}-
             offline-runtime-v3-${{ matrix.abi }}-
             offline-runtime-v2-${{ matrix.abi }}-
             offline-runtime-v1-${{ matrix.abi }}-
@@ -91,7 +92,9 @@ jobs:
           if-no-files-found: error
           retention-days: 1
       - uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
-        if: always() && steps.binaries.outputs.cache-hit != 'true' && steps.cache.outputs.cache-hit != 'true'
+        # Immutable caches must contain the completed coverage build, not a
+        # failed earlier step that would force every later run to rebuild it.
+        if: success() && steps.binaries.outputs.cache-hit != 'true' && steps.cache.outputs.cache-hit != 'true'
         with:
           path: |
             ~/.cargo/registry

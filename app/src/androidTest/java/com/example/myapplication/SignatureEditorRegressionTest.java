@@ -16,11 +16,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Test;
 import static org.junit.Assert.*;
-import static androidx.test.espresso.Espresso.onView;
-import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 public class SignatureEditorRegressionTest {
     private final Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    private android.widget.Button bulkApplyButton() {
+        for (android.view.View root : android.view.inspector.WindowInspector.getGlobalWindowViews()) {
+            android.widget.Button button = root.findViewById(android.R.id.button1);
+            if (button != null && button.isShown() && button.isEnabled() && UiText.get(R.string.ui_apply).contentEquals(button.getText())) return button;
+        }
+        return null;
+    }
 
     private SignatureEditorActivity.Session state(SignatureEditorActivity activity) {
         try { java.lang.reflect.Field field = SignatureEditorActivity.class.getDeclaredField("session"); field.setAccessible(true); return (SignatureEditorActivity.Session)field.get(activity); }
@@ -71,11 +77,8 @@ public class SignatureEditorRegressionTest {
                 image.set(original.bitmap); markFile.set(new File(original.file)); original.angle = 90;
                 invoke(a, "bulkMark", new Class<?>[]{SignatureEditorActivity.Mark.class, boolean.class}, original, true);
             });
-            onView(withText(UiText.get(R.string.ui_apply))).perform(new androidx.test.espresso.ViewAction() {
-                @Override public org.hamcrest.Matcher<android.view.View> getConstraints() { return org.hamcrest.Matchers.allOf(androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom(android.widget.Button.class), androidx.test.espresso.matcher.ViewMatchers.isDisplayed(), androidx.test.espresso.matcher.ViewMatchers.isEnabled()); }
-                @Override public String getDescription() { return "Apply the bulk signing dialog after layout changes"; }
-                @Override public void perform(androidx.test.espresso.UiController controller, android.view.View view) { assertTrue(view.performClick()); controller.loopMainThreadUntilIdle(); }
-            });
+            UiTestWait.until(() -> bulkApplyButton() != null, "Bulk signing Apply button did not appear");
+            scenario.onActivity(a -> { android.widget.Button button = bulkApplyButton(); assertNotNull(button); assertTrue(button.performClick()); });
             scenario.onActivity(a -> {
                 assertEquals(4, active.get().marks.size());
                 for (int page = 0; page < 4; page++) { SignatureEditorActivity.Mark mark = active.get().marks.get(page); assertEquals(page, mark.page); assertEquals(90, mark.angle); assertSame(image.get(), mark.bitmap); }

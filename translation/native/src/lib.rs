@@ -143,6 +143,13 @@ fn reverse_visual_to_logical(text: &str) -> String {
     if !run.is_empty(){units.push(run);}units.into_iter().rev().collect()
 }
 
+// Bound the detector's convolution workspace (~0.92 MP), while recognizers
+// still read the full-resolution image. The previous 2.25 MP budget could
+// exhaust a 2 GB Android device before the JVM could report an exception.
+fn build_still_image(rgba: &[u8], width: u32, height: u32) -> Result<translator::live_frame::StillImage, String> {
+    translator::ocr_runtime::build_still_image(rgba, width, height, 960).map_err(|error| error.to_string())
+}
+
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut env: JNIEnv, _: JClass, pixels:JByteBuffer, width:jint, height:jint, request:JString, output:JByteBuffer) -> jstring {
     let result=(|| {
@@ -158,7 +165,7 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut en
         let source=req["source"].as_str().unwrap_or("auto");
         let target=req["target"].as_str().unwrap_or("");
         let min_conf=req["confidence"].as_f64().unwrap_or(50.0) as f32;
-        let still=r.session.build_still_image(&bytes,width as u32,height as u32,1500).map_err(|e|e.to_string())?;
+        let still=build_still_image(bytes,width as u32,height as u32)?;
         if !target.is_empty() {
             let selection=if source=="auto" {translator::OcrSourceSelection::auto()} else {translator::OcrSourceSelection::specific(source)};
             let mut prepared=r.session.translate_from_still(&still,&bytes,width as u32,height as u32,selection,target,min_conf as u32,None,BackgroundMode::AutoDetect,None).map_err(|e|e.to_string())?;
@@ -259,4 +266,33 @@ pub unsafe extern "system" fn Java_com_paperflow_translation_RuntimeNative_chang
         pipeline.set_languages(if source=="auto"{"en"}else{&source},&target,source=="auto");pipeline.reset();Ok::<_,String>(())
     })();
     if let Err(error)=result{let _=env.throw_new("java/io/IOException",error);}
+}
+
+#[cfg(test)]
+mod still_image_tests {
+    use super::build_still_image;
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn large_still_images_bound_detection_without_reducing_recognition_resolution() {
+        let (width, height) = (2400u32, 1800u32);
+        let mut rgba = vec![0u8; width as usize * height as usize * 4];
+        for pixel in rgba.chunks_exact_mut(4) { pixel.copy_from_slice(&[10, 80, 160, 255]); }
+        let still = build_still_image(&rgba, width, height).unwrap();
+        assert_eq!((still.rgb.width(), still.rgb.height()), (width, height));
+        assert_eq!(still.rgb.as_rgb8().unwrap().get_pixel(width - 1, height - 1).0, [10, 80, 160]);
+        assert!(u64::from(still.rgb_det.width()) * u64::from(still.rgb_det.height()) <= 960 * 960);
+        assert!(still.det_to_full > 1.0);
+        assert!((still.rgb_det.width() as f32 * still.det_to_full - width as f32).abs() < 3.0);
+        assert!((still.rgb_det.height() as f32 * still.det_to_full - height as f32).abs() < 3.0);
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn small_still_images_keep_their_pixels_and_reject_truncated_input() {
+        let still = build_still_image(&[10, 80, 160, 255], 1, 1).unwrap();
+        assert_eq!((still.rgb_det.width(), still.rgb_det.height()), (1, 1));
+        assert_eq!(still.det_to_full, 1.0);
+        assert!(build_still_image(&[10, 80, 160], 1, 1).is_err());
+    }
 }

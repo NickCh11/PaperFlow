@@ -181,6 +181,9 @@ line and branch counters reach it, including the owned native sources.
 Instrumentation keeps the tested app installed until LLVM profiles have been
 copied out of its private data directory. AndroidX Test/Espresso uses stable
 versions that avoid the removed `InputManager.getInstance` API on Android 17.
+Full analysis imports successful current-run device artifacts even if another
+Android API's job fails; PR acceptance still requires both emulator jobs. Missing
+full-run coverage fails measurement instead of silently becoming JVM-only data.
 
 Regression coverage includes real loopback HTTPS downloads (plain/gzip, retries,
 size checks, cancellation and cleanup), PDF viewer lifecycle and bitmap ownership,
@@ -188,6 +191,8 @@ native JNI validation, library folder/trash operations and searchable OCR PDFs.
 OCR PDF text uses character IDs mapped to complete Unicode scalars, so supplementary
 characters survive save/reload; mapping batches and later pages retain earlier
 text. Invalid nonfinite crop coordinates are rejected before OpenCV processing.
+Still-image OCR bounds detector input to 960² pixels while preserving the original
+RGB image for recognition and mapping detected boxes back to its coordinates.
 
 PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
 PaddleOCR/MNN engine and downloaded language packs as the embedded offline
