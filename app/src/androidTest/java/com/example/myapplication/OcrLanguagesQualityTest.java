@@ -40,35 +40,54 @@ public class OcrLanguagesQualityTest {
         Set<String> original=selected();JSONObject chosen=null;JSONArray catalog=LanguageModels.catalog(context(),"ocr");
         // OCR scripts can already be present through another language (or the
         // all-script CI fixture). Download/Delete controls the complete core pack.
-        for(int i=0;i<catalog.length();i++){JSONObject candidate=catalog.getJSONObject(i);if(!LanguageModels.installed(context(),"translation",candidate)){chosen=candidate;break;}}
+        // Exercise the smallest fresh core pack rather than depending on catalog
+        // ordering (Afrikaans currently transfers about three times as much).
+        for(int i=0;i<catalog.length();i++){JSONObject candidate=catalog.getJSONObject(i);if(!LanguageModels.installed(context(),"translation",candidate)&&(chosen==null||candidate.getLong("size")<chosen.getLong("size")))chosen=candidate;}
         assertNotNull("Need an uninstalled pack to test a fresh download",chosen);
         final JSONObject pack=chosen;String code=pack.getString("code"),title=LanguageModels.title(pack);
         Map<File,byte[]> fixtures=preserveOcrFixtures(code);Activity activity=launch();
         long started=SystemClock.elapsedRealtime();
+        LanguageManagerActivity.DownloadSession session=(LanguageManagerActivity.DownloadSession)field(activity,"session");
+        Throwable primaryFailure=null;
         try{
             LinearLayout initial=row(activity,title);assertEquals(LanguageModels.installed(context(),"ocr",pack),((CheckBox)initial.getChildAt(0)).isEnabled());assertEquals("Download",((Button)initial.getChildAt(1)).getText().toString());
             inst.runOnMainSync(()->((Button)initial.getChildAt(1)).performClick());
-            LanguageManagerActivity.DownloadSession session=(LanguageManagerActivity.DownloadSession)field(activity,"session");
-            long deadline=started+90000;while(session.busy&&SystemClock.elapsedRealtime()<deadline)Thread.sleep(100);
-            assertFalse("Download timed out",session.busy);inst.waitForIdleSync();assertTrue("Downloaded pack missing",LanguageModels.installed(context(),"ocr",pack));
+            long deadline=SystemClock.elapsedRealtime()+90000;while(session.busy&&SystemClock.elapsedRealtime()<deadline)Thread.sleep(100);
+            assertFalse("Download timed out for "+code+" ("+pack.getLong("size")+" bytes); last status: "+session.status.getValue(),session.busy);inst.waitForIdleSync();assertTrue("Downloaded pack missing",LanguageModels.installed(context(),"ocr",pack));
             LinearLayout downloaded=row(activity,title);CheckBox checkbox=(CheckBox)downloaded.getChildAt(0);assertTrue(checkbox.isEnabled());assertFalse("Download must not enable OCR implicitly",checkbox.isChecked());
             inst.runOnMainSync(checkbox::performClick);assertTrue(selected().contains(code));inst.runOnMainSync(activity::finish);activity=launch();
             LinearLayout reopened=row(activity,title);assertTrue("Selection persists after reopening",((CheckBox)reopened.getChildAt(0)).isChecked());
             inst.runOnMainSync(()->((Button)reopened.getChildAt(1)).performClick());inst.waitForIdleSync();
             java.util.concurrent.atomic.AtomicBoolean clicked=new java.util.concurrent.atomic.AtomicBoolean();
-            inst.runOnMainSync(()->{for(android.view.View root:android.view.inspector.WindowInspector.getGlobalWindowViews()){Button positive=root.findViewById(android.R.id.button1);if(positive!=null&&"Delete".contentEquals(positive.getText())){clicked.set(positive.performClick());break;}}});
+            inst.runOnMainSync(()->{for(android.view.View root:android.view.inspector.WindowInspector.getGlobalWindowViews()){Button positive=root.findViewById(android.R.id.button1);if(positive!=null&&positive.isShown()&&"Delete".contentEquals(positive.getText())){clicked.set(positive.performClick());break;}}});
             assertTrue("Delete confirmation button exists",clicked.get());
             inst.waitForIdleSync();assertFalse(LanguageModels.installed(context(),"translation",pack));assertFalse(selected().contains(code));
             // Other installed core packs can retain this script's shared OCR files.
             assertEquals(LanguageModels.installed(context(),"ocr",pack),((CheckBox)row(activity,title).getChildAt(0)).isEnabled());
+        }catch(Exception|AssertionError failure){
+            primaryFailure=failure;throw failure;
         }finally{
-            inst.runOnMainSync(activity::finish);
-            try{LanguageModels.remove(context(),"ocr",pack);}finally{
+            try{
+                // Wait for the worker to release the install lock before removal
+                // or fixture restoration. Never replace a timeout with a second
+                // "active download" exception from cleanup.
+                stopDownload(session);
+                LanguageModels.remove(context(),"ocr",pack);
                 for(Map.Entry<File,byte[]> fixture:fixtures.entrySet()){java.nio.file.Files.createDirectories(fixture.getKey().toPath().getParent());java.nio.file.Files.write(fixture.getKey().toPath(),fixture.getValue());}
+            }catch(Exception|AssertionError cleanupFailure){
+                if(primaryFailure!=null)primaryFailure.addSuppressed(cleanupFailure);else throw cleanupFailure;
+            }finally{
+                inst.runOnMainSync(activity::finish);
                 restore(original);
             }
         }
         json("download-ui.json",new JSONObject().put("language",code).put("bytes",pack.getLong("size")).put("downloadSelectPersist",true).put("ms",SystemClock.elapsedRealtime()-started));
+    }
+
+    private void stopDownload(LanguageManagerActivity.DownloadSession session)throws Exception{
+        inst.runOnMainSync(session::cancel);
+        if(session.busy)session.worker.submit(()->{}).get(5,java.util.concurrent.TimeUnit.SECONDS);
+        assertFalse("Language worker remained busy after cancellation",session.busy);
     }
 
     private Map<File,byte[]> preserveOcrFixtures(String language)throws Exception{

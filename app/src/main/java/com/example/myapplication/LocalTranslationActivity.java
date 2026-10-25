@@ -268,9 +268,15 @@ public class LocalTranslationActivity extends BackHandlingActivity {
             if(restoring){pendingDestination=uri;return;}if(busy)return;if(lastExport==null){fail(new IOException(UiText.get(R.string.ui_could_not_save_image)));return;}
             if(exportFiles.size()>1){copyImages(uri);return;}
             final File file=lastExport;begin("Saving to device…");
-            worker.execute(()->{try(InputStream in=new FileInputStream(file);OutputStream out=getApplication().getContentResolver().openOutputStream(uri,"w")){
-                if(out==null)throw new IOException(UiText.get(R.string.ui_could_not_open_the_selected_location));byte[] buffer=new byte[65536];int n;while((n=in.read(buffer))!=-1)out.write(buffer,0,n);
-                main.post(()->{if(disposed)return;busy=false;error=false;message=UiText.get(R.string.ui_saved_to_device);publish();});
+            worker.execute(()->{try{
+                // A queued save can be cancelled before its destination is opened.
+                // Check first so opening with "w" cannot truncate that document.
+                checkCancelled();
+                try(InputStream in=new FileInputStream(file);OutputStream out=getApplication().getContentResolver().openOutputStream(uri,"w")){
+                    if(out==null)throw new IOException(UiText.get(R.string.ui_could_not_open_the_selected_location));byte[] buffer=new byte[65536];int n;while((n=in.read(buffer))!=-1){checkCancelled();out.write(buffer,0,n);}
+                }
+                checkCancelled();
+                main.post(()->{if(disposed)return;if(cancelled){fail(new InterruptedIOException(UiText.get(R.string.ui_translation_cancelled)));return;}busy=false;error=false;message=UiText.get(R.string.ui_saved_to_device);publish();});
             }catch(Exception problem){fail(problem);}});
         }
         void copyImages(Uri tree){

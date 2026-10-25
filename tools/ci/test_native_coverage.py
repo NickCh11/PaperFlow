@@ -64,6 +64,15 @@ class NativeCoverageTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             rebind(self.root,"revision-two","pinned-nightly")
 
+    def test_bundled_catalog_changes_cannot_reuse_outdated_native_font_tests(self):
+        recorded = self.record()
+        catalog = "translation/src/main/assets/index_v6.json"
+        self.assertIn(catalog, recorded["inputs"])
+        recorded["inputs"][catalog] = "previous-language-catalog"
+        (self.root / "manifest.json").write_text(json.dumps(recorded), encoding="utf-8")
+        with self.assertRaises(ValueError):
+            rebind(self.root, "revision-two", "pinned-nightly")
+
     def test_incomplete_or_ignored_unit_suites_are_not_native_execution_coverage(self):
         assert_test_pass("test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured", 10)
         for value in ("", "test result: ok. 9 passed; 0 failed; 0 ignored;", "test result: ok. 0 passed; 0 failed; 10 ignored;", "test result: FAILED. 9 passed; 1 failed; 0 ignored;"):

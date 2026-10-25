@@ -15,9 +15,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Check Rust unit-test fixture before installing toolchains
+      - name: Check Rust unit-test inputs before installing toolchains
         if: matrix.abi == 'x86_64'
-        run: test -s translation/native/testdata/fonts_api28.xml
+        run: |
+          test -s translation/native/testdata/fonts_api28.xml
+          test -s translation/src/main/assets/index_v6.json
       - uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         id: binaries
         with:
@@ -25,7 +27,7 @@ jobs:
             translation/src/main/jniLibs/${{ matrix.abi }}
             build/native-tests/${{ matrix.abi }}
             build/native-coverage/${{ matrix.abi }}
-          key: native-artifacts-v2-${{ runner.os }}-${{ matrix.abi }}-${{ hashFiles('translation/native/**', 'tools/ci/build_language_runtime.sh', 'tools/ci/build_native_coverage.sh', 'tools/ci/native_coverage.py', 'tools/ci/native_coverage_toolchain.txt', 'tools/ci/collect_native_tests.py', '.github/workflows/language-runtime.yml') }}
+          key: native-artifacts-v2-${{ runner.os }}-${{ matrix.abi }}-${{ hashFiles('translation/native/**', 'tools/ci/build_language_runtime.sh', 'tools/ci/build_native_coverage.sh', 'tools/ci/native_coverage.py', 'tools/ci/native_coverage_toolchain.txt', 'tools/ci/collect_native_tests.py', '.github/workflows/language-runtime.yml') }}-${{ matrix.abi == 'x86_64' && hashFiles('translation/src/main/assets/index_v6.json') || 'runtime' }}
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
         if: steps.binaries.outputs.cache-hit != 'true'
       - uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25

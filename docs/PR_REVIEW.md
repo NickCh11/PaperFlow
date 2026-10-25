@@ -241,6 +241,23 @@ millimeter measurements. Rectangle fitting accumulates rotated bounds in one
 pass without allocating a point/list per angle. JVM tests cover both parallel
 orientations, inconsistent vanishing points, overflow and partially supplied
 clipping bounds; `Perspective.kt` and `MinAreaRect.kt` have full line/branch coverage.
+Native font tests read the bundled v6 catalog instead of a stale language list
+and exercise the production family-selection algorithm. Georgian text selects
+the installed Georgian font before the Latin fallback; Marathi, Uyghur and Urdu
+language aliases agree with their catalog scripts. Android-only tests inspect
+actual system font files for every bundled language and style. Parser, missing
+file, style and fallback-order tests cover failure handling separately.
+Native coverage manifests and the x86 test-artifact cache include the bundled
+catalog hash, so catalog changes cannot silently reuse old font-test binaries.
+The real language-download UI test chooses the smallest fresh core pack,
+reports the language/size/latest status on timeout, and cancels and joins an
+active download before cleanup. Cleanup errors are attached to the original
+failure instead of replacing it, and delete confirmation must be visible.
+Single-file translation exports now honor cancellation before opening a
+selected document, between chunks and before reporting success. A device
+regression reproduced a queued cancelled save replacing existing destination
+bytes before the fix; three permanent tests verify cancellation preserves that
+destination, successful saves copy every byte, and missing exports report errors.
 
 PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
 PaddleOCR/MNN engine and downloaded language packs as the embedded offline

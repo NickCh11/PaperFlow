@@ -24,6 +24,7 @@ def manifest(directory, revision, toolchain):
     sources = list((ROOT / "translation/native/src").rglob("*.rs"))
     sources += list((ROOT / "translation/native/testdata").rglob("*.xml"))
     sources += [ROOT / path for path in ("translation/native/Cargo.toml", "translation/native/Cargo.lock",
+                "translation/src/main/assets/index_v6.json",
                 "tools/ci/build_native_coverage.sh", "tools/ci/build_language_runtime.sh", "tools/ci/native_coverage_toolchain.txt")]
     inputs = {path.relative_to(ROOT).as_posix(): sha256(path) for path in sorted(sources)}
     result = dict(schema=1, revision=revision, toolchain=toolchain, inputs=inputs, binaries={})

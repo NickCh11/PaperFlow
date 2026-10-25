@@ -287,6 +287,46 @@ pub unsafe extern "system" fn Java_com_paperflow_translation_RuntimeNative_chang
 }
 
 #[cfg(test)]
+mod boundary_helpers_tests {
+    use super::{reverse_visual_to_logical, runtime, word_json};
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn unopened_runtime_reports_an_initialization_error() {
+        assert!(matches!(runtime(), Err(error) if error == "Language runtime is not initialized"));
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn visual_reordering_preserves_ascii_runs_and_unicode_scalars() {
+        let ascii = "0123:.* /%+-ABCxyz";
+        assert_eq!(reverse_visual_to_logical(ascii), ascii);
+        assert_eq!(reverse_visual_to_logical("אבג"), "גבא");
+        for text in ["", "אב 12.5% Русский界😃", "123אבXYZג", "界😃אב"] {
+            assert_eq!(reverse_visual_to_logical(&reverse_visual_to_logical(text)), text);
+        }
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn word_metadata_preserves_text_geometry_line_and_confidence() {
+        let word = translator::ocr::PositionedWord {
+            text: "Καλημέρα".into(),
+            bounds: translator::ocr::OrientedRect {
+                cx: 30.0, cy: 40.0, width: 20.0, height: 10.0, angle_radians: 0.0,
+            },
+            line_index: 3,
+        };
+        let value = word_json(&word, 12.6, 41, 0.75);
+        assert_eq!(value["text"], "Καλημέρα");
+        for (name, expected) in [("left", 20), ("top", 35), ("right", 40), ("bottom", 45), ("lineHeight", 13), ("baseline", 41), ("line", 3)] {
+            assert_eq!(value[name].as_u64(), Some(expected));
+        }
+        assert_eq!(value["confidence"].as_f64(), Some(0.75));
+    }
+}
+
+#[cfg(test)]
 mod still_image_tests {
     use super::build_still_image;
 
