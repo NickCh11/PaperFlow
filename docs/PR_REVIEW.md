@@ -214,6 +214,13 @@ White balance borrows its document mask even when no pixels are selected. Releas
 that mask early caused automatic color detection to fail in OpenCV; regression
 tests cover empty/partial masks, missing color channels, capture fallback geometry
 and the public Kotlin defaults for crop and bitonal export.
+Automatic color decisions compute the four edge lengths without allocating edge
+objects. Local regression profiles cover all executable lines and branches in
+`ColorDetection.kt`; this does not establish whole-project coverage.
+Gallery-copy and automatic-cleanup settings keep their choice lists visible next
+to their explanations. Combining `AlertDialog.setMessage` with a choice list hid
+the choices. Device tests reproduce that failure and verify Apply, Cancel, saved
+checkbox state, settings recreation and denied storage permission handling.
 
 PDF-to-Word OCR uses `LocalOcr`, which delegates to the same `OfflineRuntime`
 PaddleOCR/MNN engine and downloaded language packs as the embedded offline

@@ -1,9 +1,11 @@
 package com.example.myapplication
 
 import com.paperflow.imageprocessing.ColorMode
+import com.paperflow.imageprocessing.Mask
 import com.paperflow.imageprocessing.Point
 import com.paperflow.imageprocessing.Quad
 import com.paperflow.imageprocessing.binarizeDocument
+import com.paperflow.imageprocessing.autoColorMode
 import com.paperflow.imageprocessing.extractDocument
 import com.paperflow.imageprocessing.toImageSize
 import com.paperflow.scanengine.ScanEngine
@@ -19,6 +21,23 @@ import org.opencv.imgproc.Imgproc
 /** Calls the public Kotlin defaults used when no camera calibration is available. */
 class ScanDefaultsContractTest {
     @Before fun loadNativeLibrary() { assertTrue(ScanEngine.ready()) }
+
+    @Test fun defaultColorDecisionFindsInkOnALargerPageWithoutMutatingTheMask() {
+        val source = Mat(200,200,CvType.CV_8UC3,Scalar(100.0,100.0,100.0))
+        val selected = Mat(200,200,CvType.CV_8UC1,Scalar(255.0))
+        val mask = object : Mask {
+            override val width = 200
+            override val height = 200
+            override fun toMat() = selected.clone()
+        }
+        val quad = Quad(Point(0,0),Point(200,0),Point(200,200),Point(0,200))
+        try {
+            assertEquals(ColorMode.GRAYSCALE,autoColorMode(source,mask,quad))
+            Imgproc.rectangle(source,org.opencv.core.Point(80.0,80.0),org.opencv.core.Point(160.0,160.0),Scalar(30.0,60.0,180.0),-1)
+            assertEquals(ColorMode.COLOR,autoColorMode(source,mask,quad))
+            assertEquals(200*200,Core.countNonZero(selected))
+        } finally { source.release(); selected.release() }
+    }
 
     @Test fun uncalibratedCropKeepsTheRequestedGeometryAndItsSource() {
         val source = Mat(120,180,CvType.CV_8UC3,Scalar(230.0,230.0,230.0))
