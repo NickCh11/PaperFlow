@@ -33,7 +33,7 @@ than inferred from their passing result. No findings have been dismissed or
 quality-gate thresholds weakened to make the check green.
 
 The workflow also generates the Android Lint reports expected by the scanner,
-uses the release version from `version.properties`, and ignores generated
+uses the development version baseline from `version.properties`, and ignores generated
 `.sonar` / `.scannerwork` files.
 
 PaperFlow became a **public GitHub repository** on 2026-10-25 after reviewing the
@@ -108,7 +108,7 @@ The Sonar way quality gate, including 80% coverage on new code, is unchanged.
 ## Controlling Actions consumption
 
 Draft PR updates run Python/JVM tests, Android Lint and Sonar without the native,
-release and emulator matrix. Opening a ready PR or marking a draft **Ready for
+compilation/native and emulator checks. Opening a ready PR or marking a draft **Ready for
 review** starts full validation automatically. Every subsequent push or reopen
 of a ready PR also runs the full matrix. Converting it back to a draft cancels
 the superseded run and returns to fast checks; a draft cannot be merged.
@@ -125,7 +125,7 @@ after the PR becomes ready. Maintainer approval and required checks still
 control merging.
 
 Main/master pushes and merge-queue runs require the full matrix. Releases verify
-successful emulator, native, APK and Sonar jobs on the **exact main commit**; a
+successful emulator, native, compilation/R8 and Sonar jobs on the **exact main commit**; a
 green fast check cannot authorize publishing. If full validation is absent, the
 release stops immediately instead of waiting on a paid runner for 45 minutes.
 
@@ -134,7 +134,10 @@ Cargo manifests/lockfile, build script and toolchain workflow. Native tests stil
 execute during full validation even when their binaries are reused. Independent
 native push triggers and the duplicate translation workflow were removed. Weekly
 model link checks remain; full model downloads are manual. Reports/native
-artifacts expire after three days; release APK inputs remain available for seven.
+artifacts expire after three days. Only publishing a stable GitHub Release
+builds signed APKs; tag pushes and manual CI do not. Release builds use the tag
+version, rebuild APKs from the verified SHA and preserve existing signing secrets.
+See [BUILD.md](BUILD.md) for publication and recovery instructions.
 The account's existing Actions $0 hard budget was verified, not duplicated.
 
 At the owner's request, automatic validation no longer benchmarks the accuracy

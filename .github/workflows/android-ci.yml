@@ -104,13 +104,9 @@ jobs:
 
   build:
     needs: language-runtime
-    name: Build ${{ matrix.abi }} debug and release
+    name: Android compilation and native checks
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        abi: [arm64-v8a, armeabi-v7a, all]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -128,34 +124,12 @@ jobs:
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
       - run: bash tools/ci/install_android_tools.sh
-      - name: Build all modules and both variants
-        env:
-          ABI: ${{ matrix.abi }}
-        run: |
-          if [ "$ABI" = all ]; then
-            bash gradlew :app:assembleDebug :app:assembleRelease --stacktrace
-          else
-            bash gradlew :app:assembleDebug :app:assembleRelease -PpaperflowAbi="$ABI" --stacktrace
-          fi
-      - name: Verify native engines and ELF architecture
-        run: |
-          python3 tools/ci/check_apk.py app/build/outputs/apk/debug/app-debug.apk ${{ matrix.abi }}
-          python3 tools/ci/check_apk.py app/build/outputs/apk/release/app-release-unsigned.apk ${{ matrix.abi }}
+      - name: Compile and optimize without packaging a release APK
+        run: bash gradlew :app:compileDebugJavaWithJavac :app:mergeDebugNativeLibs :app:processReleaseManifest :app:minifyReleaseWithR8 --stacktrace
+      - name: Verify merged native engines and ELF architectures
+        run: python3 tools/ci/check_apk.py --native-dir app/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib all
       - name: Verify merged release permissions and exported components
         run: python3 tools/ci/check_android_manifest.py app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml
-      - name: Preserve R8 mappings for release crash diagnosis
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: r8-mapping-${{ matrix.abi }}
-          path: app/build/outputs/mapping/release/mapping.txt
-          if-no-files-found: error
-          retention-days: 7
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: apks-${{ matrix.abi }}
-          path: app/build/outputs/apk/**/*.apk
-          if-no-files-found: error
-          retention-days: 7
 
   device-tests:
     needs: language-runtime

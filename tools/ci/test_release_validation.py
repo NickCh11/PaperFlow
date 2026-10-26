@@ -4,7 +4,7 @@ from release_android import require_full_validation
 
 class ReleaseValidationTest(unittest.TestCase):
     def jobs(self):
-        names = [f"Build {abi} debug and release" for abi in ("arm64-v8a", "armeabi-v7a", "all")]
+        names = ["Android compilation and native checks", "PR gate"]
         names += ["Device tests API 29", "Device tests API 37.0", "Unit tests, lint and translations", "sonar / SonarQube analysis"]
         names += [f"language-runtime / native ({abi})" for abi in ("arm64-v8a", "armeabi-v7a", "x86_64")]
         return [dict(name=name, conclusion="success") for name in names]

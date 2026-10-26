@@ -15,12 +15,12 @@ model accuracy benchmarks are intentionally outside the automatic suite.
 | Storage and recovery | `LibraryManagementFlowTest`, `LibraryPagingRegressionTest`, `FolderProtectionFlowTest`, `SessionSnapshotFailureTest`, `BookCaptureSessionTest`: folder/PIN operations, paging, failed writes, last good snapshot and new sessions restoring disk data |
 | Screens and lifecycle | `AppLanguageTest`, `AppearanceTest`, `PdfViewerLifecycleTest`, `PdfInputRecoveryTest`: registered locales, contrast/bounds, recreation, restored options/results and asynchronous UI readiness |
 | Editing and capture processing | `SignaturePageChoicesTest`, `PdfEditorInteractionTest`, `ImageProcessingRegressionTest`, `MigrationIntegrationTest`: copy limits, handle selection, page edits, synthetic captures, filters, rotation and geometry |
-| APK/native packaging | `check_apk.py`: required native engines, ABI sets and ELF architecture in debug and release artifacts; native test executable plus JNI contracts |
+| APK/native packaging | `check_apk.py`: required native engines and ELF architecture in merged CI libraries and actual release APKs; native test executable plus JNI contracts |
 | Release manifest | `check_android_manifest.py`: AGP's merged release manifest, including library declarations; rejects debugging/test-only/cleartext settings, unexpected permissions/exports, unprotected profile receiver and debug document provider |
 | Workflow decisions | `test_ci_plan.py`, `test_ci.py`, `test_release_validation.py`: ready PRs cannot select fast acceptance, incomplete/skipped test reports fail, release requires successful full jobs for the exact main revision |
 
-The release-manifest policy runs in each of the ARM64, ARMv7 and universal build
-jobs. Failure blocks their existing required PR gate. Source permissions/exports
+The release-manifest policy runs in the shared CI compilation job and again
+for each release APK. A CI failure blocks the existing required PR gate. Source permissions/exports
 can change deliberately, but need a reviewed policy update. No Sonar threshold,
 coverage exclusion, required reviewer or release prerequisite is weakened.
 

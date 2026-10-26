@@ -10,6 +10,9 @@ Ready PRs run the full Android pipeline automatically, including on subsequent
 pushes. Draft PRs run fast checks; marking them Ready for review starts full
 validation. See [CI checks and merge protection](docs/CI.md)
 for the test matrix, local commands and the required `PR gate` repository rule.
+Open contribution PRs against `main` unless a maintainer explicitly requests
+another base. Developers do not need signing secrets or release tags. Maintainers
+publish stable GitHub Releases after exact-main CI passes; see [release steps](docs/BUILD.md#github-releases).
 
 Keep interface text in `app/src/main/res/values/strings.xml`. Use `UiText.get(R.string...)` or `UiText.format(R.string..., args)` where code has no localized Activity context. Use numbered placeholders for dynamic text; do not concatenate English fragments around user data.
 

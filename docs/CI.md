@@ -3,7 +3,7 @@
 `.github/workflows/android-ci.yml` runs on every pull request, pushes to
 `main`/`master`, merge queue groups and manual dispatch. There are no path filters.
 Fork PRs need no repository secrets. Actions use immutable commit pins and read-only
-repository permissions. Builds do not publish or sign releases.
+repository permissions. CI does not package release APKs, publish or sign releases.
 
 ## What runs
 
@@ -11,13 +11,13 @@ repository permissions. Builds do not publish or sign releases.
 | --- | --- |
 | Unit tests, lint and translations | JVM tests, Android Lint in all modules, localization validator and its regression tests, CI tooling tests |
 | Offline language runtime | Build the pinned Rust/slimt/MNN/CLD2 runtime for ARM64, ARMv7 and x86_64, with cached native dependencies |
-| Build arm64-v8a / armeabi-v7a debug and release | Separate ARMv8 and ARMv7 debug/unsigned release APKs, including native translation code |
+| Android compilation and native checks | One compilation/R8 check, merged release manifest policy and merged native ELF/engine verification for ARM64, ARMv7 and x86_64; no release APK |
 | Device tests API 29 and 37.0 | Complete app instrumentation suite on fresh x86_64 emulators |
 | PR gate | Succeeds only when all preceding jobs succeed; failure, cancellation or a skipped job blocks this check |
 
-ARMv8 maps to `arm64-v8a` and ARMv7 to `armeabi-v7a`. Each build job verifies
-the APK's native engine libraries and ELF headers for its selected ABI.
-Each build job also checks AGP's merged release manifest with
+ARMv8 maps to `arm64-v8a` and ARMv7 to `armeabi-v7a`. Native engine libraries
+and ELF headers are verified directly in AGP's merged library tree. The common
+compilation job also checks AGP's merged release manifest with
 `tools/ci/check_android_manifest.py`, including dependency declarations. Unsafe
 debug/test-only/cleartext flags, additional permissions, unexpected exported
 components, weakened file-sharing configuration and the debug document provider
@@ -53,7 +53,9 @@ were removed at the owner's request. App-owned script-routing boundaries remain
 covered by fast deterministic JVM tests. Both Android APIs run the same complete
 remaining suite; there is no hidden skip list or reduced Sonar threshold.
 
-Reports and APKs are retained as workflow artifacts for seven days. JVM and device report
+Reports are retained as workflow artifacts for three days. No downloadable APK
+artifacts are produced by PR/push CI. Temporary debug/test APKs are necessary
+for emulator execution. JVM and device report
 validation rejects zero tests, failures, errors, skipped tests and missing source tests.
 
 These checks do not establish physical camera accuracy, translation quality for
@@ -66,25 +68,18 @@ from disk; they do not kill and relaunch the Android process.
 
 ## Require checks before merging
 
-Adding a workflow alone does **not** block merging. After pushing the files and
-running the workflow once, a repository administrator must enable a branch ruleset:
+The active repository ruleset requires **PR gate**, **Greptile Review**, an
+up-to-date branch, resolved review threads and one maintainer approval for `main`
+and `feature/offline-translator`. The latest push must be approved and stale
+approvals are dismissed. This release-only change does not alter that ruleset.
 
-An importable template is provided in `.github/rulesets/pr-gate.json`. It targets
-the default branch, requires PRs and the GitHub Actions `PR gate`, with no review
-count requirement and no bypass actors. It is a template, not an applied rule.
-Alternatively configure the same rule manually:
+`PR gate` remains the stable required check and depends on compilation/native
+checks, both emulator APIs, native builds, static checks and Sonar. Ready PRs run
+full checks automatically; drafts use `Draft / fast checks` and cannot satisfy
+the merge gate. No `full-validation` label is necessary for a ready PR.
 
-1. Repository **Settings > Rules > Rulesets > New branch ruleset**.
-2. Target the default branch and set enforcement to **Active**.
-3. Enable **Require a pull request before merging**.
-4. Enable **Require status checks to pass**, add **PR gate** from GitHub Actions,
-   and enable **Require branches to be up to date before merging**.
-5. Leave the bypass list empty if the rule must apply to administrators too.
-
-Use the stable `PR gate` check as required; its dependencies include both build
-architectures and both device jobs. Do not require only one emulator job or the old path-filtered translation
-workflow. If using a merge queue, the `merge_group` trigger provides the same gate.
-Availability of branch rules depends on the repository plan and visibility.
+The checked-in ruleset JSON is an older minimal template, not a snapshot of the
+live policy. Do not import it over the existing maintainer-review ruleset.
 
 ## Run locally
 
@@ -114,7 +109,7 @@ documents, change preferences temporarily and exercise downloads and permissions
 
 ## Universal builds and appearance checks
 
-The build matrix now also includes `all`: a universal APK with ARMv8, ARMv7 and x86_64. All three build jobs are required by PR gate. The native APK validator checks each included ABI separately. See [Appearance and adaptable layouts](APPEARANCE.md) for the additional night-mode and compact-screen regression checks.
+CI checks the three configured native architectures without packaging distributable APKs. Only the published-release workflow builds ARM64, ARMv7 and universal APKs; its native APK validator checks each included ABI separately. See [Appearance and adaptable layouts](APPEARANCE.md) for the additional night-mode and compact-screen regression checks.
 
 The workflow installs JDK 25, matching the repository's existing `gradle/gradle-daemon-jvm.properties` criteria and the daemon used for local validation.
 
