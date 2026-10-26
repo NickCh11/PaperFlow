@@ -249,6 +249,17 @@ Grayscale processing validates empty/unsupported inputs before native allocation
 and accumulates its single-channel Retinex result without an extra image copy.
 Tool-grid regressions also verify outgoing destinations, capture modes, operation
 names and supported import MIME types without launching external pickers.
+Photo-translation UI regressions exercise language search/selection, cancellation,
+clipboard contents, original/translated preview restoration, new-photo pickers,
+editable-text cancellation and the offline explanation. Language controls now
+update their accessibility descriptions alongside their visible values; a
+regression reproduced a Greek target being announced as English before the fix.
+Signing page choices and their explanatory text remain visible together. Three
+UI regressions reproduced the hidden page list before replacing the dialog's
+message with a separate help view. Tests cover selected/all-page choices, cancel,
+page navigation and shared bitmap ownership, including a 640px display at 130%
+font size. Real touch strokes also verify empty-drawing rejection, undo/clear,
+selected ink, transparent trimmed PNGs and reusable signatures across recreation.
 The PR workflow grants pull-request read access only to its planning job, which
 needs it to resolve manually dispatched validation to the existing PR. Other
 jobs retain only repository read access; the Sonar security gate stays enforced.
