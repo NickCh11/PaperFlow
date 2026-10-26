@@ -10,6 +10,44 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class DocumentGeometryTest {
+    @Test fun undersampledAndCollapsedContoursCannotBecomeCropCorners() {
+        for (count in 0 until 20) {
+            assertNull("Only $count contour samples", findQuadFromContourOrientation(List(count) { org.opencv.core.Point(it.toDouble(), 0.0) }))
+        }
+        assertNull(findQuadFromContourOrientation(List(64) { org.opencv.core.Point(10.0, 10.0) }))
+        assertNull(findQuadFromContourOrientation(List(64) { org.opencv.core.Point(it.toDouble(), 10.0) }))
+    }
+
+    @Test fun minimumSideLengthCanRejectAContourWithoutLeavingPartialCorners() {
+        val rectangle = buildList {
+            for (i in 0 until 40) add(org.opencv.core.Point(i.toDouble(), 0.0))
+            for (i in 0 until 60) add(org.opencv.core.Point(40.0, i.toDouble()))
+            for (i in 0 until 40) add(org.opencv.core.Point(40.0 - i, 60.0))
+            for (i in 0 until 60) add(org.opencv.core.Point(0.0, 60.0 - i))
+        }
+        assertEquals(4, findQuadFromContourOrientation(rectangle)!!.size)
+        // No side meets this intentionally strict fraction of the measured perimeter.
+        assertNull(findQuadFromContourOrientation(rectangle, minSideLengthRatio = .6))
+    }
+
+    @Test fun anInterruptedPageEdgeDoesNotReplaceAnotherSideWithAParallelSegment() {
+        val outline = listOf(Point(0, 0), Point(200, 0), Point(200, 20), Point(300, 20), Point(300, 0), Point(500, 0), Point(500, 100), Point(0, 100))
+        val contour = buildList {
+            for (i in outline.indices) {
+                val from = outline[i]; val to = outline[(i + 1) % outline.size]
+                val samples = maxOf(abs(to.x - from.x), abs(to.y - from.y)).toInt()
+                for (step in 0 until samples) add(org.opencv.core.Point(from.x + (to.x - from.x) * step / samples, from.y + (to.y - from.y) * step / samples))
+            }
+        }
+        val corners = findQuadFromContourOrientation(contour)
+        assertNotNull("A notch must not displace one of the four outer page sides", corners)
+        // Line fitting can average the shallow notch; allow 5% of page height.
+        // Choosing two parallel top segments instead of another side fails this bound.
+        for (expected in listOf(Point(0, 0), Point(500, 0), Point(500, 100), Point(0, 100))) {
+            assertTrue("Missing outer corner $expected; detected $corners", corners!!.any { Math.hypot(it.x - expected.x, it.y - expected.y) < 5.0 })
+        }
+    }
+
     @Test fun unresolvableContourIntersectionsReturnNoQuadInsteadOfUnstableCorners() {
         fun rectangle(offset: Double): List<org.opencv.core.Point> = buildList {
             val edge = 32768.0
