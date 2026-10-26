@@ -5,6 +5,47 @@ all Java/Kotlin modules and the owned Rust runtime. The target is not reached.
 Tests, generated code and dependencies are outside the production report;
 production files have not been excluded to raise the percentage.
 
+## Sonar remediation and release hardening, 26 October 2026
+
+[SONAR_REMEDIATION.md](SONAR_REMEDIATION.md) records the fixes for mask indexing,
+cross-thread counters, regex runtime, native detector lifetime, callback handling,
+release obfuscation, dependency integrity and duplicated editor/gesture code.
+It also records three security findings that require a documented design review;
+their Sonar status has not been changed to hide them.
+
+The five PR Lint findings are absent from the generated local Lint report. Two
+new signing device cases verify accessibility clicks/cancel behavior and stable
+rendering of rotated shared marks across repeated frames. Seven new JVM cases
+exercise mask resampling, malformed Excel formats and shared pan cancellation.
+The complete **111 JVM tests** (68 app, 25 scanengine, 18 translation), **91 CI-tooling
+tests**, **22 localization tests**, translation validation and workflow lint pass.
+Strict dependency verification rejects a deliberately incorrect JUnit checksum
+in an isolated probe. Actual debug/release x86_64 APK ELF checks and the merged
+release manifest policy pass.
+
+The fully optimized release builds and a locally debug-signed copy cold-launches,
+imports an image, runs embedded offline OCR and translates to Greek on API 29.
+This is local release smoke evidence, not physical-device or production-signing
+acceptance. The preceding uploaded revision passed Sonar but failed API 37, so
+fresh hosted validation is required before merge.
+
+The fresh full local run passes **331/331 cases on API 29 and 331/331 on API 37**,
+with no failures, errors or skipped cases; each report exactly matches the source
+case IDs. Both use 640x1280, density 320, 130% font scaling and disabled animations.
+The previous run exposed one test reading a removed private gesture flag; its
+behavioral stroke assertions are retained and pass in the fresh full run.
+Earlier coverage percentages below remain historical until replaced with fresh
+matching profiles. No model accuracy corpus, coverage exclusion or lower gate threshold
+was introduced.
+
+Fresh coverage from only these successful current device profiles and current
+JVM execution data is **7167/7942 Java/Kotlin executable lines (90.24%)** and
+**7021/11947 branch sides (58.77%)**. App: 5214/5892 lines and 6267/11028 branches;
+scanengine: 1412/1412 lines and 400/423 branches; translation: 541/638 lines and
+354/496 branches. No class-mismatch warnings were reported. Native coverage was
+not recollected locally in this batch; this is not a new whole-project/native
+100% measurement.
+
 ## Basic security and workflow contracts, 26 October 2026
 
 Reviewing the essential scenarios found a concrete sanitizer bypass: Android

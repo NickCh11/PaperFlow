@@ -6,10 +6,29 @@ import java.util.*;
 final class ExcelDateFormat {
     private static final Map<Integer,String> BUILTIN=new HashMap<>();
     static{String[] formats={"m/d/yy","d-mmm-yy","d-mmm","mmm-yy","h:mm AM/PM","h:mm:ss AM/PM","h:mm","h:mm:ss","m/d/yy h:mm"};for(int i=0;i<formats.length;i++)BUILTIN.put(14+i,formats[i]);BUILTIN.put(45,"mm:ss");BUILTIN.put(46,"[h]:mm:ss");BUILTIN.put(47,"mmss.0");}
+    // Scan formatting literals once; unmatched brackets must not trigger a
+    // regex search from every opening bracket in an imported spreadsheet.
+    private static String formatTokens(String pattern){
+        StringBuilder tokens=new StringBuilder();
+        for(int i=0;i<pattern.length();){
+            char c=pattern.charAt(i);
+            if(c==';')break;
+            if(c=='"'){int end=pattern.indexOf('"',i+1);if(end<0)break;i=end+1;continue;}
+            if(c=='\\'){i=Math.min(pattern.length(),i+2);continue;}
+            if(c=='['){
+                int end=pattern.indexOf(']',i+1);if(end<0)return "";
+                String value=pattern.substring(i+1,end).toLowerCase(Locale.ROOT);
+                if(!value.isEmpty()&&value.chars().allMatch(ch->ch=='h'||ch=='m'||ch=='s'))tokens.append('[').append(value).append(']');
+                i=end+1;continue;
+            }
+            tokens.append(Character.toLowerCase(c));i++;
+        }
+        return tokens.toString();
+    }
     static String render(double serial,int id,String custom,boolean epoch1904){
         String pattern=custom.isEmpty()?BUILTIN.get(id):custom;if(pattern==null)return null;
-        String tokens=pattern.replaceAll("\"[^\"]*\"|\\\\.","").toLowerCase(Locale.ROOT).split(";",2)[0].replaceAll("\\[(?![hms]+\\])[^]]*\\]","");
-        if(!tokens.matches(".*[ymdhs].*"))return null;
+        String tokens=formatTokens(pattern);
+        if(tokens.chars().noneMatch(c->"ymdhs".indexOf(c)>=0))return null;
         if(!Double.isFinite(serial)||serial<0||serial>2958465)return null;
         java.util.regex.Matcher precision=java.util.regex.Pattern.compile("\\.(0+)").matcher(tokens);int fractionDigits=precision.find()?Math.min(6,precision.group(1).length()):0;
         long factor=(long)Math.pow(10,fractionDigits),days=(long)Math.floor(serial),ticks=Math.round((serial-days)*86400*factor),seconds=ticks/factor,fraction=ticks%factor;if(seconds==86400){days++;seconds=0;}

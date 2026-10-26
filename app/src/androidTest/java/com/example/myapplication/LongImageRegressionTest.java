@@ -104,7 +104,7 @@ public class LongImageRegressionTest {
             scenario.onActivity(a -> active.set(new androidx.lifecycle.ViewModelProvider(a).get(LongImageActivity.LongSession.class)));
             UiTestWait.until(() -> !active.get().busy && active.get().dimensions.size() == 3, "Long-image screen did not open");
             scenario.onActivity(a -> { active.get().setPages(Collections.singleton(2)); active.get().setQuality(1); });
-            scenario.recreate(); scenario.onActivity(a -> { LongImageActivity.LongSession restored = new androidx.lifecycle.ViewModelProvider(a).get(LongImageActivity.LongSession.class); assertSame(active.get(), restored); assertEquals(Collections.singletonList(2), restored.selected); assertEquals(1, restored.quality); Bundle saved = new Bundle(); restored.save(saved); assertEquals(Collections.singletonList(2), saved.getIntegerArrayList("long_selected")); });
+            scenario.recreate(); scenario.onActivity(a -> { LongImageActivity.LongSession restored = new androidx.lifecycle.ViewModelProvider(a).get(LongImageActivity.LongSession.class); assertSame(active.get(), restored); assertEquals(Collections.singletonList(2), restored.selected); assertEquals(1, restored.quality); Bundle saved = new Bundle(); restored.saveState(saved); assertEquals(Collections.singletonList(2), saved.getIntegerArrayList("long_selected")); });
         } finally { input.delete(); }
     }
 }

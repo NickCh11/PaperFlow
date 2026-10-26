@@ -47,10 +47,10 @@ public class IdPhotoMakerActivity extends BackHandlingActivity {
         session.changes.observe(this,revision->render());render();
     }
     private void render(){
-        if(destroyed)return;getWindow().setStatusBarColor(Color.WHITE);getWindow().setNavigationBarColor(Color.WHITE);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
-        LinearLayout root=new LinearLayout(this);root.setOrientation(android.widget.LinearLayout.VERTICAL);root.setBackgroundColor(AppTheme.background());
-        LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);header.setBackgroundColor(AppTheme.surface());
-        ImageView back=new ImageView(this);back.setImageDrawable(new AppIcon("Back",INK));back.setPadding(dp(14),dp(14),dp(14),dp(14));back.setContentDescription(UiText.get(R.string.ui_back));header.addView(back,new LinearLayout.LayoutParams(dp(50),dp(56)));back.setOnClickListener(v->back());
+        if(destroyed)return;
+        LinearLayout root=EditorViews.root(this);
+        LinearLayout header=EditorViews.header(this);
+        EditorViews.addBack(header,INK,this::back);
         TextView title=text(UiText.get(R.string.ui_id_photo_maker),19,INK);title.setTypeface(null,android.graphics.Typeface.BOLD);header.addView(title,new LinearLayout.LayoutParams(0,dp(56),1));root.addView(header);
         ScrollView scroll=new ScrollView(this);LinearLayout body=new LinearLayout(this);body.setOrientation(android.widget.LinearLayout.VERTICAL);body.setPadding(dp(18),dp(16),dp(18),dp(22));scroll.addView(body);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         if(session.busy){ProgressBar progress=new ProgressBar(this);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(44),dp(44));lp.gravity=Gravity.CENTER;lp.topMargin=dp(85);body.addView(progress,lp);TextView status=text(session.status,16,INK);status.setGravity(Gravity.CENTER);body.addView(status,new LinearLayout.LayoutParams(-1,dp(90)));}
@@ -85,7 +85,7 @@ public class IdPhotoMakerActivity extends BackHandlingActivity {
     @Override public void handleBackPressed(){back();}
     @Override protected void onSaveInstanceState(Bundle state){session.save(state);super.onSaveInstanceState(state);}
     @Override protected void onDestroy(){destroyed=true;super.onDestroy();}
-    private TextView text(String value,int size,int color){TextView view=new TextView(this);view.setText(value);view.setTextSize(size);view.setTextColor(color);view.setGravity(Gravity.CENTER_VERTICAL);return view;}
+    private TextView text(String value,int size,int color){return EditorViews.text(this,value,size,color);}
     private TextView button(String title,String name,boolean filled){TextView view=text(title,14,filled ? AppTheme.onAccent() :BRAND);view.setGravity(Gravity.CENTER);view.setContentDescription(title);android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();bg.setColor(filled ? BRAND : AppTheme.surface());bg.setCornerRadius(dp(6));view.setBackground(bg);view.setPadding(dp(10),0,dp(10),0);AppIcon icon=new AppIcon(name,filled ? AppTheme.onAccent() :BRAND);icon.setBounds(0,0,dp(21),dp(21));view.setCompoundDrawables(icon,null,null,null);view.setCompoundDrawablePadding(dp(6));return view;}
     private void heading(LinearLayout body,String value){TextView title=text(UiText.label(value),18,INK);title.setTypeface(null,android.graphics.Typeface.BOLD);body.addView(title,space(-1,-2,15));}
     private void note(LinearLayout body,String value){TextView note=text(UiText.label(value),13,MUTED);note.setLineSpacing(dp(3),1);body.addView(note,space(-1,-2,10));}
@@ -124,8 +124,8 @@ public class IdPhotoMakerActivity extends BackHandlingActivity {
         String summary(){return layout==0?dimensionLabel()+" · "+Math.round(mmWidth/25.4f*300)+" × "+Math.round(mmHeight/25.4f*300)+" pixels · 300 DPI":(layout==1?"4 × 6 inch":"A4")+" PDF print sheet · "+dimensionLabel()+" photos";}
         PhotoSpec spec(){int color=background==2?0xFF3887D9:background==3?0xFFD83940:Color.WHITE;return new PhotoSpec(background==0||foreground==null?source:foreground,color,rotation,magnification,panX,panY);}
         void constrainPan(){if(source==null)return;float aspect=mmWidth/mmHeight,iw=rotation%180==0?source.getWidth():source.getHeight(),ih=rotation%180==0?source.getHeight():source.getWidth(),scale=Math.max(aspect/iw,1/ih)*magnification,maxX=Math.max(0,(iw*scale-aspect)/(2*aspect)),maxY=Math.max(0,(ih*scale-1)/2);panX=Math.max(-maxX,Math.min(maxX,panX));panY=Math.max(-maxY,Math.min(maxY,panY));}
-        private File captures(){File dir=new File(getApplication().getFilesDir(),"captures");if(!dir.isDirectory())dir.mkdirs();return dir;}
-        private File documents(){File dir=new File(getApplication().getFilesDir(),"documents");if(!dir.isDirectory())dir.mkdirs();return dir;}
+        private File captures(){return DocumentDirectories.captures(getApplication());}
+        private File documents(){return DocumentDirectories.documents(getApplication());}
         void deleteOwnedCapture(String path){try{File file=new File(path);if(file.getCanonicalFile().getParentFile().equals(captures().getCanonicalFile()))file.delete();}catch(Exception ignored){}}
         void load(Uri uri,boolean owned){if(busy)return;busy=true;status="Separating portrait background…";publish();worker.execute(()->{File copy=new File(captures(),"id-photo-input-"+UUID.randomUUID()+".jpg");try(InputStream in=getApplication().getContentResolver().openInputStream(uri);FileOutputStream out=new FileOutputStream(copy)){if(in==null)throw new IOException();byte[] buffer=new byte[16384];int n;while((n=in.read(buffer))!=-1)out.write(buffer,0,n);}catch(Exception e){copy.delete();fail("Could not import portrait");return;}if(owned&&"file".equals(uri.getScheme()))deleteOwnedCapture(uri.getPath());prepare(copy,false);});}
         private void prepare(File file,boolean restoring){

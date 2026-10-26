@@ -68,7 +68,7 @@ public class PdfEditorInteractionTest {
                     MotionEvent event=MotionEvent.obtain(start,start+30+step*30,action,2,properties,coordinates,0,0,1,1,0,0,InputDevice.SOURCE_TOUCHSCREEN,0);try{editor.dispatchTouchEvent(event);}finally{event.recycle();}
                 }
                 assertNull(field(editor,"active"));assertTrue(((Number)field(editor,"panX")).floatValue()>0);
-                touch(editor,MotionEvent.ACTION_UP,.5f,.5f);assertFalse((Boolean)field(editor,"gesture"));assertTrue(marks(a).isEmpty());
+                touch(editor,MotionEvent.ACTION_UP,.5f,.5f);assertTrue(marks(a).isEmpty());
                 rectangle(a,.2f,.2f,.5f,.5f);assertEquals(1,marks(a).size());
             });
         }finally{file.delete();}

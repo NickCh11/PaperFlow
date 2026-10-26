@@ -72,6 +72,42 @@ public class SignaturePageChoicesTest {
     }
 
     View preview(){return description(activity.getWindow().getDecorView(),context.getString(R.string.ui_signature_page_preview_drag_to_position_use_corner_handles_to_resize_rotate));}
+    @Test public void signatureSurfacesSupportAccessibilityClicksAndIgnoreCancelledTouches(){
+        awaitScreen();int[] placementClicks={0},drawingClicks={0};
+        main(()->{
+            View view=preview();assertNotNull(view);view.setOnClickListener(v->placementClicks[0]++);
+            touch(view,MotionEvent.ACTION_DOWN,0,0);touch(view,MotionEvent.ACTION_UP,0,0);assertEquals(1,placementClicks[0]);
+            touch(view,MotionEvent.ACTION_DOWN,0,0);touch(view,MotionEvent.ACTION_CANCEL,0,0);assertEquals(1,placementClicks[0]);
+            assertTrue(view.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK,null));
+            assertEquals(2,placementClicks[0]);assertTrue(session.marks.isEmpty());return null;
+        });
+        drawMode();
+        main(()->{
+            View pad=description(activity.getWindow().getDecorView(),context.getString(R.string.ui_signature_drawing_area));assertNotNull(pad);
+            pad.setOnClickListener(v->drawingClicks[0]++);
+            touch(pad,MotionEvent.ACTION_DOWN,40,40);touch(pad,MotionEvent.ACTION_UP,80,60);assertEquals(1,drawingClicks[0]);
+            touch(pad,MotionEvent.ACTION_DOWN,50,50);touch(pad,MotionEvent.ACTION_CANCEL,70,70);assertEquals(1,drawingClicks[0]);
+            int strokes=session.strokes.size();assertTrue(pad.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK,null));
+            assertEquals(2,drawingClicks[0]);assertEquals(strokes,session.strokes.size());assertTrue(session.marks.isEmpty());return null;
+        });
+        click(R.string.ui_cancel);assertTrue(session.marks.isEmpty());
+    }
+
+    @Test public void repeatedPreviewFramesKeepRotatedSharedMarksAndSelectionStable(){
+        addDate();awaitScreen();
+        main(()->{
+            SignatureEditorActivity.Mark first=session.marks.get(0);first.angle=270;first.width=.2f;first.x=.15f;first.y=.15f;
+            SignatureEditorActivity.Mark second=new SignatureEditorActivity.Mark(first.file,0,first.bitmap);second.angle=90;second.width=.2f;second.x=.6f;second.y=.5f;session.marks.add(second);session.selected=1;
+            View view=preview();assertTrue(view.getWidth()>0&&view.getHeight()>0);
+            Bitmap expected=Bitmap.createBitmap(view.getWidth(),view.getHeight(),Bitmap.Config.ARGB_8888),frame=Bitmap.createBitmap(view.getWidth(),view.getHeight(),Bitmap.Config.ARGB_8888);
+            try{
+                view.draw(new Canvas(expected));Canvas canvas=new Canvas(frame);
+                for(int i=0;i<20;i++){frame.eraseColor(Color.TRANSPARENT);view.draw(canvas);assertTrue("Preview changed on repeated draw "+i,expected.sameAs(frame));}
+                assertEquals(2,session.marks.size());assertEquals(1,session.selected);assertSame(first.bitmap,second.bitmap);assertFalse(first.bitmap.isRecycled());assertEquals(270,first.angle);assertEquals(90,second.angle);
+            }finally{expected.recycle();frame.recycle();}
+            return null;
+        });
+    }
     RectF paper(){View view=preview();float density=context.getResources().getDisplayMetrics().density;float fit=Math.min((view.getWidth()-Math.round(16*density))/(float)session.pageBitmap.getWidth(),(view.getHeight()-Math.round(12*density))/(float)session.pageBitmap.getHeight());float width=session.pageBitmap.getWidth()*fit;return new RectF((view.getWidth()-width)/2,Math.round(6*density),(view.getWidth()+width)/2,Math.round(6*density)+session.pageBitmap.getHeight()*fit);}
     void touch(View view,int action,float x,float y){long now=android.os.SystemClock.uptimeMillis();MotionEvent event=MotionEvent.obtain(now,now,action,x,y,0);try{assertTrue(view.dispatchTouchEvent(event));}finally{event.recycle();}}
     void edit(int item){main(()->{SignatureEditorActivity.Mark mark=session.marks.get(session.selected);RectF paper=paper();int count=session.marks.size();touch(preview(),MotionEvent.ACTION_DOWN,paper.left+(mark.x+mark.width)*paper.width(),paper.top+mark.y*paper.height());assertEquals("Tapping the edit handle must never delete a narrow mark",count,session.marks.size());return null;});inst.waitForIdleSync();choose(context.getString(item));}

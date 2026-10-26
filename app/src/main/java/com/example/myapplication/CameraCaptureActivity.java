@@ -38,7 +38,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
     private ActivityResultLauncher<String> permissionLauncher; private ActivityResultLauncher<String[]> galleryLauncher;
     private ActivityResultLauncher<Intent> bookReviewLauncher;
     private final java.util.concurrent.ExecutorService liveWorker=java.util.concurrent.Executors.newSingleThreadExecutor();
-    private ImageAnalysis liveAnalysis;private volatile int liveGeneration;private float[] previousLive;private int stableLive;private long lastLive;
+    private ImageAnalysis liveAnalysis;private final java.util.concurrent.atomic.AtomicInteger liveGeneration=new java.util.concurrent.atomic.AtomicInteger();private float[] previousLive;private int stableLive;private long lastLive;
     private boolean autoCapture,autoArmed=true,resumed;private long stableSince,missingSince,lastAuto;private float[] stableAnchor;private int[] capturedSignature,latestSignature;private boolean bookRearmedByChange;private final BookPageTracker bookTracker=new BookPageTracker();
     private final Handler handler=new Handler(Looper.getMainLooper()); private int countdown; private boolean timerPending;
     private final Runnable timerTick=new Runnable(){@Override public void run(){if(isFinishing()||isDestroyed())return;if(countdown>0){hint.setText(String.valueOf(countdown--));handler.postDelayed(this,1000);}else{timerPending=false;render();takePhoto();}}};
@@ -140,7 +140,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
         modeScroll.post(()->{for(int i=0;i<modeRow.getChildCount();i++){View child=modeRow.getChildAt(i);if(session.mode.equals(child.getTag())){modeScroll.smoothScrollTo(Math.max(0,child.getLeft()-(modeScroll.getWidth()-child.getWidth())/2),0);break;}}});
     }
     private String guideText(){if(!CaptureModes.detectsPaper(session.mode))return UiText.get(R.string.ui_photo_no_detection);switch(session.mode){case "ID Cards":return session.pages.isEmpty() ? UiText.get(R.string.ui_align_the_front_of_the_card_with_the_live_outline) : UiText.get(R.string.ui_turn_the_card_over_and_capture_the_back);case "Book":return session.bookDoublePage ? UiText.get(R.string.ui_align_the_spine_with_the_center_line_saves_two_pages) : UiText.get(R.string.ui_align_the_page_with_the_live_outline_saves_one_page);case "Whiteboard":return UiText.get(R.string.ui_align_the_board_with_the_live_outline);case "Slides":return UiText.get(R.string.ui_align_the_slide_with_the_live_outline);case "Timestamp":return UiText.get(R.string.ui_date_and_time_will_be_printed_on_the_image);case "Batch":return UiText.get(R.string.ui_scan_more_pages_then_tap_the_thumbnail_to_review);default:return "";}}
-    private void selectMode(String mode){if(session.busy||session.mode.equals(mode))return;if(!session.pages.isEmpty()){Toast.makeText(this,UiText.get(R.string.ui_review_or_undo_your_pages_before_changing_mode),Toast.LENGTH_SHORT).show();return;}session.mode=mode;liveGeneration++;previousLive=null;stableLive=0;guide.documentQuad=null;autoArmed=true;stableSince=0;
+    private void selectMode(String mode){if(session.busy||session.mode.equals(mode))return;if(!session.pages.isEmpty()){Toast.makeText(this,UiText.get(R.string.ui_review_or_undo_your_pages_before_changing_mode),Toast.LENGTH_SHORT).show();return;}session.mode=mode;liveGeneration.incrementAndGet();previousLive=null;stableLive=0;guide.documentQuad=null;autoArmed=true;stableSince=0;
         if("Book".equals(mode))session.restoreBookDraft();render();bindCamera();}
     private void bindCamera(){
         if(isFinishing()||isDestroyed()||binding)return;
@@ -151,10 +151,10 @@ public class CameraCaptureActivity extends BackHandlingActivity {
             Preview.Builder liveBuilder=new Preview.Builder();
             Preview live=liveBuilder.build();live.setSurfaceProvider(preview.getSurfaceProvider());ImageCapture.Builder builder=new ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).setResolutionSelector(resolution).setFlashMode(session.flash);
             if(preview.getDisplay()!=null)builder.setTargetRotation(preview.getDisplay().getRotation());imageCapture=builder.build();
-            liveGeneration++;previousLive=null;stableLive=0;guide.documentQuad=null;
+            liveGeneration.incrementAndGet();previousLive=null;stableLive=0;guide.documentQuad=null;
             if(liveAnalysis!=null)liveAnalysis.clearAnalyzer();
             liveAnalysis=new ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).setTargetResolution(new Size(640,480)).build();
-            final int generation=liveGeneration;if(CaptureModes.detectsPaper(session.mode))liveAnalysis.setAnalyzer(liveWorker,image->analyzeLive(image,generation));
+            final int generation=liveGeneration.get();if(CaptureModes.detectsPaper(session.mode))liveAnalysis.setAnalyzer(liveWorker,image->analyzeLive(image,generation));
             UseCaseGroup.Builder groupBuilder=new UseCaseGroup.Builder().setViewPort(preview.getViewPort()).addUseCase(live).addUseCase(imageCapture);
             if(CaptureModes.detectsPaper(session.mode))groupBuilder.addUseCase(liveAnalysis);UseCaseGroup group=groupBuilder.build();
             provider.unbindAll();camera=provider.bindToLifecycle(this,CameraSelector.DEFAULT_BACK_CAMERA,group);applyFlashMode();ready=true;render();
@@ -163,7 +163,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
     private void analyzeLive(ImageProxy image,int generation){
         Bitmap bitmap=null;
         try{
-            if(!CaptureModes.detectsPaper(session.mode)||session.busy||generation!=liveGeneration||SystemClock.elapsedRealtime()-lastLive<120)return;
+            if(!CaptureModes.detectsPaper(session.mode)||session.busy||generation!=liveGeneration.get()||SystemClock.elapsedRealtime()-lastLive<120)return;
             lastLive=SystemClock.elapsedRealtime();bitmap=image.toBitmap();Rect crop=image.getCropRect();
             if(crop.width()!=bitmap.getWidth()||crop.height()!=bitmap.getHeight()){Bitmap clipped=Bitmap.createBitmap(bitmap,crop.left,crop.top,crop.width(),crop.height());if(clipped!=bitmap)bitmap.recycle();bitmap=clipped;}
             int rotation=image.getImageInfo().getRotationDegrees();if(rotation!=0){Matrix matrix=new Matrix();matrix.postRotate(rotation);Bitmap turned=Bitmap.createBitmap(bitmap,0,0,bitmap.getWidth(),bitmap.getHeight(),matrix,true);if(turned!=bitmap)bitmap.recycle();bitmap=turned;}
@@ -172,8 +172,8 @@ public class CameraCaptureActivity extends BackHandlingActivity {
             stableLive=quad==null?0:previousLive!=null&&difference<20f/640?stableLive+1:1;previousLive=quad;
             final float[] visible=stableLive>=3?quad:null;
             int[] signature="Book".equals(session.mode)?BookPageTracker.frame(bitmap,quad):signature(bitmap);
-            runOnUiThread(()->{if(generation==liveGeneration&&CaptureModes.detectsPaper(session.mode)&&!isFinishing()){guide.documentQuad=visible;guide.imageRatio=ratio;guide.invalidate();considerAutoCapture(quad,signature);}});
-        }catch(Exception|LinkageError error){runOnUiThread(()->{if(generation==liveGeneration){guide.documentQuad=null;guide.invalidate();}});}
+            runOnUiThread(()->{if(generation==liveGeneration.get()&&CaptureModes.detectsPaper(session.mode)&&!isFinishing()){guide.documentQuad=visible;guide.imageRatio=ratio;guide.invalidate();considerAutoCapture(quad,signature);}});
+        }catch(Exception|LinkageError error){runOnUiThread(()->{if(generation==liveGeneration.get()){guide.documentQuad=null;guide.invalidate();}});}
         finally{if(bitmap!=null&&!bitmap.isRecycled())bitmap.recycle();image.close();}
     }
     private int[] signature(Bitmap image){int[] values=new int[64];for(int y=0;y<8;y++)for(int x=0;x<8;x++){int pixel=image.getPixel((x*2+1)*image.getWidth()/16,(y*2+1)*image.getHeight()/16);values[y*8+x]=(Color.red(pixel)*3+Color.green(pixel)*6+Color.blue(pixel))/10;}return values;}
@@ -218,7 +218,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
     @Override public void handleBackPressed(){if(session.busy)Toast.makeText(this,UiText.get(R.string.ui_please_wait_for_the_page_to_finish),Toast.LENGTH_SHORT).show();else cancel();}
     @Override protected void onSaveInstanceState(Bundle state){state.putStringArrayList("pages",new ArrayList<>(session.pages));state.putString("mode",session.mode);state.putString("translation_source",translationSource);state.putString("translation_target",translationTarget);state.putBoolean("hd",session.hd);state.putBoolean("grid",session.grid);state.putInt("flash",session.flash);state.putInt("timer",session.timer);state.putBoolean("book_double_page",session.bookDoublePage);super.onSaveInstanceState(state);}
     @Override protected void onStop(){resumed=false;stableSince=0;if(timerPending){handler.removeCallbacks(timerTick);timerPending=false;countdown=0;session.busy=false;session.notifyChange();}super.onStop();}
-    @Override protected void onDestroy(){handler.removeCallbacks(timerTick);if(timerPending){timerPending=false;session.busy=false;session.notifyChange();}liveGeneration++;if(liveAnalysis!=null)liveAnalysis.clearAnalyzer();liveWorker.shutdown();super.onDestroy();}
+    @Override protected void onDestroy(){handler.removeCallbacks(timerTick);if(timerPending){timerPending=false;session.busy=false;session.notifyChange();}liveGeneration.incrementAndGet();if(liveAnalysis!=null)liveAnalysis.clearAnalyzer();liveWorker.shutdown();super.onDestroy();}
     private void focus(float x,float y,boolean manual){
         if(camera==null)return;long focusTime=SystemClock.elapsedRealtime();
         try{

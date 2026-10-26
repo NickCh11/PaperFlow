@@ -7,7 +7,6 @@
     <string name="ui_translation_previous_page">Previous page</string>
     <string name="ui_translation_next_page">Next page</string>
     <string name="ui_ocr_pdf_intro">Convert a scanned PDF into a searchable PDF with text you can select and copy. Only the pages you choose are processed.</string>
-    <string name="ui_translation_pages_help">Swipe left or right to preview pages. PDF exports contain every page; image exports save or share every translated image.</string>
     <string name="ui_translation_images">Images (all pages)</string>
     <string name="ui_translation_page_progress">Translating page %1$d of %2$d…</string>
     <string name="ui_translation_saved_images">All translated images were saved.</string>

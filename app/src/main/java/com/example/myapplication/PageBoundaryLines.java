@@ -6,7 +6,11 @@ import java.util.*;
 
 /** Recovers a page from independent straight edges when shadows/objects break its contour. */
 final class PageBoundaryLines {
-    private static final ThreadLocal<LineSegmentDetector> DETECTOR=ThreadLocal.withInitial(()->Imgproc.createLineSegmentDetector(Imgproc.LSD_REFINE_STD));
+    private static LineSegmentDetector detector;
+    private static synchronized void detectSegments(Mat image,Mat segments){
+        if(detector==null)detector=Imgproc.createLineSegmentDetector(Imgproc.LSD_REFINE_STD);
+        detector.detect(image,segments);
+    }
     static final class Line {
         double x,y,u,v,a,b,c,length,angle,rank;
         Line(double[] p,byte[] gray,int w,int h){x=p[0];y=p[1];u=p[2];v=p[3];double dx=u-x,dy=v-y;length=Math.hypot(dx,dy);a=-dy/length;b=dx/length;c=-a*x-b*y;angle=Math.atan2(dy,dx);if(angle<0)angle+=Math.PI;
@@ -16,8 +20,8 @@ final class PageBoundaryLines {
         return candidates(image,gray,.65);
     }
     static List<float[]> candidates(Mat image,byte[] gray,double supportFraction){
-        int w=image.cols(),h=image.rows();Mat segments=new Mat();LineSegmentDetector detector=DETECTOR.get();ArrayList<Line> lines=new ArrayList<>();
-        try{detector.detect(image,segments);for(int i=0;i<segments.rows();i++){double[] p=segments.get(i,0);if(Math.hypot(p[2]-p[0],p[3]-p[1])<Math.min(w,h)*.10)continue;lines.add(new Line(p,gray,w,h));}}finally{segments.release();}
+        int w=image.cols(),h=image.rows();Mat segments=new Mat();ArrayList<Line> lines=new ArrayList<>();
+        try{detectSegments(image,segments);for(int i=0;i<segments.rows();i++){double[] p=segments.get(i,0);if(Math.hypot(p[2]-p[0],p[3]-p[1])<Math.min(w,h)*.10)continue;lines.add(new Line(p,gray,w,h));}}finally{segments.release();}
         lines.sort((a,b)->Double.compare(b.rank,a.rank));if(lines.size()>60)lines.subList(60,lines.size()).clear();
         ArrayList<Double> directions=new ArrayList<>();for(Line line:lines){double angle=line.angle%(Math.PI/2);boolean duplicate=false;for(double d:directions)if(axisDistance(angle,d)<Math.toRadians(20)){duplicate=true;break;}if(!duplicate)directions.add(angle);if(directions.size()>=3)break;}
         ArrayList<float[]> result=new ArrayList<>();
