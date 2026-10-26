@@ -2,14 +2,14 @@ name: Android PR checks
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, labeled]
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, labeled]
   push:
     branches: [main, master, feature/offline-translator]
   merge_group:
   workflow_dispatch:
     inputs:
       full_validation:
-        description: Run both emulators, native tests and all release APK variants
+        description: Run full validation (always enabled for ready PRs)
         type: boolean
         default: true
 
@@ -288,7 +288,8 @@ jobs:
     secrets: inherit
 
   pr-gate:
-    name: PR gate
+    # Draft/manual fast success must not satisfy the protected merge gate.
+    name: ${{ needs.plan.outputs.full == 'true' && 'PR gate' || 'Draft / fast checks' }}
     if: ${{ !cancelled() && needs.plan.result != 'skipped' }}
     needs: [plan, checks, build, device-tests, language-runtime, sonar]
     runs-on: ubuntu-24.04
@@ -313,5 +314,5 @@ jobs:
             test "$DEVICES" = success
             echo 'Full validation completed for this revision.' >> "$GITHUB_STEP_SUMMARY"
           else
-            echo 'Fast checks only. Full device/ABI acceptance has not been performed. Request full validation before release.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Fast checks only (draft PR or manual branch run). Mark the PR Ready for review to run full validation automatically; the full-validation label can also request it for a draft.' >> "$GITHUB_STEP_SUMMARY"
           fi

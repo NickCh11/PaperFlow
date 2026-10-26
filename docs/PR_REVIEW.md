@@ -107,12 +107,22 @@ The Sonar way quality gate, including 80% coverage on new code, is unchanged.
 
 ## Controlling Actions consumption
 
-Normal PR updates run Python/JVM tests, Android Lint and Sonar. They do not rebuild
-all native engines, create release APKs or start two emulators. Add the
-`full-validation` label to request the full matrix for the current PR revision,
-or dispatch Android PR checks with `full_validation=true`. Subsequent PR pushes
-return to fast checks; remove/reapply the label or dispatch again for a new final
-revision. Manual runs discover an open PR so Sonar analyzes its actual PR context.
+Draft PR updates run Python/JVM tests, Android Lint and Sonar without the native,
+release and emulator matrix. Opening a ready PR or marking a draft **Ready for
+review** starts full validation automatically. Every subsequent push or reopen
+of a ready PR also runs the full matrix. Converting it back to a draft cancels
+the superseded run and returns to fast checks; a draft cannot be merged.
+
+The `full-validation` label remains an optional request for a full run, including
+on drafts. An old attached label does not force future draft pushes to be full;
+remove/reapply it for another manual request. Unrelated labels do not cancel
+validation. Manual dispatch discovers the open PR so Sonar uses its actual PR
+context, and always runs full validation for a ready PR even if fast mode was
+selected. Fast manual mode remains available for drafts and branches without a
+PR. Only a full run emits the required `PR gate` check; fast runs emit
+`Draft / fast checks`, so a green draft result cannot satisfy the merge gate
+after the PR becomes ready. Maintainer approval and required checks still
+control merging.
 
 Main/master pushes and merge-queue runs require the full matrix. Releases verify
 successful emulator, native, APK and Sonar jobs on the **exact main commit**; a

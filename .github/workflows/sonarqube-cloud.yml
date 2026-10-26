@@ -106,7 +106,7 @@ jobs:
           DEVICE_COVERAGE: ${{ inputs.device-coverage }}
         run: |
           if [ "$DEVICE_COVERAGE" != true ]; then
-            echo 'Fast PR analysis imports JVM coverage only. Device/native coverage is not implied. Request full validation to add this revision’s device coverage.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Fast draft/branch analysis imports JVM coverage only. Ready PRs run full validation automatically; the full-validation label can also request device/native coverage for a draft.' >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Verify JVM test reports
         run: |
