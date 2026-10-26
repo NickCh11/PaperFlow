@@ -137,6 +137,13 @@ model link checks remain; full model downloads are manual. Reports/native
 artifacts expire after three days; release APK inputs remain available for seven.
 The account's existing Actions $0 hard budget was verified, not duplicated.
 
+LLVM can emit a source branch once per generic Rust instantiation. Native
+coverage unions actual hits for identical source ranges and expansion metadata,
+without counting those instantiations as extra source branches. Conflicting
+expansion mappings, duplicate source-file records, owned profile mismatches and
+unexplained LLVM diagnostics still fail the export. This is verified against
+the real archived font-provider exports as well as regression fixtures.
+
 ## Whole-project coverage target
 
 The requested target is **100% of executable production lines and branches across

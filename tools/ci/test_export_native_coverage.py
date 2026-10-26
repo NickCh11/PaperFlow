@@ -60,13 +60,42 @@ class NativeExportTest(unittest.TestCase):
         self.assertIn("BRDA:11,0,1,0", output)
         self.assertIn("LF:2\nLH:1\nBRF:2\nBRH:1", output)
 
-    def test_missing_owned_sources_and_duplicate_regions_cannot_pass(self):
+    def test_missing_owned_sources_and_duplicate_file_mappings_cannot_pass(self):
         lcov = f"SF:{self.source}\nDA:10,1\nend_of_record\n"
         branch = [10, 1, 10, 5, 1, 0, 0, 0, 4]
         with self.assertRaises(ValueError):
             combine([(lcov, self.metadata([branch]))], {self.source, "translation/native/src/other.rs"})
-        with self.assertRaises(ValueError):
-            combine([(lcov, self.metadata([branch, branch]))], {self.source})
+        metadata = self.metadata([branch])
+        metadata["data"][0]["files"] *= 2
+        with self.assertRaisesRegex(ValueError, "Duplicate native source"):
+            combine([(lcov, metadata)], {self.source})
+
+    def test_generic_instantiations_union_real_source_hits_without_extra_branches(self):
+        # Actual LLVM records from the failed Android font-provider export:
+        # one source condition repeated for five resolver instantiations.
+        branches = [[362, 31, 362, 35, true, false, 0, 0, 4]
+                    for true, false in [(0, 1), (1, 0), (0, 1), (52, 52), (0, 27)]]
+        output = combine([(f"SF:{self.source}\nDA:362,52\nend_of_record\n", self.metadata(branches))], {self.source})
+        self.assertIn("BRF:2\nBRH:2", output)
+        self.assertEqual(2, output.count("BRDA:"))
+        self.assertIn("BRDA:362,0,0,52", output)
+        self.assertIn("BRDA:362,0,1,52", output)
+        self.assertEqual(output, combine([(f"SF:{self.source}\nDA:362,52\nend_of_record\n",
+                                          self.metadata(list(reversed(branches))))], {self.source}))
+
+    def test_unexecuted_generic_instantiations_never_gain_coverage(self):
+        branch = [10, 1, 10, 5, 0, 0, 0, 0, 4]
+        output = combine([(f"SF:{self.source}\nDA:10,0\nend_of_record\n", self.metadata([branch, branch]))], {self.source})
+        self.assertIn("LF:1\nLH:0\nBRF:2\nBRH:0", output)
+
+    def test_conflicting_generic_expansion_ids_cannot_be_folded(self):
+        first = [10, 1, 10, 5, 1, 0, 0, 0, 4]
+        for field in (6, 7):
+            conflicting = list(first)
+            conflicting[field] = 1
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "Ambiguous native branch"):
+                combine([(f"SF:{self.source}\nDA:10,1\nend_of_record\n",
+                          self.metadata([first, conflicting]))], {self.source})
 
     def test_invalid_branch_ranges_and_counts_are_rejected(self):
         lcov = f"SF:{self.source}\nDA:10,1\nend_of_record\n"

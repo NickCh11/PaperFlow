@@ -61,12 +61,16 @@ def combine(exports, sources):
                 current["lines"][location] = max(current["lines"].get(location, 0), count)
         if metadata.get("type") != "llvm.coverage.json.export":
             raise ValueError("Not LLVM source coverage metadata")
-        seen = set()
+        seen_files = set()
         for data in metadata["data"]:
             for file in data["files"]:
                 source = owned_path(file["filename"], sources)
                 if source is None:
                     continue
+                if source in seen_files:
+                    raise ValueError("Duplicate native source file mapping")
+                seen_files.add(source)
+                branch_mappings = {}
                 for branch in file["branches"]:
                     if len(branch) != 9 or any(type(value) is not int or value < 0 for value in branch):
                         raise ValueError("Invalid native branch source coordinates or counters")
@@ -74,9 +78,13 @@ def combine(exports, sources):
                     if min(start_line, start_column, end_line, end_column) < 1 or (end_line, end_column) < (start_line, start_column):
                         raise ValueError("Invalid native branch source range")
                     key = (start_line, start_column, end_line, end_column, kind)
-                    if (source, key) in seen:
-                        raise ValueError("Duplicate native branch source range; cannot safely combine it")
-                    seen.add((source, key))
+                    mapping = tuple(branch[6:8])
+                    if key in branch_mappings and branch_mappings[key] != mapping:
+                        raise ValueError("Ambiguous native branch expansion mapping")
+                    branch_mappings[key] = mapping
+                    # LLVM repeats generic source branches for each concrete
+                    # instantiation. Union their real side hits at this source
+                    # location, just as we do between app and unit objects.
                     before = files[source]["branches"].get(key, (0, 0))
                     files[source]["branches"][key] = (max(before[0], true), max(before[1], false))
     rows = []
