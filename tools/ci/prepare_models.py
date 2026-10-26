@@ -171,7 +171,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--cache", type=Path, default=ROOT / "build/ci-models")
     parser.add_argument("--install", action="store_true")
-    parser.add_argument("--all-ocr", action="store_true", help="Seed every downloadable OCR script for language detection tests")
+    parser.add_argument("--all-ocr", action="store_true", help="Fetch every OCR script for optional manual diagnostics")
     parser.add_argument("--serial", default=os.environ.get("ANDROID_SERIAL"))
     sdk = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT", "")
     parser.add_argument("--adb", default=shutil.which("adb") or str(Path(sdk) / "platform-tools" / ("adb.exe" if os.name == "nt" else "adb")))

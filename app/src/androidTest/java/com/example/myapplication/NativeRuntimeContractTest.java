@@ -20,6 +20,22 @@ public class NativeRuntimeContractTest {
     private JSONObject invoke(JSONObject request)throws Exception{return new JSONObject(RuntimeNative.call(request.toString()));}
     private Set<String> codes(JSONArray rows)throws Exception{Set<String> result=new HashSet<>();for(int i=0;i<rows.length();i++)result.add(rows.getJSONObject(i).getString("code"));return result;}
 
+    @Test public void flatImageDetectionKeepsBlankPagesOutOfRecognizerFallback()throws Exception{
+        java.lang.reflect.Method uniform=OfflineRuntime.class.getDeclaredMethod("uniformImage",android.graphics.Bitmap.class);uniform.setAccessible(true);
+        for(int[] size:new int[][]{{1,1},{64,64},{65,17}}){
+            android.graphics.Bitmap image=android.graphics.Bitmap.createBitmap(size[0],size[1],android.graphics.Bitmap.Config.ARGB_8888);
+            try{
+                image.eraseColor(android.graphics.Color.WHITE);assertEquals(true,uniform.invoke(null,image));
+                image.eraseColor(android.graphics.Color.BLACK);assertEquals(true,uniform.invoke(null,image));
+                if(size[0]>1){
+                    image.eraseColor(android.graphics.Color.WHITE);
+                    image.setPixel(0,0,android.graphics.Color.rgb(247,247,247));assertEquals("Small background variation stays flat",true,uniform.invoke(null,image));
+                    image.setPixel(0,0,android.graphics.Color.rgb(246,246,246));assertEquals("Visible contrast must allow recognition",false,uniform.invoke(null,image));
+                }
+            }finally{image.recycle();}
+        }
+    }
+
     @Test public void malformedAndUnknownRequestsFailWithoutDamagingTheSession()throws Exception{
         Set<String> before=codes(new JSONArray(RuntimeNative.call(request("languages").toString())));
         for(String raw:new String[]{"{broken","null","[]","{}","{\"operation\":17}","{\"operation\":\"not-supported\"}"})assertThrows(IOException.class,()->RuntimeNative.call(raw));

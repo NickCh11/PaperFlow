@@ -137,6 +137,15 @@ model link checks remain; full model downloads are manual. Reports/native
 artifacts expire after three days; release APK inputs remain available for seven.
 The account's existing Actions $0 hard budget was verified, not duplicated.
 
+At the owner's request, automatic validation no longer benchmarks the accuracy
+of the third-party OCR/language models across an exhaustive language corpus.
+Only the English/Greek integration packs are seeded. Real offline OCR, source
+language/error propagation, searchable PDF and Word outputs, translation session
+behavior, downloads, corruption and cancellation remain tested. App-owned script
+routing uses deterministic JVM boundary checks. Both emulator jobs still require
+the entire remaining source test suite, and Sonar imports fresh coverage from
+both jobs. No coverage exclusions or quality-gate thresholds were changed.
+
 LLVM can emit a source branch once per generic Rust instantiation. Native
 coverage unions actual hits for identical source ranges and expansion metadata,
 without counting those instantiations as extra source branches. Conflicting

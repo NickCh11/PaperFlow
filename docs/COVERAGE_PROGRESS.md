@@ -5,6 +5,49 @@ all Java/Kotlin modules and the owned Rust runtime. The target is not reached.
 Tests, generated code and dependencies are outside the production report;
 production files have not been excluded to raise the percentage.
 
+## Focus on app integration rather than upstream model benchmarks, 26 October 2026
+
+At the owner's request, remove the exhaustive upstream language-detection corpus
+(catalogue/image/text accuracy checks) and the OCR word-error-rate benchmark.
+The photo auto-detection integration now uses three representative app-boundary
+cases instead of ten. The PDF test compares recognized text with exported text
+and verifies unchanged page rendering and blank-page handling; it no longer
+scores the model against a linguistic ground-truth corpus or repeats raw inference
+only for diagnostic JSON.
+
+The remaining complete suite has **325 device tests**, required on **both** APIs;
+no profile-specific skips were introduced. Real OCR/translation sessions, original
+image coordinates, local Word/PDF output, downloads, integrity, cancellation and
+permissions remain covered. App-owned script recovery uses deterministic JVM
+boundary assertions. Production code, Sonar scope and quality-gate thresholds
+are unchanged.
+
+CI now seeds only the English/Greek integration packs: **15 files / 53,036,549
+bytes**, versus the previous all-script **39 files / 87,399,959 bytes**. The
+optional `--all-ocr` installer remains available for manual diagnostics. The
+327-case measurements below describe the preceding suite.
+
+Validation of the reduced suite:
+
+- Fresh complete **324/324 runs on both API 29 and API 37** before adding the
+  small flat-image contract. Summed test durations: **248.676s / 351.856s**;
+  the combined Gradle invocation completed in 6m 9s. Both use the minimal packs.
+- The final native-adapter contract class then passed **7/7 on both APIs**,
+  including the new flat-image case, in **0.096s / 0.317s**. Combined reports
+  account for **325 distinct source cases per API** (662 executions across both
+  devices, including 12 repeated contract cases); strict completeness passes.
+  This is not a fresh single 325-case run.
+- **104 JVM tests**, Android Lint, **82 CI-tooling tests** and workflow lint pass.
+- Fresh Java/Kotlin profiles from only the reduced suite and JVM tests cover
+  **7,095/7,866 lines (90.20%)** and **6,967/11,891 branch sides (58.59%)**.
+  Compared with the preceding accumulated 327-case report, that is **+23 covered
+  lines and +17 branch sides**, with no previously covered source line lost.
+  App: 5,142/5,816 lines; scanengine: 1,412/1,412; translation: 541/638.
+- Script-routing and flat-image rules are tested with Unicode characters and
+  synthetic pixels, without inference. Rust sources are unchanged; fresh native
+  coverage and the actual Sonar gate must be verified by the new CI run. No
+  historical native profile is mixed into this local Java/Kotlin measurement.
+
 ## Main-screen Word security and settings, 26 October 2026
 
 Twenty-two permanent tests were added: thirteen MainActivity Word workflows,
