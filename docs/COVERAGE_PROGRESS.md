@@ -5,6 +5,32 @@ all Java/Kotlin modules and the owned Rust runtime. The target is not reached.
 Tests, generated code and dependencies are outside the production report;
 production files have not been excluded to raise the percentage.
 
+## PDF tool exports and remaining API 37 dialog race, 26 October 2026
+
+Twenty-five new permanent device tests inspect actual PDF, ZIP and image output:
+selected-page extraction, page order, password validation and removal, encrypted
+merge, restrictive source permissions, failed/cancelled imports, lossless and JPEG
+archives, compression fallback, watermark editing/style/removal, recreation,
+result navigation, byte-exact device save, sharing, registration provenance and
+back/cancellation handling. Fixture files, preferences and worker threads are
+cleaned up after each test. No production source was changed in this batch.
+
+The OCR PDF tests execute the embedded PaddleOCR/MNN runtime. They verify a
+selected-page export that preserves existing text, and queued cancellation that
+leaves no partial PDF. The selected-page OCR test also passes on API 37 with both
+Wi-Fi and mobile data disabled before instrumentation (4.717s).
+
+The prior CI revision `969f0c3` passed API 29, all ABI/debug/release builds and
+Sonar. API 37 reported one premature reader-dialog lookup: the test observed a
+button before the dialog had window focus. Reader waits now require the expected
+button in the focused dialog before accessing its text. Assertions are retained.
+
+The 25 new tests and 12 reader tests pass together on API 29 and API 37 at 640px
+width, density 320, 130% font scale and with window animations enabled: **37/37**
+on each API (33.967s and 78.305s). The focused reader suite also passes **12/12**
+on the default API 37 layout. Full matrix verification of this update belongs to
+the next CI run; the previous failed API 37 run is not described as passing.
+
 ## Signing and reader regressions, 26 October 2026
 
 Two signing bugs were reproduced with failing device tests before being fixed:
@@ -38,25 +64,25 @@ last case allows a documented 5% page-height tolerance for fitted corners.
 
 ## Measurement
 
-- Full local API 29 / 2 GiB production run: **280/280 tests pass**, no failures or skips, 12m 4s. Source-to-JUnit completeness passes.
-- After the final test synchronization changes, **43/43 follow-up tests pass** with animations enabled, 640px width and 130% font scaling (30.475s). No assertions were removed.
-- **103 JVM tests** pass (61 app, 25 scanengine, 17 translation); Android Lint passes.
-- The preceding GitHub run at `1b61305` failed on six premature dialog lookups across API 29/37. Its native coverage export then correctly failed because a failed device suite had not collected application profiles. The test helpers now wait for focused, attached dialogs, visible list rows and completed drawing-screen orientation changes. Final API 37 verification remains with the next CI run.
+- **305 distinct passing device tests** are accounted for by the previous complete 280-test API 29 run plus the 25-test export batch. Source-to-JUnit completeness passes over these separate reports. This is not a fresh full 305-test local run.
+- Current focused checks: **37/37 on API 29 and 37/37 on API 37**, both with animations and the compact/large-font layout; **12/12 reader tests** also pass on the default API 37 layout.
+- The unchanged **103 JVM tests** remain passing (61 app, 25 scanengine, 17 translation); current Android Lint passes.
+- Earlier full local baseline: **280/280**, none failed/skipped, 12m 4s, followed by the previous 43-test synchronization check. The latest coverage union includes only passing profiles whose production class IDs match the current code.
 
 | Scope | Executable lines | Branches |
 | --- | ---: | ---: |
-| app | 5000/5816 (85.97%) | 5791/10972 (52.78%) |
+| app | 5087/5816 (87.47%) | 6068/10972 (55.30%) |
 | scanengine | 1412/1412 (100.00%) | 396/423 (93.62%) |
-| translation | 530/638 (83.07%) | 353/496 (71.17%) |
-| JVM/Android total | 6942/7866 (88.25%) | 6540/11891 (55.00%) |
+| translation | 539/638 (84.48%) | 363/496 (73.19%) |
+| JVM/Android total | 7038/7866 (89.47%) | 6827/11891 (57.41%) |
 | Owned Rust | 686/837 (81.96%) | 171/256 (66.80%) |
 
-Compared with the previous local measurement, 59 more executable lines and 98 more
-branch sides are covered. The PDF viewer now reaches **200/200 executable lines**
-(100%) and 246/343 branch sides (71.72%); it does not have 100% branch coverage.
-Rust sources did not change in this batch, so its real native measurement remains
-valid and unchanged. Overall **100% is not reached**. Failed or incomplete runs
-are not imported.
+Compared with `969f0c3`, **96 more executable lines and 287 more branch sides**
+are covered. ToolWorkflowActivity now covers 424/451 executable lines (94.01%),
+with 27 remaining, down from 114. The PDF viewer retains
+**200/200 executable lines** (100%) and 246/343 branch sides
+(71.72%). Owned Rust sources did not change; its real measurement is unchanged.
+Overall **100% is not reached**. Failed or incomplete execution data is not imported.
 
 The repository's whole-project checker reports line and branch counters for each
 module, checks the owned native sources separately, and returns a failing result

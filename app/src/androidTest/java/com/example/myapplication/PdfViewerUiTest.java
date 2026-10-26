@@ -55,6 +55,7 @@ public class PdfViewerUiTest {
     View focusedDialog(){List<View> roots=android.view.inspector.WindowInspector.getGlobalWindowViews();for(int i=roots.size()-1;i>=0;i--){View root=roots.get(i);if(root!=activity.getWindow().getDecorView()&&root.hasWindowFocus()&&root.isShown())return root;}return null;}
     View dialog(){View root=focusedDialog();assertNotNull("No reader dialog",root);return root;}
     boolean zoomReady(){View root=focusedDialog();View view=root==null?null:zoom(root);return view!=null&&view.getWidth()>0&&field(view,"bitmap")!=null;}
+    void awaitDialogButton(int id,int label){UiTestWait.until(()->{View root=focusedDialog();Button button=root==null?null:root.findViewById(id);return button!=null&&button.isShown()&&button.isEnabled()&&UiText.get(label).contentEquals(button.getText());},"Reader dialog did not attach and receive focus");}
     <T extends View>T find(View root,Class<T> type){if(type.isInstance(root))return type.cast(root);if(root instanceof ViewGroup)for(int i=0;i<((ViewGroup)root).getChildCount();i++){T found=find(((ViewGroup)root).getChildAt(i),type);if(found!=null)return found;}return null;}
     View zoom(View root){if(root.getClass().getSimpleName().equals("ZoomImage"))return root;if(root instanceof ViewGroup)for(int i=0;i<((ViewGroup)root).getChildCount();i++){View found=zoom(((ViewGroup)root).getChildAt(i));if(found!=null)return found;}return null;}
     void button(int id){UiTestWait.until(()->{View root=focusedDialog();View button=root==null?null:root.findViewById(id);return button!=null&&button.isShown()&&button.isEnabled();},"Reader dialog button did not attach");main(()->{Button button=dialog().findViewById(id);assertNotNull(button);assertTrue(button.performClick());return null;});inst.waitForIdleSync();}
@@ -74,7 +75,7 @@ public class PdfViewerUiTest {
         Bitmap zoomed=main(()->(Bitmap)field(zoom(dialog()),"bitmap"));assertFalse(zoomed.isRecycled());button(android.R.id.button1);assertTrue(zoomed.isRecycled());assertEquals(1,main(()->(Integer)field(activity,"currentPage")).intValue());
     }
     @Test public void pageTextCanBeCopiedThroughTheReaderMenu()throws Exception{
-        open(false);menu("Select text");UiTestWait.until(()->{for(View root:android.view.inspector.WindowInspector.getGlobalWindowViews()){Button button=root.findViewById(android.R.id.button1);if(button!=null&&UiText.get(R.string.ui_copy_page_text).contentEquals(button.getText()))return true;}return false;},"Page text did not appear");
+        open(false);menu("Select text");awaitDialogButton(android.R.id.button1,R.string.ui_copy_page_text);
         main(()->{TextView text=find(find(dialog(),ScrollView.class),TextView.class);assertNotNull(text);assertTrue(text.isTextSelectable());assertEquals("Reader UI page 1",text.getText().toString());return null;});button(android.R.id.button1);
         assertEquals("Reader UI page 1",main(()->((ClipboardManager)context.getSystemService(Context.CLIPBOARD_SERVICE)).getPrimaryClip().getItemAt(0).getText().toString()));
     }
@@ -90,12 +91,12 @@ public class PdfViewerUiTest {
         });button(android.R.id.button1);
     }
     @Test public void pageTextTranslationPassesTheSelectedTextAndSourceDocument()throws Exception{
-        open(false);menu("Select text");UiTestWait.until(()->{for(View root:android.view.inspector.WindowInspector.getGlobalWindowViews()){Button button=root.findViewById(android.R.id.button3);if(button!=null&&UiText.get(R.string.ui_translate).contentEquals(button.getText()))return true;}return false;},"Page text translation did not appear");button(android.R.id.button3);
+        open(false);menu("Select text");awaitDialogButton(android.R.id.button3,R.string.ui_translate);button(android.R.id.button3);
         assertEquals(new ComponentName(context,TextTranslationActivity.class),last().getComponent());assertEquals(source.getPath(),last().getStringExtra("origin_path"));assertEquals("Reader UI page 1",new String(Files.readAllBytes(new File(last().getStringExtra("text_path")).toPath()),java.nio.charset.StandardCharsets.UTF_8));
         main(()->{activity.translateSelection("Selected words only");return null;});assertEquals(2,outgoing.size());assertEquals(new ComponentName(context,TextTranslationActivity.class),last().getComponent());assertEquals(source.getPath(),last().getStringExtra("origin_path"));assertEquals("Selected words only",new String(Files.readAllBytes(new File(last().getStringExtra("text_path")).toPath()),java.nio.charset.StandardCharsets.UTF_8));
     }
     @Test public void scannedPageOffersTheExistingOcrPdfTool()throws Exception{
-        open(true);menu("Select text");UiTestWait.until(()->{for(View root:android.view.inspector.WindowInspector.getGlobalWindowViews()){Button button=root.findViewById(android.R.id.button1);if(button!=null&&UiText.get(R.string.ui_ocr_pdf).contentEquals(button.getText()))return true;}return false;},"Scanned page did not offer OCR PDF");button(android.R.id.button1);
+        open(true);menu("Select text");awaitDialogButton(android.R.id.button1,R.string.ui_ocr_pdf);button(android.R.id.button1);
         assertEquals(new ComponentName(context,ToolWorkflowActivity.class),last().getComponent());assertEquals("OCR PDF",last().getStringExtra("operation"));assertEquals(source.getPath(),last().getStringExtra("path"));assertTrue(source.isFile());
     }
     @Test public void cancelledSavePickerKeepsTheOriginalDocument()throws Exception{
