@@ -12,6 +12,8 @@ import androidx.core.os.LocaleListCompat;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
+import androidx.test.runner.lifecycle.Stage;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import java.lang.reflect.*;
@@ -35,7 +37,7 @@ public class AppLanguageTest {
     }
 
     @After public void restore() {
-        if(scenario!=null){scenario.onActivity(a->AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(previousLocales)));InstrumentationRegistry.getInstrumentation().waitForIdleSync();scenario.close();}
+        if(scenario!=null){select(previousLocales,false);scenario.close();}
         context.getSharedPreferences("scan_defaults",0).edit().putBoolean("launch_camera",launchCamera).commit();
     }
 
@@ -60,13 +62,13 @@ public class AppLanguageTest {
         if(Build.VERSION.SDK_INT>=29)UiTestWait.until(()->{for(View window:android.view.inspector.WindowInspector.getGlobalWindowViews()){TextView choice=findText(window,UiText.get(R.string.app_language_system_default));if(choice!=null&&choice.isShown())return true;}return false;},"System default must be an actual visible choice");
         assertTrue(AppLanguage.supported(context).contains("en"));
         assertFalse(AppLanguage.supported(context).contains("system"));
-        if(Build.VERSION.SDK_INT>=29){pick(AppLanguage.supported(context).indexOf("en")+1,AppLanguage.supported(context).size()+1);InstrumentationRegistry.getInstrumentation().waitForIdleSync();assertEquals("en",UiText.selected().toLanguageTags());scenario.onActivity(AppLanguage::show);pick(0,AppLanguage.supported(context).size()+1);InstrumentationRegistry.getInstrumentation().waitForIdleSync();assertTrue(UiText.selected().isEmpty());}
+        if(Build.VERSION.SDK_INT>=29){pickLocale(AppLanguage.supported(context).indexOf("en")+1,AppLanguage.supported(context).size()+1,"en");assertEquals("en",UiText.selected().toLanguageTags());scenario.onActivity(AppLanguage::show);pickLocale(0,AppLanguage.supported(context).size()+1,"");assertTrue(UiText.selected().isEmpty());}
     }
 
     @Test public void everyRegisteredTranslationLoadsAndKeepsNavigationIdsStable() {
         for(String tag:AppLanguage.supported(context)){
             select(tag);
-            scenario.recreate();
+            recreateAfterLocale(tag);
             scenario.onActivity(activity->{
                 settings(activity);
                 assertEquals(Locale.forLanguageTag(tag).getLanguage(),activity.getResources().getConfiguration().getLocales().get(0).getLanguage());
@@ -110,7 +112,44 @@ public class AppLanguageTest {
         return found.performItemClick(row,position,found.getAdapter().getItemId(position));
     },"Visible language choice list did not become ready");}
     private static android.widget.ListView findList(View root){if(root instanceof android.widget.ListView)return (android.widget.ListView)root;if(root instanceof ViewGroup)for(int i=0;i<((ViewGroup)root).getChildCount();i++){android.widget.ListView found=findList(((ViewGroup)root).getChildAt(i));if(found!=null)return found;}return null;}
-    private void select(String tag){scenario.onActivity(a->AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag)));InstrumentationRegistry.getInstrumentation().waitForIdleSync();}
+    private Locale requestedLocale(String tag){
+        LocaleList system=Build.VERSION.SDK_INT>=33?context.getSystemService(LocaleManager.class).getSystemLocales():android.content.res.Resources.getSystem().getConfiguration().getLocales();
+        return UiText.resolveLocales(LocaleListCompat.forLanguageTags(tag),system).get(0);
+    }
+    private void awaitLocale(String tag){awaitLocale(tag,true,null);}
+    private void awaitLocale(String tag,boolean requireFocus,MainActivity replaced){
+        LocaleListCompat requested=LocaleListCompat.forLanguageTags(tag);
+        String language=requestedLocale(tag).getLanguage();
+        UiTestWait.until(()->{
+            if(!UiText.selected().toLanguageTags().equalsIgnoreCase(requested.toLanguageTags()))return false;
+            for(android.app.Activity candidate:ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)){
+                if(candidate instanceof MainActivity&&candidate!=replaced&&!candidate.isDestroyed()&&!candidate.isFinishing()&&(!requireFocus||candidate.getWindow().getDecorView().hasWindowFocus())&&language.equals(candidate.getResources().getConfiguration().getLocales().get(0).getLanguage()))return true;
+            }
+            return false;
+        },"Main screen did not resume in the requested app language: "+tag);
+    }
+    private void recreateAfterLocale(String tag){
+        for(int attempt=0;attempt<3;attempt++){
+            awaitLocale(tag);
+            try{scenario.recreate();awaitLocale(tag);return;}
+            catch(IllegalStateException transition){
+                // LocaleManager can start its own recreation between the ready check
+                // and ActivityScenario's stage check. Retry only that stale-stage race.
+                if(transition.getMessage()==null||!transition.getMessage().contains("but was DESTROYED")||attempt==2)throw transition;
+            }
+        }
+    }
+    private void select(String tag){select(tag,true);}
+    private void select(String tag,boolean requireFocus){
+        java.util.concurrent.atomic.AtomicReference<MainActivity> replaced=new java.util.concurrent.atomic.AtomicReference<>();
+        scenario.onActivity(a->{if(!requestedLocale(tag).equals(a.getResources().getConfiguration().getLocales().get(0)))replaced.set(a);AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag));});
+        awaitLocale(tag,requireFocus,replaced.get());
+    }
+    private void pickLocale(int position,int count,String tag){
+        java.util.concurrent.atomic.AtomicReference<MainActivity> replaced=new java.util.concurrent.atomic.AtomicReference<>();
+        scenario.onActivity(a->{if(!requestedLocale(tag).equals(a.getResources().getConfiguration().getLocales().get(0)))replaced.set(a);});
+        pick(position,count);awaitLocale(tag,true,replaced.get());
+    }
     private static void settings(MainActivity activity){try{Method method=MainActivity.class.getDeclaredMethod("renderSettings");method.setAccessible(true);method.invoke(activity);}catch(Exception e){throw new AssertionError(e);}}
     private static TextView findText(View root,String value){if(root instanceof TextView&&((TextView)root).getText().toString().equals(value))return (TextView)root;if(root instanceof ViewGroup)for(int i=0;i<((ViewGroup)root).getChildCount();i++){TextView found=findText(((ViewGroup)root).getChildAt(i),value);if(found!=null)return found;}return null;}
     private static TextView findTag(View root,String value){if(root instanceof TextView&&value.equals(root.getTag()))return (TextView)root;if(root instanceof ViewGroup)for(int i=0;i<((ViewGroup)root).getChildCount();i++){TextView found=findTag(((ViewGroup)root).getChildAt(i),value);if(found!=null)return found;}return null;}

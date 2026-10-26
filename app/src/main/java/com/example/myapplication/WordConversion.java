@@ -38,7 +38,7 @@ final class WordConversion {
         if(route==LAYOUT||route==APPEARANCE){File dir=new File(context.getFilesDir(),"documents");if(!dir.isDirectory()&&!dir.mkdirs())throw new java.io.IOException(UiText.get(R.string.ui_storage_unavailable));File file=new File(dir,"paperflow-word-"+UUID.randomUUID()+".docx");try{int count=OfficeExport.word(context,new File(path),password,file,route==LAYOUT,null,(done,total)->{job.check();progress.update(done,total,UiText.get(R.string.ui_writing_word_layout));});job.check();return new Result(file,count,0,0);}catch(Exception|OutOfMemoryError e){file.delete();throw e;}}
         File output=null;boolean success=false;ArrayList<String> pages=new ArrayList<>();int nativeCount=0,ocrCount=0;
         try(PDDocument document=PDDocument.load(new File(path),password,MemoryUsageSetting.setupMixed(24*1024*1024))){
-            job.check();int total=document.getNumberOfPages();if(total==0)throw new IllegalStateException(UiText.get(R.string.ui_this_pdf_has_no_pages_b4f57307));
+            job.check();PdfPermissions.extract(document);int total=document.getNumberOfPages();if(total==0)throw new IllegalStateException(UiText.get(R.string.ui_this_pdf_has_no_pages_b4f57307));
             PDFTextStripper stripper=new PDFTextStripper();stripper.setSortByPosition(true);stripper.setLineSeparator("\n");stripper.setPageStart("");stripper.setPageEnd("");
             boolean anyText=false;
             for(int i=0;i<total;i++){

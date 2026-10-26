@@ -5,6 +5,39 @@ all Java/Kotlin modules and the owned Rust runtime. The target is not reached.
 Tests, generated code and dependencies are outside the production report;
 production files have not been excluded to raise the percentage.
 
+## Main-screen Word security and settings, 26 October 2026
+
+Twenty-two permanent tests were added: thirteen MainActivity Word workflows,
+eight settings/tool-search workflows and one backend permission regression that
+checks every Word route. The UI tests inspect real DOCX XML, page images, history
+provenance, provider bytes and outgoing grants; they also exercise password retry,
+queued cancellation, running/completed recreation and settings persistence.
+
+A failing device test reproduced a production permission bypass before the fix:
+a PDF opened with a restricted user password still produced a Word document even
+though `canExtractContent()` was false. Native text, automatic and local OCR routes
+now call the same `PdfPermissions.extract()` guard used by the other PDF tools,
+before extracting text, rendering OCR input or writing an output. All five Word
+routes reject the restricted user password without leaving output files; an
+owner password still permits legitimate conversion. The original PDF is unchanged.
+
+The previous `3093aa4` CI run passed API 29, all native/ABI builds and Sonar. Its
+only API 37 failure was an existing language test requesting explicit recreation
+while LocaleManager was already destroying the old Activity. Locale tests now
+wait for a resumed screen in the requested language, and for a new instance when
+the locale changes. Explicit recreation and all registered-locale/formatting
+assertions are retained. A bounded retry handles only the framework's specific
+stale `DESTROYED` stage race; other exceptions still fail the test.
+
+Current focused validation:
+
+- **33/33 on API 29 and 33/33 on API 37**, including all Word routes, offline OCR,
+  permission denial/owner access, new Main UI and settings tests. Both use 640px
+  width, 130% font scaling and animations (30.590s / 72.637s).
+- Final language tests: **4/4 on each API**, with animations, including every
+  registered language and formatted-resource validation (4.038s / 7.690s).
+- **103 JVM tests and Android Lint pass**. Rust sources are unchanged.
+
 ## PDF tool exports and remaining API 37 dialog race, 26 October 2026
 
 Twenty-five new permanent device tests inspect actual PDF, ZIP and image output:
@@ -64,25 +97,25 @@ last case allows a documented 5% page-height tolerance for fitted corners.
 
 ## Measurement
 
-- **305 distinct passing device tests** are accounted for by the previous complete 280-test API 29 run plus the 25-test export batch. Source-to-JUnit completeness passes over these separate reports. This is not a fresh full 305-test local run.
-- Current focused checks: **37/37 on API 29 and 37/37 on API 37**, both with animations and the compact/large-font layout; **12/12 reader tests** also pass on the default API 37 layout.
-- The unchanged **103 JVM tests** remain passing (61 app, 25 scanengine, 17 translation); current Android Lint passes.
-- Earlier full local baseline: **280/280**, none failed/skipped, 12m 4s, followed by the previous 43-test synchronization check. The latest coverage union includes only passing profiles whose production class IDs match the current code.
+- **327 distinct passing device tests** are accounted for by compatible baseline reports and the current focused runs. The combined reports contain 334 executions because seven existing backend cases were rerun; their 327 unique case IDs exactly match the current test sources. This is not a fresh full 327-test local run.
+- Every Word conversion test affected by the production permission guard was rerun, including all four offline-recognition tests. Coverage uses only matching production class IDs and passing profiles from both APIs.
+- Current focused results: **33/33 per API plus 4/4 language tests per API**. Fresh full CI validation of this update is still required.
+- The unchanged **103 JVM tests** pass (61 app, 25 scanengine, 17 translation); current Android Lint passes.
 
 | Scope | Executable lines | Branches |
 | --- | ---: | ---: |
-| app | 5087/5816 (87.47%) | 6068/10972 (55.30%) |
+| app | 5121/5816 (88.05%) | 6191/10972 (56.43%) |
 | scanengine | 1412/1412 (100.00%) | 396/423 (93.62%) |
 | translation | 539/638 (84.48%) | 363/496 (73.19%) |
-| JVM/Android total | 7038/7866 (89.47%) | 6827/11891 (57.41%) |
+| JVM/Android total | 7072/7866 (89.91%) | 6950/11891 (58.45%) |
 | Owned Rust | 686/837 (81.96%) | 171/256 (66.80%) |
 
-Compared with `969f0c3`, **96 more executable lines and 287 more branch sides**
-are covered. ToolWorkflowActivity now covers 424/451 executable lines (94.01%),
-with 27 remaining, down from 114. The PDF viewer retains
-**200/200 executable lines** (100%) and 246/343 branch sides
-(71.72%). Owned Rust sources did not change; its real measurement is unchanged.
-Overall **100% is not reached**. Failed or incomplete execution data is not imported.
+Compared with `3093aa4`, **34 more executable lines and 123 more branch sides**
+are covered. MainActivity now covers 457/516 executable lines (88.57%), with 59
+remaining, down from 89. The PDF viewer and scan engine retain 100% executable-line
+coverage, but not 100% branch coverage. Owned Rust sources did not change; its real
+measurement is unchanged. Overall **100% is not reached**. Failed or incomplete
+execution data is not imported.
 
 The repository's whole-project checker reports line and branch counters for each
 module, checks the owned native sources separately, and returns a failing result

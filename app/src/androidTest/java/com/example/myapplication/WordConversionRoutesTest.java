@@ -22,6 +22,21 @@ import static org.junit.Assert.*;
 public class WordConversionRoutesTest {
     private final Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
     @Before public void init(){PDFBoxResourceLoader.init(context);}
+    @Test public void protectedPdfExtractionIsRejectedByEveryWordRouteButAllowedForTheOwner()throws Exception{
+        File source=pdf(true,1),locked=File.createTempFile("word-restricted-",".pdf",context.getCacheDir());
+        try{
+            try(PDDocument doc=PDDocument.load(source)){com.tom_roush.pdfbox.pdmodel.encryption.AccessPermission permission=new com.tom_roush.pdfbox.pdmodel.encryption.AccessPermission();permission.setCanExtractContent(false);com.tom_roush.pdfbox.pdmodel.encryption.StandardProtectionPolicy protection=new com.tom_roush.pdfbox.pdmodel.encryption.StandardProtectionPolicy("fixture-owner","fixture-user",permission);protection.setEncryptionKeyLength(128);protection.setPreferAES(true);doc.protect(protection);doc.save(locked);}
+            byte[] original=Files.readAllBytes(locked.toPath());try(PDDocument doc=PDDocument.load(locked,"fixture-user")){assertFalse(doc.getCurrentAccessPermission().canExtractContent());}
+            File directory=new File(context.getFilesDir(),"documents");assertTrue(directory.isDirectory()||directory.mkdirs());Set<String> before=new HashSet<>(Arrays.asList(Objects.requireNonNull(directory.list())));
+            for(int route:new int[]{WordConversion.AUTO,WordConversion.NATIVE,WordConversion.LOCAL,WordConversion.LAYOUT,WordConversion.APPEARANCE}){
+                IOException denied=assertThrows(IOException.class,()->{WordConversion.Result unexpected=WordConversion.convert(context,locked.getPath(),"fixture-user",route,new WordConversion.Job(),(d,t,m)->{});try{fail("A restricted user password must not allow Word export, route="+route);}finally{unexpected.file.delete();}});
+                assertEquals(UiText.get(R.string.ui_this_pdf_does_not_allow_text_extraction),denied.getMessage());assertEquals(before,new HashSet<>(Arrays.asList(Objects.requireNonNull(directory.list()))));
+            }
+            WordConversion.Result owner=WordConversion.convert(context,locked.getPath(),"fixture-owner",WordConversion.NATIVE,new WordConversion.Job(),(d,t,m)->{});
+            try{assertEquals(1,owner.nativePages);assertTrue(document(owner.file).contains("Page 1"));}finally{owner.file.delete();}
+            assertArrayEquals(original,Files.readAllBytes(locked.toPath()));
+        }finally{source.delete();locked.delete();}
+    }
     private File pdf(boolean withText,int pages)throws Exception{
         File file=File.createTempFile("word-route-",".pdf",context.getCacheDir());
         try(PDDocument doc=new PDDocument()){for(int i=0;i<pages;i++){PDPage page=new PDPage(new PDRectangle(120,180));doc.addPage(page);
