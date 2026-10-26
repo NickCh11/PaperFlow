@@ -13,6 +13,21 @@ import static org.junit.Assert.*;
 public class ImportBoundaryTest {
     private Context context(){return InstrumentationRegistry.getInstrumentation().getTargetContext();}
 
+    @Test public void androidUserIdsCannotDisguiseOurPrivateFileProvider(){
+        String authority=context().getPackageName()+".files";
+        for(String prefix:new String[]{"0@","10@"}){
+            Uri uri=Uri.parse("content://"+prefix+authority+"/documents/private.pdf");
+            for(String action:new String[]{Intent.ACTION_VIEW,Intent.ACTION_SEND}){
+                Intent input=new Intent(action).setDataAndType(uri,"application/pdf").putExtra(Intent.EXTRA_STREAM,uri);
+                Intent target=DocumentEntryActivity.sanitize(context(),input);
+                assertEquals("User-qualified private providers must remain private",Intent.ACTION_MAIN,target.getAction());
+                assertNull(target.getData());assertNull(target.getClipData());assertEquals(0,target.getFlags());
+            }
+        }
+        Uri external=Uri.parse("content://0@external.provider/document/report");
+        assertEquals(external,DocumentEntryActivity.sanitize(context(),new Intent(Intent.ACTION_VIEW).setDataAndType(external,"application/pdf")).getData());
+    }
+
     @Test public void viewKeepsMimeAndDropsPrivilegedExtras(){
         Uri uri=Uri.parse("content://external.provider/document/report");
         Intent incoming=new Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf")
@@ -27,6 +42,7 @@ public class ImportBoundaryTest {
         ArrayList<Parcelable> streams=new ArrayList<>();
         streams.add(null);streams.add(new Bundle());streams.add(Uri.parse("file:///private.pdf"));
         streams.add(Uri.parse("content://"+context().getPackageName()+".files/private.pdf"));
+        streams.add(Uri.parse("content://0@"+context().getPackageName()+".files/private.pdf"));
         for(int i=0;i<150;i++){Uri uri=Uri.parse("content://external.provider/document/"+i);streams.add(uri);streams.add(uri);}
         Intent target=DocumentEntryActivity.sanitize(context(),new Intent(Intent.ACTION_SEND_MULTIPLE)
                 .setType("image/*").putParcelableArrayListExtra(Intent.EXTRA_STREAM,streams));
@@ -38,6 +54,7 @@ public class ImportBoundaryTest {
 
     @Test public void emptyUnknownAndMissingStreamsFallBackToLauncher(){
         Intent[] inputs={new Intent("forged.command"),new Intent(Intent.ACTION_VIEW),
+                new Intent(Intent.ACTION_VIEW).setData(Uri.parse("content:///missing-authority")),
                 new Intent(Intent.ACTION_SEND),new Intent(Intent.ACTION_SEND_MULTIPLE),
                 new Intent(Intent.ACTION_SEND_MULTIPLE).putParcelableArrayListExtra(Intent.EXTRA_STREAM,new ArrayList<Uri>())};
         for(Intent input:inputs){Intent target=DocumentEntryActivity.sanitize(context(),input);

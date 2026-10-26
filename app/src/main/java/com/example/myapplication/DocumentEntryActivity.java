@@ -47,8 +47,11 @@ public final class DocumentEntryActivity extends Activity {
     }
 
     private static void add(android.content.Context context,ArrayList<Uri> uris, Uri uri) {
-        // Never turn a forged URI for our own private provider into an import.
-        if (uri != null && "content".equals(uri.getScheme())
-                && !(context.getPackageName()+".files").equals(uri.getAuthority()) && !uris.contains(uri)) uris.add(uri);
+        if (uri == null || !"content".equals(uri.getScheme())) return;
+        String authority=uri.getAuthority();if(authority==null)return;
+        // Android can qualify a content authority as userId@authority. Compare
+        // the provider itself so a user prefix cannot disguise our private files.
+        String provider=authority.substring(authority.lastIndexOf('@')+1);
+        if (!provider.isEmpty() && !(context.getPackageName()+".files").equals(provider) && !uris.contains(uri)) uris.add(uri);
     }
 }

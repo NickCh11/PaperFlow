@@ -5,6 +5,35 @@ all Java/Kotlin modules and the owned Rust runtime. The target is not reached.
 Tests, generated code and dependencies are outside the production report;
 production files have not been excluded to raise the percentage.
 
+## Basic security and workflow contracts, 26 October 2026
+
+Reviewing the essential scenarios found a concrete sanitizer bypass: Android
+user-qualified private authorities (`0@<app>.files`) were accepted as external
+imports. A failing device test reproduced VIEW being forwarded instead of MAIN.
+Provider comparison now strips the user prefix and rejects missing authorities;
+user-qualified external imports remain supported. This establishes a validation
+bypass, not a demonstrated external file-exfiltration exploit.
+
+Four permanent device regressions cover that boundary, legitimate shared output
+bytes, rejection of private state/sibling folders and encoded/plain traversal.
+All **9 import, file-sharing and exported-entry lifecycle tests pass on each API
+29 and 37**. **104 JVM tests and Lint pass**. The source now contains 329 device
+cases; the entire 329-case suite has not been rerun locally after this change.
+
+Each ABI build now enforces a merged-release-manifest policy after assembly.
+It checks the actual merged dependency declarations, permissions, explicit
+exports, signature-protected profile receiver, private FileProvider and absence
+of debug/test-only/cleartext release flags or the debug document provider.
+The actual local x86_64 debug/release APKs pass ELF checks, and the built release
+manifest passes the new policy. Eight regression tests simulate unsafe manifests;
+the full **90-test CI-tooling suite and workflow lint pass**.
+
+[BASIC_VALIDATION.md](BASIC_VALIDATION.md) maps the existing core regressions and
+records physical-device acceptance gaps explicitly. No model accuracy benchmark,
+coverage exclusion, reduced Sonar threshold or weaker merge rule was introduced.
+The coverage percentages below describe their recorded earlier revisions; fresh
+whole-project coverage and the actual Sonar result belong to the next CI run.
+
 ## Focus on app integration rather than upstream model benchmarks, 26 October 2026
 
 At the owner's request, remove the exhaustive upstream language-detection corpus

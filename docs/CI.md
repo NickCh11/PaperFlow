@@ -17,6 +17,12 @@ repository permissions. Builds do not publish or sign releases.
 
 ARMv8 maps to `arm64-v8a` and ARMv7 to `armeabi-v7a`. Each build job verifies
 the APK's native engine libraries and ELF headers for its selected ABI.
+Each build job also checks AGP's merged release manifest with
+`tools/ci/check_android_manifest.py`, including dependency declarations. Unsafe
+debug/test-only/cleartext flags, additional permissions, unexpected exported
+components, weakened file-sharing configuration and the debug document provider
+fail the existing build/PR gate. See [BASIC_VALIDATION.md](BASIC_VALIDATION.md)
+for the core scenario map and real-device acceptance limits.
 The device test matrix runs on
 x86_64; ARM builds and packaging checks do not replace tests on real ARM devices.
 
