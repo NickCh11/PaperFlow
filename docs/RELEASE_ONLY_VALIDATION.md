@@ -23,10 +23,12 @@ package a release APK. Actual release packaging/ZIP checks run at release time.
 * `.github/workflows/android-release.yml`
 * `.github/workflows/language-runtime.yml`
 * `app/build.gradle.kts`
+* `gradle/verification-metadata.xml`
 * `tools/ci/check_apk.py`
 * `tools/ci/release_android.py`
 * `tools/ci/test_release_validation.py`
 * `tools/ci/test_release_automation.py`
+* `tools/ci/test_dependency_verification.py`
 * `CONTRIBUTING.md`
 * `docs/BUILD.md`
 * `docs/CI.md`
@@ -38,7 +40,7 @@ package a release APK. Actual release packaging/ZIP checks run at release time.
 
 ## Local verification
 
-* **115 CI-tooling tests** pass, including negative release/event/version/source,
+* **116 CI-tooling tests** pass, including negative release/event/version/source,
   full-CI, signature/certificate, artifact integrity, duplicate upload and
   acknowledged-upload rollback cases. External writes in these tests are mocked.
 * **111 JVM tests** pass (68 app, 25 scanengine, 18 translation), Android Lint,
@@ -56,6 +58,27 @@ package a release APK. Actual release packaging/ZIP checks run at release time.
 * Static workflow boundary tests and a repository workflow/script search find
   production APK build/sign/upload invocations only in the published-release
   path. No release tag-push or manual publisher remains.
+
+The first hosted run exposed four missing dependency-metadata checksums inherited
+from the prior bootstrap: the Guava 33.4.0-jre parent POM and JUnit BOM module
+metadata for 5.10.2, 5.11.0-M2 and 6.0.3. The downloaded CI verification report
+confirms missing entries, not checksum mismatches. All four files were fetched
+from Maven Central HTTPS and their component identities checked. JUnit's published
+SHA-256 values match; Guava's POM has no published SHA-256/SHA-512, so its published
+SHA-1 was cross-checked and its bytes pinned with a locally calculated SHA-256.
+This is an integrity baseline, not an independent publisher-signature claim.
+Strict verification and metadata verification remain enabled; no wildcard trust
+or ignored artifacts were added. A regression checks the uncached Linux metadata
+and all three host aapt2 pins.
+
+A full dependency refresh additionally identified seven parent/BOM POMs: Guava
+33.3.1-android, Groovy 4.0.29, Kotlin 1.8.0, coroutines 1.6.4/1.8.0/1.8.1 and
+JUnit 5.13.3. All **11 added metadata files** match Maven Central's downloaded
+bytes and declared component identities. Eight match published SHA-256 values;
+the two Guava parents and Kotlin 1.8.0 have published SHA-1 cross-checks with
+locally calculated SHA-256 pins. Every previously recorded digest is unchanged.
+A subsequent `--refresh-dependencies --dependency-verification=strict` run of
+JVM tests, Lint, R8 and debug instrumentation-APK assembly passes (45 seconds).
 
 ARM release builds and live GitHub upload/signing with the production secrets
 were not executed locally. A new real release was deliberately not created.
