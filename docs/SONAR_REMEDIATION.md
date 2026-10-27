@@ -1,9 +1,31 @@
-# Sonar remediation, 26 October 2026
+# Sonar remediation, 27 October 2026
 
 The project overview currently describes the last analysis of
 `feature/offline-translator`. PR #1 analyzes the proposed changes separately.
 Unmerged fixes cannot change that branch's historical ratings. A passing PR gate
 does not establish whole-project 100% coverage or absence of defects.
+
+## Cloud analysis blocked by a device-test failure
+
+Run `40402857542` at `ebfb7f6` passed JVM tests, lint, Android compilation,
+all three native ABI jobs and Greptile. Both API 29 and API 37 failed the same
+PDF preview test: ten inward pinch gestures left the scale near 2.04 instead of
+1. The smaller hosted display and Android's scaling touch slop make a fixed
+gesture count unreliable. The test now permits a bounded number of real inward
+pinches, requires each gesture to reduce the scale, and still asserts the exact
+minimum scale and zero pan offsets. No production zoom behavior was changed.
+
+Because the device suite failed, its successful-suite coverage was not uploaded.
+Sonar then stopped at native coverage export before submitting a new analysis.
+The five displayed PR Lint issues therefore still describe the older analyzed
+revision; their code fixes are already in `80ea00d`. They must be confirmed closed
+by a fresh successful analysis, not manually marked resolved. Test failures must
+continue blocking the PR gate and must not be bypassed with old coverage.
+
+The corrected reader suite passes all 12 tests on each of API 29 and API 37 at
+640x1280/density 320 with disabled animations (24 executions, no failures or
+skips). This focused verification is separate from the complete hosted suite;
+its results do not establish a fresh whole-project coverage percentage.
 
 ## Changes submitted for analysis
 

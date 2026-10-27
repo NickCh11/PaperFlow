@@ -87,7 +87,13 @@ public class PdfViewerUiTest {
             pinch(view,width*.7f,width*.95f);float scale=(Float)field(view,"scale");assertTrue("A real two-finger gesture must zoom the page",scale>1);assertTrue(scale<=5);
             for(int i=0;i<10;i++)pinch(view,width*.7f,width*.95f);assertEquals(5f,(Float)field(view,"scale"),.0001f);
             long now=startGesture();for(int i=0;i<3;i++){MotionEvent event=MotionEvent.obtain(now,now+i*16,i==0?MotionEvent.ACTION_DOWN:i==1?MotionEvent.ACTION_MOVE:MotionEvent.ACTION_UP,120+i*30,140+i*20,0);try{assertTrue(view.dispatchTouchEvent(event));}finally{event.recycle();}}assertTrue((Float)field(view,"dx")>0);
-            for(int i=0;i<10;i++)pinch(view,width*.95f,width*.65f);assertEquals(1f,(Float)field(view,"scale"),.0001f);assertEquals(0f,(Float)field(view,"dx"),0);assertEquals(0f,(Float)field(view,"dy"),0);return null;
+            // Android consumes a density-dependent part of each pinch as touch slop.
+            // Require real progress on every gesture, then verify the exact lower clamp.
+            for(int i=0;i<40&&(Float)field(view,"scale")>1f;i++){
+                float before=(Float)field(view,"scale");pinch(view,width*.95f,width*.65f);
+                assertTrue("Every inward pinch must reduce the zoom",(Float)field(view,"scale")<before);
+            }
+            assertEquals(1f,(Float)field(view,"scale"),.0001f);assertEquals(0f,(Float)field(view,"dx"),0);assertEquals(0f,(Float)field(view,"dy"),0);return null;
         });button(android.R.id.button1);
     }
     @Test public void pageTextTranslationPassesTheSelectedTextAndSourceDocument()throws Exception{
