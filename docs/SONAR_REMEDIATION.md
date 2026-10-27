@@ -12,7 +12,7 @@ native ABI, JVM/Lint and Greptile jobs but failed the unchanged 80% new-code
 coverage gate at 76.1%. This comparison includes more changes than PR #1's
 feature-branch target. No test suite was reduced during migration.
 
-Twenty additional app-level scenarios cover import ownership/rollback/cancellation,
+Twenty-two additional app-level scenarios cover import ownership/rollback/cancellation,
 edit payloads and render failure, CameraX surface request delivery/cancellation/
 reattachment, capture settings/countdown/language restoration, returned camera
 pages, folder destination filtering, OCR candidate selection, and preview zoom.
@@ -26,10 +26,25 @@ regressions verify the small page remains drawable and that retaking deletes onl
 unused app-owned captures while preserving external input bytes.
 
 After this production change, profiles from the earlier production class were
-moved aside. Focused current editor/camera-result and photo-preview cases pass
-on API 29 and 37; the complete suite now contains 369 source cases. Full current
-matrix and fresh coverage verification are pending. The hosted Sonar result
-remains required before claiming this PR's gate passes.
+moved aside. A complete current run passed 369/369 source cases independently
+on API 29 and API 37, without failures/errors/skips. Two additional saved-state
+restoration cases then passed inside the 15-case photo UI class on both APIs.
+The final source suite contains 371 cases. These restoration checks create a
+fresh ViewModel with saved state; they do not kill the Android process.
+
+An initial local API 29 attempt failed because the emulator's effective app heap
+growth limit was only 16MiB. That failed profile is excluded. After setting its
+app growth limit to 256MiB, the complete API 29 rerun passed all 369 cases. The
+successful API 37 profile was independently checked for all expected source cases
+before import. No obsolete ScanEditor class data or failed device profile is used.
+
+JVM tests, Lint, compilation and focused device runs pass. The current local
+Java/Kotlin diff estimate against main is 80.97% (1500/1607 executable lines and
+1895/2586 branch sides), versus 76.71% with the preceding cloud XML files under
+the same local estimator. These are local estimates, not Sonar measurements;
+the preceding official result was 76.1%. The final hosted full run and Sonar gate
+must independently confirm that this revision passes. Quality thresholds and
+production coverage scope remain unchanged.
 
 ## Latest analyzed revision and tap-handling correction
 

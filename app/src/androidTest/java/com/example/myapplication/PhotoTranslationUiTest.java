@@ -109,6 +109,35 @@ public class PhotoTranslationUiTest {
             assertSame(source,session.source);assertSame(translated,session.result.bitmap);assertFalse(source.isRecycled());assertFalse(translated.isRecycled());assertFalse(session.busy);
         }
     }
+    void recreateWithFreshSession(java.util.function.Consumer<android.os.Bundle> savedState)throws Exception{
+        LocalTranslationActivity previous=activity;LocalTranslationActivity.TranslationSession old=session;Bitmap oldSource=old.source,oldResult=old.result==null?null:old.result.bitmap;java.util.concurrent.atomic.AtomicBoolean reset=new java.util.concurrent.atomic.AtomicBoolean();
+        Application app=(Application)context.getApplicationContext();
+        Application.ActivityLifecycleCallbacks callback=new Application.ActivityLifecycleCallbacks(){
+            public void onActivityCreated(Activity a,android.os.Bundle b){}public void onActivityStarted(Activity a){}public void onActivityResumed(Activity a){}public void onActivityPaused(Activity a){}public void onActivityStopped(Activity a){}public void onActivityDestroyed(Activity a){}
+            public void onActivitySaveInstanceState(Activity a,android.os.Bundle state){if(a!=previous||!reset.compareAndSet(false,true))return;savedState.accept(state);
+                // Emulate a fresh ViewModel while retaining our persisted fixture files.
+                // This checks saved-state restoration; it does not kill the Android process.
+                old.snapshots.clear();old.importedSources.clear();old.source=null;old.result=null;previous.getViewModelStore().clear();}
+        };
+        app.registerActivityLifecycleCallbacks(callback);
+        try{scenario.recreate();scenario.onActivity(a->{activity=a;session=(LocalTranslationActivity.TranslationSession)field(a,"session");});assertTrue(reset.get());assertNotSame(old,session);assertTrue(old.worker.awaitTermination(10,TimeUnit.SECONDS));}
+        finally{app.unregisterActivityLifecycleCallbacks(callback);if(reset.get()){if(oldSource!=null&&!oldSource.isRecycled())oldSource.recycle();if(oldResult!=null&&!oldResult.isRecycled())oldResult.recycle();}}
+    }
+    @Test public void freshSavedStateRestoresOwnedPagesAndExportsButRejectsForeignAndMissingPaths()throws Exception{
+        File snapshot=translatedPreview(),first=File.createTempFile("translation-restored-one-",".png",context.getCacheDir()),second=File.createTempFile("translation-restored-two-",".png",context.getCacheDir()),foreign=File.createTempFile("translation-foreign-",".png",context.getExternalCacheDir());
+        java.nio.file.Files.copy(new File(snapshot,"result.png").toPath(),first.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);java.nio.file.Files.copy(first.toPath(),second.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);java.nio.file.Files.copy(first.toPath(),foreign.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        try{
+            recreateWithFreshSession(state->{state.putStringArrayList("captured_pages",new ArrayList<>(Arrays.asList(null,new File(snapshot,"source.png").getPath(),new File(snapshot,"source.png").getPath())));state.putInt("captured_index",1);state.putString("translation_capture_mode","Book");state.putString("translation_session",snapshot.getPath());state.putString("pending_export",first.getPath());state.putStringArrayList("translated_page_snapshots",new ArrayList<>(Arrays.asList(null,snapshot.getPath(),foreign.getPath(),new File(snapshot.getParentFile(),"missing-"+System.nanoTime()).getPath())));state.putStringArrayList("translation_export_files",new ArrayList<>(Arrays.asList(first.getPath(),foreign.getPath(),new File(context.getCacheDir(),"missing-"+System.nanoTime()).getPath(),second.getPath())));state.putInt("translation_export_page_count",2);});
+            UiTestWait.until(()->!session.busy&&session.source!=null,"Fresh translation session did not restore");assertFalse(session.message,session.error);assertFalse(session.restoring);assertEquals(2,session.capturedPages.size());assertEquals(1,session.capturedIndex);assertEquals("Book",session.captureMode);assertEquals(snapshot.getCanonicalFile(),session.snapshot.getCanonicalFile());assertEquals(Collections.singleton(1),session.pageSnapshots.keySet());assertEquals(Arrays.asList(first.getCanonicalFile(),second.getCanonicalFile()),session.exportFiles);assertEquals(first.getCanonicalFile(),session.lastExport);assertEquals(2,session.exportPageCount);assertEquals("TRANSLATED 12345",session.translatedText());assertTrue(foreign.isFile());
+        }finally{first.delete();second.delete();foreign.delete();}
+    }
+    @Test public void unavailableSavedTranslationFailsWithoutAdoptingForeignOutputPaths()throws Exception{
+        File foreign=File.createTempFile("translation-foreign-",".png",context.getExternalCacheDir());
+        try{
+            recreateWithFreshSession(state->{state.remove("captured_pages");state.remove("translation_capture_mode");state.putString("translation_session",foreign.getPath());state.putString("pending_export",foreign.getPath());state.putStringArrayList("translated_page_snapshots",new ArrayList<>(Arrays.asList(null,foreign.getPath())));state.putStringArrayList("translation_export_files",new ArrayList<>(Collections.singletonList(foreign.getPath())));});
+            UiTestWait.until(()->!session.busy&&session.error,"Invalid saved translation did not report an error");assertFalse(session.restoring);assertNull(session.source);assertNull(session.result);assertNull(session.lastExport);assertTrue(session.capturedPages.isEmpty());assertTrue(session.pageSnapshots.isEmpty());assertTrue(session.exportFiles.isEmpty());assertEquals("Photo",session.captureMode);assertTrue(foreign.isFile());
+        }finally{foreign.delete();}
+    }
     void previewPointer(View view,long time,int action,float span,boolean two){
         MotionEvent.PointerProperties first=new MotionEvent.PointerProperties();first.id=0;first.toolType=MotionEvent.TOOL_TYPE_FINGER;MotionEvent.PointerProperties second=new MotionEvent.PointerProperties();second.id=1;second.toolType=MotionEvent.TOOL_TYPE_FINGER;
         MotionEvent.PointerCoords left=new MotionEvent.PointerCoords();left.x=view.getWidth()/2f-span/2;left.y=view.getHeight()/2f;left.pressure=left.size=1;MotionEvent.PointerCoords right=new MotionEvent.PointerCoords();right.x=view.getWidth()/2f+span/2;right.y=left.y;right.pressure=right.size=1;
