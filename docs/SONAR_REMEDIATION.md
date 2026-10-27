@@ -27,6 +27,58 @@ The corrected reader suite passes all 12 tests on each of API 29 and API 37 at
 skips). This focused verification is separate from the complete hosted suite;
 its results do not establish a fresh whole-project coverage percentage.
 
+## Findings from the refreshed PR analysis
+
+Run `40523664601` at `86d8acd` passed all 331 source device cases on each API,
+three additional appearance cases per API, JVM/Lint, the three native builds,
+compilation/R8 and Greptile. Both current-run native profiles were collected and
+Sonar submitted a fresh analysis. The original five PR Lint findings closed.
+The new analysis exposed 32 other findings on changed files. Its gate failed
+for security rating C and 73.8% new-code coverage; new-code duplication was 0.0%.
+
+The follow-up addresses those findings as follows:
+
+* Give the release workflow an empty default permission set and grant read
+  permissions to its individual jobs; only asset publishing receives write access.
+* Route camera, selection, crop and portrait clicks through performClick, and
+  avoid emitting clicks for cancelled gestures. Preserve swipe and pinch behavior.
+* Share a comparison control that holds the original during touch and restores
+  the result on release/cancel; accessibility clicks toggle both previews.
+* Reuse camera drawing paths/dash effects, mask tint, page bounds and portrait
+  guide rectangles. Do not reuse rectangles returned to input callers.
+* Use logical START/END gravity and formatted resources for translation/tonal labels.
+* Keep the existing default simple Office line-breaking strategy without referring
+  to an API-29-only constant. Android documents SIMPLE as the builder's default:
+  [StaticLayout.Builder](https://developer.android.com/reference/android/text/StaticLayout.Builder#setBreakStrategy(int)).
+* Format the page-number input with a locale and persist naming counters with
+  SharedPreferences.apply; synchronized allocation still updates the in-memory
+  counter before another caller can allocate a name.
+* Exclude only binary WebP images and binary Office test fixtures from text
+  analysis to remove UTF-8 warnings. Java/Kotlin/Rust coverage scope and the gate
+  thresholds are unchanged.
+
+New regression flows exercise saved page geometry/numbering, invalid page settings,
+cancelled save pickers, markup undo/clear/cancel, drawing across recreation and its
+actual encoded pixels, glyph selection/copy/translation, repeated overlay drawing,
+bitmap release and accessibility comparison. Further cases exercise real emulated
+camera focus and mode changes, crop/mask drag and cancel, tonal controls, stale
+preview requests, read-only PDF permissions and recovery after an unreadable image.
+The focused cases pass independently on API 29 and API 37. An earlier complete
+local run passed 342 cases on API 37 before the final test extensions; the final
+suite now contains 348 cases per API.
+
+The corresponding local API 29 run used an incorrectly configured GLES2 emulator
+and failed four native-renderer cases. That failed coverage is excluded. After
+restarting with the CI's GLESDynamicVersion setting, all five native graphics
+cases pass. Complete final device runs and the cloud gate remain the authority
+for current merge readiness.
+
+The changed-Java/Kotlin outcome estimate from successful current-application
+profiles is 81.52% (575/598 executable lines and 973/1301 branch sides). This is
+a local diff estimate, not a Sonar result or a whole-project measurement. No
+failed device profile or mismatched production class is imported. The final
+Sonar analysis must independently confirm its coverage and open-issue count.
+
 ## Changes submitted for analysis
 
 | Finding | Remediation |

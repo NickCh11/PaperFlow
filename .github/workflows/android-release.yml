@@ -4,9 +4,7 @@ on:
   release:
     types: [published]
 
-permissions:
-  contents: read
-  actions: read
+permissions: {}
 
 concurrency:
   group: paperflow-release
@@ -14,6 +12,9 @@ concurrency:
 
 jobs:
   prepare:
+    permissions:
+      contents: read
+      actions: read
     name: Validate published release and exact main CI
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -48,6 +49,8 @@ jobs:
           done
 
   language-runtime:
+    permissions:
+      contents: read
     needs: prepare
     if: needs.prepare.outputs.complete != 'true'
     uses: ./.github/workflows/language-runtime.yml
@@ -55,6 +58,9 @@ jobs:
       validation-artifacts: false
 
   build:
+    permissions:
+      contents: read
+      actions: read
     name: Build and sign release APKs
     needs: [prepare, language-runtime]
     runs-on: ubuntu-24.04

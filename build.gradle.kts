@@ -52,7 +52,8 @@ sonar {
         providers.environmentVariable("SONAR_PROJECT_KEY").orNull?.let {
             property("sonar.projectKey", it)
         }
-        property("sonar.exclusions", "**/build/**,**/.gradle/**,**/.sonar/**,**/.scannerwork/**,**/third-party/**,**/src/main/assets/**")
+        // Binary images and Office test documents are not UTF-8 source files.
+        property("sonar.exclusions", "**/build/**,**/.gradle/**,**/.sonar/**,**/.scannerwork/**,**/third-party/**,**/src/main/assets/**,**/*.webp,**/src/androidTest/assets/**/*.docx,**/src/androidTest/assets/**/*.xlsx,**/src/androidTest/assets/**/*.pptx")
         // C/C++ analysis needs its own compilation database/capture pipeline.
         property("sonar.c.file.suffixes", "-")
         property("sonar.cpp.file.suffixes", "-")

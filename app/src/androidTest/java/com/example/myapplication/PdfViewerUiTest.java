@@ -125,4 +125,65 @@ public class PdfViewerUiTest {
     void assertMainAction(String label)throws Exception{
         open(false);main(()->{View view=description(activity.getWindow().getDecorView(),UiText.label(label));assertNotNull(view);assertTrue(view.performClick());return null;});assertEquals(new ComponentName(context,MainActivity.class),last().getComponent());assertEquals(label,last().getStringExtra("document_action"));assertEquals(source.getPath(),last().getStringExtra("path"));assertEquals("",last().getStringExtra("pdf_password"));assertTrue(activity.isFinishing());
     }
+
+    @Test public void pageSelectionCopiesAndTranslatesRealGlyphsAndReleasesItsOverlay()throws Exception{
+        open(false);
+        main(()->{assertTrue(((View)field(slots().get(0),"frame")).performLongClick());return null;});
+        UiTestWait.until(()->field(activity,"selection")!=null&&field(field(activity,"selection"),"actionMode")!=null,"Text selection controls did not attach");
+        main(()->{
+            PdfPageSelection selection=(PdfPageSelection)field(activity,"selection");
+            ActionMode mode=(ActionMode)field(selection,"actionMode");
+            assertTrue(mode.getMenu().performIdentifierAction(2,0));
+            assertEquals("Reader UI page 1",selection.selectedText());
+            Bitmap frame=Bitmap.createBitmap(selection.getWidth(),selection.getHeight(),Bitmap.Config.ARGB_8888);
+            try{Canvas canvas=new Canvas(frame);for(int i=0;i<20;i++)selection.draw(canvas);}finally{frame.recycle();}
+            assertEquals("Reader UI page 1",selection.selectedText());
+            assertTrue(mode.getMenu().performIdentifierAction(1,0));
+            assertEquals("Reader UI page 1",((ClipboardManager)context.getSystemService(Context.CLIPBOARD_SERVICE)).getPrimaryClip().getItemAt(0).getText().toString());
+            mode.getMenu().add(0,999,9,"Unsupported");assertFalse(mode.getMenu().performIdentifierAction(999,0));
+            assertTrue(mode.getMenu().performIdentifierAction(3,0));
+            Bitmap image=(Bitmap)field(selection,"image");mode.finish();assertTrue(image.isRecycled());assertNull(field(activity,"selection"));
+            MotionEvent event=MotionEvent.obtain(0,0,MotionEvent.ACTION_DOWN,1,1,0);
+            try{assertFalse(selection.onTouchEvent(event));}finally{event.recycle();}
+            return null;
+        });
+        assertEquals(new ComponentName(context,TextTranslationActivity.class),last().getComponent());
+        assertEquals("Reader UI page 1",new String(Files.readAllBytes(new File(last().getStringExtra("text_path")).toPath()),java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    @Test public void draggingPageTextSupportsClicksAndCancellationWithoutClosingTheDocument()throws Exception{
+        open(false);main(()->{assertTrue(((View)field(slots().get(0),"frame")).performLongClick());return null;});
+        UiTestWait.until(()->field(activity,"selection")!=null&&((View)field(activity,"selection")).getWidth()>0,"Text selection did not render");
+        main(()->{
+            PdfPageSelection selection=(PdfPageSelection)field(activity,"selection");
+            @SuppressWarnings("unchecked") ArrayList<PdfKeywordSearch.Glyph> glyphs=(ArrayList<PdfKeywordSearch.Glyph>)field(selection,"glyphs");
+            Bitmap image=(Bitmap)field(selection,"image");float fit=Math.min(selection.getWidth()/(float)image.getWidth(),selection.getHeight()/(float)image.getHeight());
+            float width=image.getWidth()*fit,height=image.getHeight()*fit,left=(selection.getWidth()-width)/2,top=(selection.getHeight()-height)/2;
+            int[] clicks={0};selection.setOnClickListener(v->clicks[0]++);long now=android.os.SystemClock.uptimeMillis();
+            for(int step=0;step<3;step++){
+                RectF glyph=glyphs.get(step==0?0:glyphs.size()-1).box;
+                MotionEvent event=MotionEvent.obtain(now,now+step*16,step==0?MotionEvent.ACTION_DOWN:step==1?MotionEvent.ACTION_MOVE:MotionEvent.ACTION_UP,left+glyph.centerX()*width,top+glyph.centerY()*height,0);
+                try{assertTrue(selection.onTouchEvent(event));}finally{event.recycle();}
+            }
+            assertEquals("Reader UI page 1",selection.selectedText());assertEquals(1,clicks[0]);
+            ActionMode mode=(ActionMode)field(selection,"actionMode");assertNotNull(mode);
+            for(int handle=0;handle<2;handle++){
+                RectF edge=glyphs.get(handle==0?0:glyphs.size()-1).box,next=glyphs.get(handle==0?1:glyphs.size()-2).box;
+                for(int step=0;step<3;step++){
+                    float x=step==0?(handle==0?edge.left:edge.right):next.centerX(),y=step==0?edge.bottom:next.centerY();
+                    MotionEvent event=MotionEvent.obtain(now+100+handle*100,now+100+handle*100+step*16,step==0?MotionEvent.ACTION_DOWN:step==1?MotionEvent.ACTION_MOVE:MotionEvent.ACTION_UP,left+x*width,top+y*height,0);
+                    try{assertTrue(selection.onTouchEvent(event));}finally{event.recycle();}
+                }
+                assertFalse("Dragging a selection endpoint must resize the selection","Reader UI page 1".equals(selection.selectedText()));
+                assertTrue(mode.getMenu().performIdentifierAction(2,0));assertEquals("Reader UI page 1",selection.selectedText());
+            }
+            assertEquals(3,clicks[0]);
+            gestureTime=Math.max(gestureTime,now+1000);pinch(selection,width*.7f,width*.95f);
+            long panTime=startGesture();pointer(selection,panTime,panTime,MotionEvent.ACTION_DOWN,width*.7f,false);pointer(selection,panTime,panTime+16,MotionEvent.ACTION_POINTER_DOWN|(1<<MotionEvent.ACTION_POINTER_INDEX_SHIFT),width*.7f,true);pointer(selection,panTime,panTime+32,MotionEvent.ACTION_CANCEL,width*.7f,true);
+            assertSame(selection,field(activity,"selection"));assertEquals(3,clicks[0]);
+            MotionEvent cancel=MotionEvent.obtain(now+400,now+400,MotionEvent.ACTION_CANCEL,0,0,0);
+            try{assertTrue(selection.onTouchEvent(cancel));}finally{cancel.recycle();}
+            assertEquals(3,clicks[0]);selection.close();assertNull(field(activity,"selection"));assertFalse(activity.isFinishing());return null;
+        });
+    }
 }

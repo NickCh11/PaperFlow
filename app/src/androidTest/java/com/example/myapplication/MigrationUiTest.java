@@ -24,6 +24,7 @@ import static org.junit.Assert.*;
 public class MigrationUiTest {
     private final Instrumentation inst=InstrumentationRegistry.getInstrumentation();
     private Object get(Object owner,String field)throws Exception{Field f=owner.getClass().getDeclaredField(field);f.setAccessible(true);return f.get(owner);}
+    private View described(View root,String value){if(value.contentEquals(root.getContentDescription()==null?"":root.getContentDescription()))return root;if(root instanceof ViewGroup)for(int i=0;i<((ViewGroup)root).getChildCount();i++){View found=described(((ViewGroup)root).getChildAt(i),value);if(found!=null)return found;}return null;}
     private void call(Object owner,String method)throws Exception{Method m=owner.getClass().getDeclaredMethod(method);m.setAccessible(true);inst.runOnMainSync(()->{try{m.invoke(owner);}catch(Exception e){throw new RuntimeException(e);}});}
     private interface Condition {boolean ready()throws Exception;}
     private void await(Condition check)throws Exception{long end=SystemClock.elapsedRealtime()+45000;while(SystemClock.elapsedRealtime()<end){AtomicBoolean ready=new AtomicBoolean();inst.runOnMainSync(()->{try{ready.set(check.ready());}catch(Exception e){throw new RuntimeException(e);}});if(ready.get())return;Thread.sleep(50);}fail("UI operation timed out");}
@@ -52,7 +53,27 @@ public class MigrationUiTest {
             inst.runOnMainSync(()->{MotionEvent down=MotionEvent.obtain(start,start,MotionEvent.ACTION_DOWN,w*.4f,h*.4f,0);view.dispatchTouchEvent(down);down.recycle();});
             for(int step=0;step<16;step++){final int s=step;inst.runOnMainSync(()->{MotionEvent.PointerProperties[] properties={new MotionEvent.PointerProperties(),new MotionEvent.PointerProperties()};properties[0].id=0;properties[1].id=1;properties[0].toolType=properties[1].toolType=MotionEvent.TOOL_TYPE_FINGER;MotionEvent.PointerCoords[] coords={new MotionEvent.PointerCoords(),new MotionEvent.PointerCoords()};coords[0].x=w*(.4f-s*.025f);coords[1].x=w*(.6f+s*.025f);coords[0].y=h*(.4f-s*.025f);coords[1].y=h*(.6f+s*.025f);coords[0].pressure=coords[1].pressure=1;coords[0].size=coords[1].size=1;int action=s==0?MotionEvent.ACTION_POINTER_DOWN|(1<<MotionEvent.ACTION_POINTER_INDEX_SHIFT):MotionEvent.ACTION_MOVE;MotionEvent event=MotionEvent.obtain(start,start+30+s*30,action,2,properties,coords,0,0,1,1,0,0,android.view.InputDevice.SOURCE_TOUCHSCREEN,0);view.dispatchTouchEvent(event);event.recycle();});}
             assertTrue("Pinch increased zoom (view="+w+"x"+h+", minimum span="+ViewConfiguration.get(activity).getScaledMinimumScalingSpan()+")",session.zoom>1);assertTrue("Pinch must cancel provisional paint",session.strokes.isEmpty());screenshot("migration-erase-zoom.png");
+            inst.runOnMainSync(()->{
+                int[] clicks={0};view.setOnClickListener(v->clicks[0]++);long next=start+1000;
+                MotionEvent cancel=MotionEvent.obtain(next,next,MotionEvent.ACTION_CANCEL,w*.5f,h*.5f,0);try{assertTrue(view.onTouchEvent(cancel));}finally{cancel.recycle();}
+                for(int i=0;i<3;i++){MotionEvent event=MotionEvent.obtain(next+100,next+100+i*16,i==0?MotionEvent.ACTION_DOWN:i==1?MotionEvent.ACTION_MOVE:MotionEvent.ACTION_UP,w*(i==0?.5f:.52f),h*.5f,0);try{assertTrue(view.dispatchTouchEvent(event));}finally{event.recycle();}}
+                assertEquals(1,clicks[0]);assertFalse(session.strokes.isEmpty());
+                MotionEvent stopped=MotionEvent.obtain(next+200,next+200,MotionEvent.ACTION_CANCEL,0,0,0);try{assertTrue(view.onTouchEvent(stopped));}finally{stopped.recycle();}
+                assertEquals(1,clicks[0]);session.busy=true;MotionEvent blocked=MotionEvent.obtain(next+300,next+300,MotionEvent.ACTION_DOWN,w*.5f,h*.5f,0);try{assertFalse(view.onTouchEvent(blocked));}finally{blocked.recycle();session.busy=false;}
+                session.clearStrokes();
+            });
             inst.runOnMainSync(()->{session.strokes.add(new EraseMarksActivity.Stroke(2,false));session.strokes.get(0).points.add(10f);session.strokes.get(0).points.add(10f);session.totalPoints=1;});android.os.Bundle state=new android.os.Bundle();inst.runOnMainSync(()->session.save(state));EraseMarksActivity.EraseSession restored=new EraseMarksActivity.EraseSession((Application)c.getApplicationContext());inst.runOnMainSync(()->restored.restore(state));assertEquals(2,restored.strokes.get(0).width,.01);inst.runOnMainSync(restored::onCleared);
+            inst.runOnMainSync(()->{session.result=Bitmap.createBitmap(800,600,Bitmap.Config.ARGB_8888);session.result.eraseColor(Color.GREEN);session.showResult=true;session.publish();});
+            await(()->{View comparison=described(activity.findViewById(android.R.id.content),UiText.get(R.string.ui_compare));return comparison!=null&&comparison.getWidth()>0;});
+            inst.runOnMainSync(()->{
+                View root=activity.findViewById(android.R.id.content),comparison=described(root,UiText.get(R.string.ui_compare));android.widget.ImageView result=(android.widget.ImageView)described(root,UiText.get(R.string.ui_repaired_image));int[] clicks={0};comparison.setOnClickListener(v->clicks[0]++);long time=start+3000;
+                for(int end:new int[]{MotionEvent.ACTION_UP,MotionEvent.ACTION_CANCEL}){
+                    MotionEvent down=MotionEvent.obtain(time,time,MotionEvent.ACTION_DOWN,20,20,0);try{assertTrue(comparison.dispatchTouchEvent(down));}finally{down.recycle();}
+                    assertSame(session.original,((android.graphics.drawable.BitmapDrawable)result.getDrawable()).getBitmap());
+                    MotionEvent finish=MotionEvent.obtain(time,time+16,end,20,20,0);try{assertTrue(comparison.dispatchTouchEvent(finish));}finally{finish.recycle();}assertSame(session.result,((android.graphics.drawable.BitmapDrawable)result.getDrawable()).getBitmap());time+=100;
+                }
+                assertEquals(1,clicks[0]);assertTrue(comparison.performClick());assertSame(session.original,((android.graphics.drawable.BitmapDrawable)result.getDrawable()).getBitmap());assertTrue(comparison.performClick());assertSame(session.result,((android.graphics.drawable.BitmapDrawable)result.getDrawable()).getBitmap());assertFalse(session.original.isRecycled());assertFalse(session.result.isRecycled());
+            });
         }finally{inst.runOnMainSync(activity::finish);}
     }
 }

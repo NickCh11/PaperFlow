@@ -224,6 +224,11 @@ class ReleaseWorkflowBoundaryTest(unittest.TestCase):
                 trigger = text.split('permissions:', 1)[0]
                 self.assertRegex(trigger, r'release:\s+types: \[published\]')
                 self.assertNotRegex(trigger, r'push:|pull_request:|workflow_dispatch:|workflow_run:')
+                self.assertRegex(text, r'(?m)^permissions: \{\}$')
+                # Only the final asset-publishing job may receive repository write access.
+                before_publish, publisher = text.split('\n  publish:\n', 1)
+                self.assertNotRegex(before_publish, r'contents: write|write-all')
+                self.assertRegex(publisher, r'permissions:\s+contents: write\s+actions: read')
         ci = (root / '.github/workflows/android-ci.yml').read_text('utf-8')
         self.assertNotIn('outputs/apk', ci)
         self.assertIn(':app:minifyReleaseWithR8', ci)

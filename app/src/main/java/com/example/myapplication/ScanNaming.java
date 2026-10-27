@@ -7,7 +7,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 final class ScanNaming {
-    static synchronized String next(Context c){android.content.SharedPreferences p=c.getSharedPreferences("scan_defaults",0);if(!p.getBoolean("auto_name",true))return "Untitled";long n=p.getLong("name_counter",0)+1;p.edit().putLong("name_counter",n).commit();Date now=new Date();String date=new SimpleDateFormat("yyyy-MM-dd",Locale.ROOT).format(now),time=new SimpleDateFormat("HH.mm.ss",Locale.ROOT).format(now),prefix=p.getString("prefix","PaperFlow");
+    static synchronized String next(Context c){android.content.SharedPreferences p=c.getSharedPreferences("scan_defaults",0);if(!p.getBoolean("auto_name",true))return "Untitled";long n=p.getLong("name_counter",0)+1;p.edit().putLong("name_counter",n).apply();Date now=new Date();String date=new SimpleDateFormat("yyyy-MM-dd",Locale.ROOT).format(now),time=new SimpleDateFormat("HH.mm.ss",Locale.ROOT).format(now),prefix=p.getString("prefix","PaperFlow");
         String pattern=p.getString("name_pattern","{prefix} {date} {time}");String name=pattern.replace("{prefix}",prefix).replace("{date}",date).replace("{time}",time).replace("{n}",String.format(Locale.ROOT,"%04d",n)).trim();return name.isEmpty()?"Document "+n:name;
     }
     static boolean hasUnsupportedPlaceholder(String value){

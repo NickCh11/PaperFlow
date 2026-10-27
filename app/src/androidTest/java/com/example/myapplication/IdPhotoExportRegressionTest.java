@@ -68,6 +68,15 @@ public class IdPhotoExportRegressionTest {
         AtomicReference<IdPhotoMakerActivity.PhotoSession> active = new AtomicReference<>();
         try (ActivityScenario<IdPhotoMakerActivity> scenario = ActivityScenario.launch(new Intent(context, IdPhotoMakerActivity.class))) {
             scenario.onActivity(a -> { IdPhotoMakerActivity.PhotoSession session = new androidx.lifecycle.ViewModelProvider(a).get(IdPhotoMakerActivity.PhotoSession.class); active.set(session); session.source = portrait(); session.mmWidth = 35; session.mmHeight = 45; session.rotation = 90; session.magnification = 2; session.panX = 100; session.panY = -100; session.constrainPan(); assertTrue(Math.abs(session.panX) < 100); assertTrue(Math.abs(session.panY) < 100); session.publish(); });
+            AtomicReference<android.view.View> crop=new AtomicReference<>();scenario.onActivity(a->{try{java.lang.reflect.Field f=IdPhotoMakerActivity.class.getDeclaredField("portrait");f.setAccessible(true);crop.set((android.view.View)f.get(a));}catch(Exception error){throw new AssertionError(error);}});
+            UiTestWait.until(()->crop.get()!=null&&crop.get().getWidth()>0,"Portrait crop did not attach");
+            scenario.onActivity(a->{
+                android.view.View view=crop.get();float before=active.get().panX;int[] clicks={0};view.setOnClickListener(v->clicks[0]++);long now=android.os.SystemClock.uptimeMillis();
+                for(int i=0;i<3;i++){android.view.MotionEvent event=android.view.MotionEvent.obtain(now,now+i*16,i==0?android.view.MotionEvent.ACTION_DOWN:i==1?android.view.MotionEvent.ACTION_MOVE:android.view.MotionEvent.ACTION_UP,view.getWidth()*(i==0?.5f:.2f),view.getHeight()*.5f,0);try{assertTrue(view.dispatchTouchEvent(event));}finally{event.recycle();}}
+                assertTrue("Dragging must update the crop",active.get().panX<before);assertEquals(1,clicks[0]);
+                android.view.MotionEvent cancel=android.view.MotionEvent.obtain(now,now+64,android.view.MotionEvent.ACTION_CANCEL,0,0,0);try{assertTrue(view.onTouchEvent(cancel));}finally{cancel.recycle();}
+                assertEquals(1,clicks[0]);assertTrue(view.performClick());assertEquals(2,clicks[0]);
+            });
             scenario.recreate();
             scenario.onActivity(a -> {
                 IdPhotoMakerActivity.PhotoSession retained = new androidx.lifecycle.ViewModelProvider(a).get(IdPhotoMakerActivity.PhotoSession.class); assertSame(active.get(), retained); assertEquals(90, retained.rotation); assertEquals(2, retained.magnification, 0);
