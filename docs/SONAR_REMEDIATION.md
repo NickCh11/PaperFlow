@@ -5,6 +5,26 @@ The project overview currently describes the last analysis of
 Unmerged fixes cannot change that branch's historical ratings. A passing PR gate
 does not establish whole-project 100% coverage or absence of defects.
 
+## Latest analyzed revision and tap-handling correction
+
+Run `40542672471` analyzed `01c7ebc` after both complete API 29/37 device
+jobs, all three native ABI builds, compilation, JVM/Lint and Greptile passed.
+Sonar reports 81.75% new-code coverage and 0.0% new-code duplication. The
+previous 32 findings are closed. One remaining medium reliability finding at
+CameraCaptureActivity line 244 blocks the gate: the analyzer treats the
+callback-mutated tapCompleted flag as always false after it is reset.
+
+The correction removes that flag and uses GestureDetector.onTouchEvent's
+handled result for ACTION_UP. The single-tap callback returns true only after
+an eligible focus request; busy or unavailable cameras return false. Touch
+clicks still preserve the tapped focus point; accessibility clicks focus the
+center. Regression checks cover ordinary taps, accessibility clicks, swipe,
+cancel, busy capture, and a real saved photo without detected paper bounds.
+Quality thresholds, analysis scope and required checks remain unchanged.
+All three camera cases pass independently on API 29 and API 37 (six executions,
+zero failures/errors/skips); JVM tests, Lint and debug/test compilation pass.
+The next hosted analysis must independently confirm closure of the finding.
+
 ## Cloud analysis blocked by a device-test failure
 
 Run `40402857542` at `ebfb7f6` passed JVM tests, lint, Android compilation,

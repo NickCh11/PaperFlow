@@ -32,6 +32,12 @@ public class TranslationCaptureTest {
                 assertEquals(1,clicks[0]);assertEquals(guide.getWidth()*.25f,(Float)get(guide,"focusX"),.01f);
                 assertTrue(guide.performClick());assertEquals(2,clicks[0]);assertEquals(guide.getWidth()/2f,(Float)get(guide,"focusX"),.01f);
                 MotionEvent cancel=MotionEvent.obtain(now,now+96,MotionEvent.ACTION_CANCEL,0,0,0);try{assertTrue(guide.onTouchEvent(cancel));}finally{cancel.recycle();}assertEquals(2,clicks[0]);
+                // A swipe must not become an accessibility click or move the focus target.
+                for(int i=0;i<3;i++){MotionEvent event=MotionEvent.obtain(now+200,now+200+i*32,i==0?MotionEvent.ACTION_DOWN:i==1?MotionEvent.ACTION_MOVE:MotionEvent.ACTION_UP,guide.getWidth()*(i==0?.2f:.8f),guide.getHeight()*.6f,0);try{assertTrue(guide.dispatchTouchEvent(event));}finally{event.recycle();}}
+                assertEquals(2,clicks[0]);assertEquals(guide.getWidth()/2f,(Float)get(guide,"focusX"),.01f);
+                CameraCaptureSession session=(CameraCaptureSession)get(activity,"session");session.busy=true;
+                try{for(int i=0;i<2;i++){MotionEvent event=MotionEvent.obtain(now+400,now+400+i*32,i==0?MotionEvent.ACTION_DOWN:MotionEvent.ACTION_UP,guide.getWidth()*.2f,guide.getHeight()*.4f,0);try{assertTrue(guide.dispatchTouchEvent(event));}finally{event.recycle();}}assertEquals(2,clicks[0]);}
+                finally{session.busy=false;}
             });
         }
     }
