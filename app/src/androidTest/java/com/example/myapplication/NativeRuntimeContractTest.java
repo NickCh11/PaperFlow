@@ -36,6 +36,23 @@ public class NativeRuntimeContractTest {
         }
     }
 
+    @Test public void recognizerCandidatesReplaceOnlyOverlappingWordsWithBetterEvidence()throws Exception{
+        OfflineRuntime runtime=OfflineRuntime.get(context);
+        java.lang.reflect.Method collect=OfflineRuntime.class.getDeclaredMethod("collectLines",JSONArray.class,String.class,Map.class,Map.class,Map.class);collect.setAccessible(true);
+        Map<Integer,JSONArray> selected=new LinkedHashMap<>();Map<Integer,Long> scores=new HashMap<>();Map<Integer,long[]> wordScores=new HashMap<>();
+        JSONObject first=new JSONObject().put("text","HELLO").put("line",0).put("left",10).put("right",100).put("confidence",.2);
+        collect.invoke(runtime,new JSONArray().put(first),"en",selected,scores,wordScores);assertEquals("HELLO",selected.get(0).getJSONObject(0).getString("text"));
+        JSONObject better=new JSONObject(first.toString()).put("text","WORLD").put("confidence",.9);
+        collect.invoke(runtime,new JSONArray().put(better),"en",selected,scores,wordScores);assertEquals("WORLD",selected.get(0).getJSONObject(0).getString("text"));
+        JSONObject elsewhere=new JSONObject(better.toString()).put("text","OTHER").put("left",500).put("right",600).put("confidence",1);
+        collect.invoke(runtime,new JSONArray().put(elsewhere),"en",selected,scores,wordScores);assertEquals("WORLD",selected.get(0).getJSONObject(0).getString("text"));assertEquals(10,selected.get(0).getJSONObject(0).getInt("left"));
+        JSONObject wrongScript=new JSONObject(better.toString()).put("text","世界").put("confidence",1);
+        collect.invoke(runtime,new JSONArray().put(wrongScript),"en",selected,scores,wordScores);assertEquals("WORLD",selected.get(0).getJSONObject(0).getString("text"));
+        JSONObject digits=new JSONObject(first.toString()).put("line",2).put("text","123");collect.invoke(runtime,new JSONArray().put(digits),"en",selected,scores,wordScores);
+        JSONObject left=new JSONObject(first.toString()).put("line",2).put("text","Hello"),right=new JSONObject(first.toString()).put("line",2).put("left",120).put("right",200).put("text","world");
+        collect.invoke(runtime,new JSONArray().put(left).put(right),"en",selected,scores,wordScores);assertEquals(2,selected.get(2).length());assertEquals("world",selected.get(2).getJSONObject(1).getString("text"));
+        assertEquals(1,selected.get(0).length());assertEquals(2,selected.size());
+    }
     @Test public void malformedAndUnknownRequestsFailWithoutDamagingTheSession()throws Exception{
         Set<String> before=codes(new JSONArray(RuntimeNative.call(request("languages").toString())));
         for(String raw:new String[]{"{broken","null","[]","{}","{\"operation\":17}","{\"operation\":\"not-supported\"}"})assertThrows(IOException.class,()->RuntimeNative.call(raw));

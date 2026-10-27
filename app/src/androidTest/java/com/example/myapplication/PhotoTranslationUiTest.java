@@ -109,6 +109,52 @@ public class PhotoTranslationUiTest {
             assertSame(source,session.source);assertSame(translated,session.result.bitmap);assertFalse(source.isRecycled());assertFalse(translated.isRecycled());assertFalse(session.busy);
         }
     }
+    void previewPointer(View view,long time,int action,float span,boolean two){
+        MotionEvent.PointerProperties first=new MotionEvent.PointerProperties();first.id=0;first.toolType=MotionEvent.TOOL_TYPE_FINGER;MotionEvent.PointerProperties second=new MotionEvent.PointerProperties();second.id=1;second.toolType=MotionEvent.TOOL_TYPE_FINGER;
+        MotionEvent.PointerCoords left=new MotionEvent.PointerCoords();left.x=view.getWidth()/2f-span/2;left.y=view.getHeight()/2f;left.pressure=left.size=1;MotionEvent.PointerCoords right=new MotionEvent.PointerCoords();right.x=view.getWidth()/2f+span/2;right.y=left.y;right.pressure=right.size=1;
+        MotionEvent event=MotionEvent.obtain(time,time,action,two?2:1,two?new MotionEvent.PointerProperties[]{first,second}:new MotionEvent.PointerProperties[]{first},two?new MotionEvent.PointerCoords[]{left,right}:new MotionEvent.PointerCoords[]{left},0,0,1,1,0,0,InputDevice.SOURCE_TOUCHSCREEN,0);
+        try{assertTrue(view.dispatchTouchEvent(event));}finally{event.recycle();}
+    }
+    long previewGestureTime;
+    void zoomPreview(View view,float from,float to){
+        long time=previewGestureTime=Math.max(android.os.SystemClock.uptimeMillis(),previewGestureTime+1000);
+        previewPointer(view,time,MotionEvent.ACTION_DOWN,from,false);previewPointer(view,time+16,MotionEvent.ACTION_POINTER_DOWN|(1<<MotionEvent.ACTION_POINTER_INDEX_SHIFT),from,true);
+        for(int i=1;i<=8;i++)previewPointer(view,time+16+i*16,MotionEvent.ACTION_MOVE,from+(to-from)*i/8,true);
+        previewPointer(view,time+160,MotionEvent.ACTION_POINTER_UP|(1<<MotionEvent.ACTION_POINTER_INDEX_SHIFT),to,true);previewPointer(view,time+176,MotionEvent.ACTION_UP,to,false);
+    }
+    @Test public void previewPinchClampsZoomAndSwitchingImagesResetsPanning()throws Exception{
+        translatedPreview();main(()->{
+            View view=(View)field(activity,"preview");int[] clicks={0};view.setOnClickListener(v->clicks[0]++);float width=view.getWidth();assertTrue(width>0);
+            for(int i=0;i<12;i++)zoomPreview(view,width*.6f,width*.95f);assertEquals(6f,(Float)field(view,"zoom"),.001f);assertEquals(0,clicks[0]);
+            long now=previewGestureTime+1000;
+            for(int i=0;i<3;i++){MotionEvent event=MotionEvent.obtain(now,now+i*16,i==0?MotionEvent.ACTION_DOWN:i==1?MotionEvent.ACTION_MOVE:MotionEvent.ACTION_UP,100+i*20,100+i*15,0);try{assertTrue(view.dispatchTouchEvent(event));}finally{event.recycle();}}
+            assertTrue((Float)field(view,"panX")>0);assertTrue((Float)field(view,"panY")>0);assertEquals(0,clicks[0]);
+            for(int i=0;i<40&&(Float)field(view,"zoom")>1;i++)zoomPreview(view,width*.95f,width*.6f);
+            assertEquals(1f,(Float)field(view,"zoom"),.001f);assertEquals(0f,(Float)field(view,"panX"),.001f);assertEquals(0f,(Float)field(view,"panY"),.001f);
+            long tap=previewGestureTime+1000;for(int i=0;i<2;i++){MotionEvent event=MotionEvent.obtain(tap,tap+i*16,i==0?MotionEvent.ACTION_DOWN:MotionEvent.ACTION_UP,100,100,0);try{assertTrue(view.dispatchTouchEvent(event));}finally{event.recycle();}}assertEquals(1,clicks[0]);
+            zoomPreview(view,width*.6f,width*.95f);assertTrue((Float)field(view,"zoom")>1);return null;
+        });click("originalTab");main(()->{Object view=field(activity,"preview");assertEquals(1f,(Float)field(view,"zoom"),.001f);assertEquals(0f,(Float)field(view,"panX"),.001f);assertSame(session.source,field(view,"bitmap"));assertFalse(session.result.bitmap.isRecycled());return null;});
+    }
+    @Test public void returnedCameraPhotoIsAdoptedWithItsLanguageChoices()throws Exception{
+        File captures=new File(context.getFilesDir(),"captures");assertTrue(captures.isDirectory()||captures.mkdirs());File input=File.createTempFile("translation-camera-result-",".png",captures);
+        Bitmap bitmap=Bitmap.createBitmap(96,128,Bitmap.Config.ARGB_8888);bitmap.eraseColor(Color.WHITE);try(java.io.OutputStream out=new java.io.FileOutputStream(input)){assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,out));}finally{bitmap.recycle();}
+        Intent result=new Intent().putStringArrayListExtra("pages",new ArrayList<>(Collections.singletonList(input.getPath()))).putExtra("capture_mode","Photo").putExtra("translation_source","en").putExtra("translation_target","en");
+        monitor=new Instrumentation.ActivityMonitor(){@Override public Instrumentation.ActivityResult onStartActivity(Intent intent){launched.set(intent);return new Instrumentation.ActivityResult(Activity.RESULT_OK,result);}};inst.addMonitor(monitor);
+        try{
+            clickAction(R.string.ui_camera);UiTestWait.until(()->session.source!=null&&!session.busy,"Returned camera photo did not finish loading");
+            assertEquals(Collections.singletonList(input.getPath()),session.capturedPages);assertEquals("Photo",session.captureMode);assertEquals("en",session.sourceOverride);assertEquals("en",session.target);assertTrue(session.explicitTarget);assertTrue(session.importedSources.contains(input.getCanonicalFile()));
+            assertEquals(Color.WHITE,session.source.getPixel(0,0));assertFalse(session.source.isRecycled());
+            // A blank photo is valid input; OCR must report no readable text rather than lose it.
+            assertTrue(session.error);assertTrue(input.isFile());
+            scenario.recreate();scenario.onActivity(a->activity=a);assertSame(session,field(activity,"session"));assertEquals(1,session.capturedPages.size());assertFalse(session.source.isRecycled());
+        }finally{input.delete();}
+    }
+    @Test public void cameraImportRequestOpensImagePickerAndCancellationKeepsThePreview()throws Exception{
+        translatedPreview();Bitmap source=session.source,output=session.result.bitmap;
+        monitor=new Instrumentation.ActivityMonitor(){@Override public Instrumentation.ActivityResult onStartActivity(Intent intent){launched.set(new Intent(intent));if(intent.getComponent()!=null&&CameraCaptureActivity.class.getName().equals(intent.getComponent().getClassName()))return new Instrumentation.ActivityResult(Activity.RESULT_OK,new Intent().putExtra("import_pdf",true));return new Instrumentation.ActivityResult(Activity.RESULT_CANCELED,null);}};inst.addMonitor(monitor);
+        clickAction(R.string.ui_new_translation);chooseFirst();UiTestWait.until(()->launched.get()!=null&&Intent.ACTION_OPEN_DOCUMENT.equals(launched.get().getAction()),"Camera import option did not open the picker");
+        assertArrayEquals(new String[]{"image/*"},launched.get().getStringArrayExtra(Intent.EXTRA_MIME_TYPES));assertSame(source,session.source);assertSame(output,session.result.bitmap);assertFalse(session.busy);assertFalse(output.isRecycled());
+    }
     TextView displayedText(View root,String text){if(root instanceof TextView&&root.isShown()&&text.contentEquals(((TextView)root).getText()))return (TextView)root;if(root instanceof ViewGroup)for(int i=0;i<((ViewGroup)root).getChildCount();i++){TextView match=displayedText(((ViewGroup)root).getChildAt(i),text);if(match!=null)return match;}return null;}
     void clickMore(String label){main(()->{ViewGroup root=activity.findViewById(android.R.id.content);View more=findDescription(root,context.getString(R.string.ui_more_options));assertNotNull(more);assertTrue(more.performClick());return null;});inst.waitForIdleSync();
         awaitChoices();int position=main(()->{ListView list=find(dialog(),ListView.class);for(int i=0;i<list.getCount();i++)if(UiText.label(label).equals(String.valueOf(list.getAdapter().getItem(i)))){list.setSelection(i);return i;}throw new AssertionError("Missing photo translation menu item "+label);});

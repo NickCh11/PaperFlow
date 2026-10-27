@@ -71,6 +71,20 @@ public class LibraryManagementFlowTest {
         }
     }
 
+    @Test public void folderMovePickerExcludesItsOwnDescendantsAndAppliesOnlyTheSelectedDestination()throws Exception{
+        try(Fixture fixture=new Fixture();ActivityScenario<MainActivity> scenario=ActivityScenario.launch(new Intent(context,MainActivity.class))){
+            long source=fixture.folder("-source",0),child=fixture.folder("-child",source),target=fixture.folder("-target",0);
+            scenario.onActivity(a->{
+                call(a,"editFolder",new Class<?>[]{long.class,String.class},source,fixture.prefix+"-source");choose(3);
+                ListView list=find(dialog(),ListView.class);int selected=-1;
+                for(int i=0;i<list.getCount();i++){String label=String.valueOf(list.getAdapter().getItem(i));assertFalse(label.contains(fixture.prefix+"-source"));assertFalse(label.contains(fixture.prefix+"-child"));if(label.contains(fixture.prefix+"-target"))selected=i;}
+                assertTrue("Destination folder must remain available",selected>0);choose(selected);
+            });
+            scenario.onActivity(a->{assertEquals(target,number("SELECT parent FROM folders WHERE id=?",Long.toString(source)));assertEquals(source,number("SELECT parent FROM folders WHERE id=?",Long.toString(child)));call(a,"chooseFolderDestination",new Class<?>[]{long.class},source);choose(0);});
+            scenario.onActivity(a->{assertEquals(0,number("SELECT parent FROM folders WHERE id=?",Long.toString(source)));call(a,"chooseFolderDestination",new Class<?>[]{long.class},source);assertTrue(((Button)dialog().findViewById(android.R.id.button2)).performClick());});
+            assertEquals(0,number("SELECT parent FROM folders WHERE id=?",Long.toString(source)));assertEquals(source,number("SELECT parent FROM folders WHERE id=?",Long.toString(child)));
+        }
+    }
     @Test public void favoriteActionsOnlyUpdateTheChosenDocument() throws Exception {
         try(Fixture fixture=new Fixture();ActivityScenario<MainActivity> scenario=ActivityScenario.launch(new Intent(context,MainActivity.class))) {
             long first=fixture.document("-first",0,false),second=fixture.document("-second",0,false);

@@ -5,6 +5,32 @@ The project overview currently describes the last analysis of
 Unmerged fixes cannot change that branch's historical ratings. A passing PR gate
 does not establish whole-project 100% coverage or absence of defects.
 
+## Main migration coverage and small-image regression
+
+The first full analysis of PR #2 against main at f5fc070 passed all device,
+native ABI, JVM/Lint and Greptile jobs but failed the unchanged 80% new-code
+coverage gate at 76.1%. This comparison includes more changes than PR #1's
+feature-branch target. No test suite was reduced during migration.
+
+Twenty additional app-level scenarios cover import ownership/rollback/cancellation,
+edit payloads and render failure, CameraX surface request delivery/cancellation/
+reattachment, capture settings/countdown/language restoration, returned camera
+pages, folder destination filtering, OCR candidate selection, and preview zoom.
+These are integration and lifecycle checks, not model-accuracy benchmarks.
+
+A 120px-wide scan fixture exposed a real editor crash: createScaledBitmap can
+return its input when dimensions already match the thumbnail. Recycling that
+alias invalidated the page subsequently drawn by ImageView. The editor now
+recycles the temporary base only when it owns a distinct bitmap. Capture-result
+regressions verify the small page remains drawable and that retaking deletes only
+unused app-owned captures while preserving external input bytes.
+
+After this production change, profiles from the earlier production class were
+moved aside. Focused current editor/camera-result and photo-preview cases pass
+on API 29 and 37; the complete suite now contains 369 source cases. Full current
+matrix and fresh coverage verification are pending. The hosted Sonar result
+remains required before claiming this PR's gate passes.
+
 ## Latest analyzed revision and tap-handling correction
 
 Run `40542672471` analyzed `01c7ebc` after both complete API 29/37 device
