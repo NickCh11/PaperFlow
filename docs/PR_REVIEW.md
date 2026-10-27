@@ -17,20 +17,22 @@ workflow does not purchase credits or activate a subscription.
 Configured on 2026-10-24: private project `NickCh11_PaperFlow` in organization
 `nickch11`, on the Free plan. Both Actions variables and the encrypted
 `SONAR_TOKEN` secret are installed. Automatic analysis is off; Gradle CI is used.
-At the owner's request, the Sonar main branch is `feature/offline-translator`;
-GitHub's default branch remains `main`. Free PR analysis therefore applies to
-PRs targeting `feature/offline-translator`. Change the Sonar main branch and the
-workflow's push filter together when development moves back to `main`.
+On 2026-10-27, after PR #1 passed and merged into `feature/offline-translator`,
+the Sonar main branch was renamed to `main` for the reviewed migration to GitHub's
+default branch. PR analysis now targets `main`. The rename retains historical
+analysis; it does not establish a fresh analysis of the current GitHub main SHA.
+The migration PR and the subsequent main push must produce their own results.
+Push CI runs on main/master; other working branches are validated through PRs,
+avoiding obsolete feature-branch scans on the Free plan.
 
 The initial baseline was scanned from target commit
 `1c9eeaf265481018c7795169bf0d13dc5d1a0adb`, using a temporary copy of the scanner
-build configuration without changing its application sources. The latest verified
-Cloud analysis of production revision `95d43588ad8cfa3a02aa847e29cbf1f0dace94f4`
-reported zero open new issues and A ratings for security, reliability and
-maintainability. Its new-code coverage was 71.4%, so the quality gate still failed
-the unchanged 80% coverage requirement. Later tests must be remeasured rather
-than inferred from their passing result. No findings have been dismissed or
-quality-gate thresholds weakened to make the check green.
+build configuration without changing its application sources. PR #1 subsequently
+passed the unchanged Sonar gate and the complete CI matrix at revision
+`d2e1a8b9ce94e9c58c27b01266b5b9c6cc7da9ee` before merge. That result is evidence
+for the former feature-branch target, not a substitute for analysis against main.
+The migration PR must independently pass, including the unchanged 80% coverage
+requirement. No findings were dismissed or quality thresholds weakened.
 
 The workflow also generates the Android Lint reports expected by the scanner,
 uses the development version baseline from `version.properties`, and ignores generated
@@ -51,8 +53,8 @@ toward Sonar's analyzed production LOC; a local source line count is only an est
    the organization for `NickCh11`, choosing the **Free** plan for a private project.
    If the UI requests payment, stop and review eligibility; do not start a paid plan.
 2. Install/configure SonarQube Cloud's GitHub App for **only PaperFlow**, then import
-   `NickCh11/PaperFlow` as a **private** project. Set `feature/offline-translator`
-   as its Sonar main branch for the current development workflow.
+   `NickCh11/PaperFlow` as a **private** project. Set `main`
+   as its Sonar main branch.
 3. Choose **CI-based analysis / GitHub Actions**, and disable automatic analysis
    for this project if enabled. Android Java/Kotlin analysis uses compiled outputs
    via the pinned SonarScanner for Gradle plugin, not the generic scan action.
@@ -68,8 +70,8 @@ toward Sonar's analyzed production LOC; a local source line count is only an est
 5. Generate an analysis token with the minimum supported analysis permissions
    and an expiration date in Sonar. Store it directly in GitHub **Actions secrets**
    as `SONAR_TOKEN`. Never paste it into source, a PR, chat, or a workflow log.
-6. Establish a baseline from the actual `feature/offline-translator` source
-   before the first PR analysis. After this setup PR is merged into that branch,
+6. Establish a baseline from the actual `main` source
+   before the first PR analysis. After the migration PR is merged into main,
    its pushes refresh the baseline automatically. PRs targeting other branches require a plan that
    supports those targets. The workflow does not buy a plan or disguise a PR
    as a main-branch analysis.
@@ -121,8 +123,11 @@ context, and always runs full validation for a ready PR even if fast mode was
 selected. Fast manual mode remains available for drafts and branches without a
 PR. Only a full run emits the required `PR gate` check; fast runs emit
 `Draft / fast checks`, so a green draft result cannot satisfy the merge gate
-after the PR becomes ready. Maintainer approval and required checks still
-control merging.
+after the PR becomes ready. Required checks apply to everyone. A separate
+approval ruleset permits Maintainer/Admin users to bypass the extra review only
+when merging a PR; other users still need an approving review. This exception
+is based on the merger, not the author. Resolved threads, up-to-date branches,
+PR-only updates and protections against deletion/force-push remain mandatory.
 
 Main/master pushes and merge-queue runs require the full matrix. Releases verify
 successful emulator, native, compilation/R8 and Sonar jobs on the **exact main commit**; a

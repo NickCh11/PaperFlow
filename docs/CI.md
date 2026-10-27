@@ -68,10 +68,18 @@ from disk; they do not kill and relaunch the Android process.
 
 ## Require checks before merging
 
-The active repository ruleset requires **PR gate**, **Greptile Review**, an
-up-to-date branch, resolved review threads and one maintainer approval for `main`
-and `feature/offline-translator`. The latest push must be approved and stale
-approvals are dismissed. This release-only change does not alter that ruleset.
+Two active rulesets protect `main` and `feature/offline-translator`:
+
+- Mandatory PR checks and branch safety requires **PR gate**, **Greptile Review**,
+  an up-to-date branch, resolved threads and a PR; deletion/force-push are blocked.
+  It has no bypass actors, including administrators.
+- PR approval with maintainer exception requires one approving review, dismisses
+  stale approvals and requires latest-push approval. Maintainer/Admin roles can
+  bypass this review rule only through a PR. The exception depends on who merges,
+  not who authored the PR. It does not bypass the mandatory CI ruleset.
+
+Push validation runs on main/master; working branches use PR validation. Sonar's
+primary branch is main for PR analysis after the migration.
 
 `PR gate` remains the stable required check and depends on compilation/native
 checks, both emulator APIs, native builds, static checks and Sonar. Ready PRs run
