@@ -38,7 +38,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
     private ActivityResultLauncher<String> permissionLauncher; private ActivityResultLauncher<String[]> galleryLauncher;
     private ActivityResultLauncher<Intent> bookReviewLauncher;
     private final java.util.concurrent.ExecutorService liveWorker=java.util.concurrent.Executors.newSingleThreadExecutor();
-    private ImageAnalysis liveAnalysis;private final java.util.concurrent.atomic.AtomicInteger liveGeneration=new java.util.concurrent.atomic.AtomicInteger();private float[] previousLive;private int stableLive;private long lastLive;
+    private ImageAnalysis liveAnalysis;private final java.util.concurrent.atomic.AtomicInteger liveGeneration=new java.util.concurrent.atomic.AtomicInteger();private long lastLive;
     private boolean autoCapture,autoArmed=true,resumed;private long stableSince,missingSince,lastAuto;private float[] stableAnchor;private int[] capturedSignature,latestSignature;private boolean bookRearmedByChange;private final BookPageTracker bookTracker=new BookPageTracker();
     private final Handler handler=new Handler(Looper.getMainLooper()); private int countdown; private boolean timerPending;
     private final Runnable timerTick=new Runnable(){@Override public void run(){if(isFinishing()||isDestroyed())return;if(countdown>0){hint.setText(String.valueOf(countdown--));handler.postDelayed(this,1000);}else{timerPending=false;render();takePhoto();}}};
@@ -104,7 +104,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
         features=action(controls,UiText.get(R.string.ui_all_features),"All Features",v->new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_capture_mode)).setItems(CaptureModes.labels(),(d,w)->selectMode(MODES[w])).show());
         ((LinearLayout.LayoutParams)features.getLayoutParams()).weight=2f;
         FrameLayout holder=new FrameLayout(this);controls.addView(holder,new LinearLayout.LayoutParams(0,-1,1.2f));FrameLayout ring=new FrameLayout(this);GradientDrawable outline=round(Color.BLACK,100);outline.setStroke(dp(3),TEAL);ring.setBackground(outline);holder.addView(ring,new FrameLayout.LayoutParams(dp(64),dp(64),Gravity.CENTER));
-        shutter=new View(this);shutter.setBackground(round(0xFFF6F7F7,100));ring.addView(shutter,new FrameLayout.LayoutParams(dp(54),dp(54),Gravity.CENTER));shutter.setContentDescription(UiText.get(R.string.ui_capture_page));shutter.setOnClickListener(v->capture());
+        View face=new View(this);face.setBackground(round(0xFFF6F7F7,100));face.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);ring.addView(face,new FrameLayout.LayoutParams(dp(54),dp(54),Gravity.CENTER));shutter=ring;shutter.setContentDescription(UiText.get(R.string.ui_capture_page));shutter.setOnClickListener(v->capture());
         images=action(controls,UiText.get(R.string.ui_import_images_ac61abc3),"Import Images",v->galleryLauncher.launch(new String[]{"image/*"}));files=action(controls,UiText.get(R.string.ui_import_files),"Import Files",v->finishCapture(true));
     }
     private void updateTranslationLabels(){
@@ -140,7 +140,7 @@ public class CameraCaptureActivity extends BackHandlingActivity {
         modeScroll.post(()->{for(int i=0;i<modeRow.getChildCount();i++){View child=modeRow.getChildAt(i);if(session.mode.equals(child.getTag())){modeScroll.smoothScrollTo(Math.max(0,child.getLeft()-(modeScroll.getWidth()-child.getWidth())/2),0);break;}}});
     }
     private String guideText(){if(!CaptureModes.detectsPaper(session.mode))return UiText.get(R.string.ui_photo_no_detection);switch(session.mode){case "ID Cards":return session.pages.isEmpty() ? UiText.get(R.string.ui_align_the_front_of_the_card_with_the_live_outline) : UiText.get(R.string.ui_turn_the_card_over_and_capture_the_back);case "Book":return session.bookDoublePage ? UiText.get(R.string.ui_align_the_spine_with_the_center_line_saves_two_pages) : UiText.get(R.string.ui_align_the_page_with_the_live_outline_saves_one_page);case "Whiteboard":return UiText.get(R.string.ui_align_the_board_with_the_live_outline);case "Slides":return UiText.get(R.string.ui_align_the_slide_with_the_live_outline);case "Timestamp":return UiText.get(R.string.ui_date_and_time_will_be_printed_on_the_image);case "Batch":return UiText.get(R.string.ui_scan_more_pages_then_tap_the_thumbnail_to_review);default:return "";}}
-    private void selectMode(String mode){if(session.busy||session.mode.equals(mode))return;if(!session.pages.isEmpty()){Toast.makeText(this,UiText.get(R.string.ui_review_or_undo_your_pages_before_changing_mode),Toast.LENGTH_SHORT).show();return;}session.mode=mode;liveGeneration.incrementAndGet();previousLive=null;stableLive=0;guide.documentQuad=null;autoArmed=true;stableSince=0;
+    private void selectMode(String mode){if(session.busy||session.mode.equals(mode))return;if(!session.pages.isEmpty()){Toast.makeText(this,UiText.get(R.string.ui_review_or_undo_your_pages_before_changing_mode),Toast.LENGTH_SHORT).show();return;}session.mode=mode;liveGeneration.incrementAndGet();guide.documentQuad=null;autoArmed=true;stableSince=0;
         if("Book".equals(mode))session.restoreBookDraft();render();bindCamera();}
     private void bindCamera(){
         if(isFinishing()||isDestroyed()||binding)return;
@@ -151,16 +151,16 @@ public class CameraCaptureActivity extends BackHandlingActivity {
             Preview.Builder liveBuilder=new Preview.Builder();
             Preview live=liveBuilder.build();live.setSurfaceProvider(preview.getSurfaceProvider());ImageCapture.Builder builder=new ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).setResolutionSelector(resolution).setFlashMode(session.flash);
             if(preview.getDisplay()!=null)builder.setTargetRotation(preview.getDisplay().getRotation());imageCapture=builder.build();
-            liveGeneration.incrementAndGet();previousLive=null;stableLive=0;guide.documentQuad=null;
+            liveGeneration.incrementAndGet();guide.documentQuad=null;
             if(liveAnalysis!=null)liveAnalysis.clearAnalyzer();
             liveAnalysis=new ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).setTargetResolution(new Size(640,480)).build();
-            final int generation=liveGeneration.get();if(CaptureModes.detectsPaper(session.mode))liveAnalysis.setAnalyzer(liveWorker,image->analyzeLive(image,generation));
+            final int generation=liveGeneration.get();LivePageOutline outline=new LivePageOutline();if(CaptureModes.detectsPaper(session.mode))liveAnalysis.setAnalyzer(liveWorker,image->analyzeLive(image,generation,outline));
             UseCaseGroup.Builder groupBuilder=new UseCaseGroup.Builder().setViewPort(preview.getViewPort()).addUseCase(live).addUseCase(imageCapture);
             if(CaptureModes.detectsPaper(session.mode))groupBuilder.addUseCase(liveAnalysis);UseCaseGroup group=groupBuilder.build();
             provider.unbindAll();camera=provider.bindToLifecycle(this,CameraSelector.DEFAULT_BACK_CAMERA,group);applyFlashMode();ready=true;render();
         }catch(Exception error){hint.setText(UiText.get(R.string.ui_camera_unavailable_import_images_or_files_below));Toast.makeText(this,UiText.get(R.string.ui_could_not_start_camera),Toast.LENGTH_LONG).show();}finally{binding=false;}},ContextCompat.getMainExecutor(this));
     }
-    private void analyzeLive(ImageProxy image,int generation){
+    private void analyzeLive(ImageProxy image,int generation,LivePageOutline outline){
         Bitmap bitmap=null;
         try{
             if(!CaptureModes.detectsPaper(session.mode)||session.busy||generation!=liveGeneration.get()||SystemClock.elapsedRealtime()-lastLive<120)return;
@@ -168,12 +168,10 @@ public class CameraCaptureActivity extends BackHandlingActivity {
             if(crop.width()!=bitmap.getWidth()||crop.height()!=bitmap.getHeight()){Bitmap clipped=Bitmap.createBitmap(bitmap,crop.left,crop.top,crop.width(),crop.height());if(clipped!=bitmap)bitmap.recycle();bitmap=clipped;}
             int rotation=image.getImageInfo().getRotationDegrees();if(rotation!=0){Matrix matrix=new Matrix();matrix.postRotate(rotation);Bitmap turned=Bitmap.createBitmap(bitmap,0,0,bitmap.getWidth(),bitmap.getHeight(),matrix,true);if(turned!=bitmap)bitmap.recycle();bitmap=turned;}
             float ratio=bitmap.getWidth()/(float)bitmap.getHeight();float[] quad=com.paperflow.scanengine.ScanEngine.analyze(bitmap,true).corners;
-            float difference=0;if(quad!=null&&previousLive!=null)for(int i=0;i<8;i+=2)difference=Math.max(difference,(float)Math.hypot(quad[i]-previousLive[i],quad[i+1]-previousLive[i+1]));
-            stableLive=quad==null?0:previousLive!=null&&difference<20f/640?stableLive+1:1;previousLive=quad;
-            final float[] visible=stableLive>=3?quad:null;
+            final float[] visible=outline.update(quad,SystemClock.elapsedRealtime());
             int[] signature="Book".equals(session.mode)?BookPageTracker.frame(bitmap,quad):signature(bitmap);
-            runOnUiThread(()->{if(generation==liveGeneration.get()&&CaptureModes.detectsPaper(session.mode)&&!isFinishing()){guide.documentQuad=visible;guide.imageRatio=ratio;guide.invalidate();considerAutoCapture(quad,signature);}});
-        }catch(Exception|LinkageError error){runOnUiThread(()->{if(generation==liveGeneration.get()){guide.documentQuad=null;guide.invalidate();}});}
+            runOnUiThread(()->{if(generation==liveGeneration.get()&&CaptureModes.detectsPaper(session.mode)&&resumed&&!session.busy&&!isFinishing()){guide.documentQuad=visible;guide.imageRatio=ratio;guide.invalidate();considerAutoCapture(quad,signature);}});
+        }catch(Exception|LinkageError error){float[] visible=outline.update(null,SystemClock.elapsedRealtime());runOnUiThread(()->{if(generation==liveGeneration.get()&&resumed&&!session.busy&&!isFinishing()){guide.documentQuad=visible;guide.invalidate();considerAutoCapture(null,null);}});}
         finally{if(bitmap!=null&&!bitmap.isRecycled())bitmap.recycle();image.close();}
     }
     private int[] signature(Bitmap image){int[] values=new int[64];for(int y=0;y<8;y++)for(int x=0;x<8;x++){int pixel=image.getPixel((x*2+1)*image.getWidth()/16,(y*2+1)*image.getHeight()/16);values[y*8+x]=(Color.red(pixel)*3+Color.green(pixel)*6+Color.blue(pixel))/10;}return values;}

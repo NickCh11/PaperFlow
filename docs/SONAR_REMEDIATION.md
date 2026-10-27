@@ -79,6 +79,25 @@ a local diff estimate, not a Sonar result or a whole-project measurement. No
 failed device profile or mismatched production class is imported. The final
 Sonar analysis must independently confirm its coverage and open-issue count.
 
+## Camera outline and manual shutter follow-up
+
+The manual capture path already accepts a frame without detected bounds. The
+visible 64dp shutter, however, previously attached its click listener only to the
+inner 54dp face, leaving the ring unresponsive. The whole visible control now
+accepts taps. A real emulated CameraX capture test taps the outer ring with no
+outline and verifies one readable saved JPEG, independently on API 29 and 37.
+
+LivePageOutline confirms two nearby detections, smooths small corner changes,
+and holds a missing outline for at most 350ms. Large page movement removes the
+old outline and requires confirmation again. Its state belongs to one analyzer
+binding; stale callbacks cannot update the guide during capture or after pause.
+Only the original, current detection is passed to automatic capture, so the
+brief visual hold cannot trigger a shot on a missing page. Manual capture does
+not wait for that confirmation. Six JVM regressions cover jitter, dropout,
+movement, stale state, invalid geometry and snapshot ownership; all pass. The
+three camera instrumentation cases pass on both APIs without failures or skips.
+Physical camera acceptance testing remains necessary for the perceived result.
+
 ## Changes submitted for analysis
 
 | Finding | Remediation |

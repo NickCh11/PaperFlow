@@ -23,7 +23,7 @@ public class TranslationCaptureTest {
                 assertFalse(hasLiveRenderer(activity.findViewById(android.R.id.content)));
                 for(String name:new String[]{"sourceChoice","targetChoice"}){field=CameraCaptureActivity.class.getDeclaredField(name);field.setAccessible(true);assertNotNull(field.get(activity));}
             }catch(ReflectiveOperationException error){throw new AssertionError(error);}});
-            UiTestWait.until(()->get(current.get(),"camera")!=null&&((View)get(current.get(),"guide")).getWidth()>0,"Emulated camera did not bind");
+            UiTestWait.until(()->get(current.get(),"camera")!=null&&((View)get(current.get(),"guide")).getWidth()>0&&((androidx.camera.view.PreviewView)get(current.get(),"preview")).getPreviewStreamState().getValue()==androidx.camera.view.PreviewView.StreamState.STREAMING,"Emulated camera did not bind");
             scenario.onActivity(activity->{
                 android.widget.LinearLayout modes=(android.widget.LinearLayout)get(activity,"modeRow");
                 for(String mode:new String[]{"Single","Photo","Photo"})for(int i=0;i<modes.getChildCount();i++)if(mode.equals(modes.getChildAt(i).getTag()))assertTrue(modes.getChildAt(i).performClick());
@@ -33,6 +33,40 @@ public class TranslationCaptureTest {
                 assertTrue(guide.performClick());assertEquals(2,clicks[0]);assertEquals(guide.getWidth()/2f,(Float)get(guide,"focusX"),.01f);
                 MotionEvent cancel=MotionEvent.obtain(now,now+96,MotionEvent.ACTION_CANCEL,0,0,0);try{assertTrue(guide.onTouchEvent(cancel));}finally{cancel.recycle();}assertEquals(2,clicks[0]);
             });
+        }
+    }
+    @Test public void tappingTheOuterShutterRingSavesAPhotoWithoutAnyDetectedOutline()throws Exception{
+        android.app.Instrumentation inst=InstrumentationRegistry.getInstrumentation();
+        inst.getUiAutomation().grantRuntimePermission(inst.getTargetContext().getPackageName(),Manifest.permission.CAMERA);
+        java.util.concurrent.atomic.AtomicReference<CameraCaptureActivity> current=new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<CameraCaptureSession> owner=new java.util.concurrent.atomic.AtomicReference<>();
+        try(ActivityScenario<CameraCaptureActivity> scenario=ActivityScenario.launch(new Intent(inst.getTargetContext(),CameraCaptureActivity.class).putExtra("capture_mode","Batch"))){
+            scenario.onActivity(activity->{current.set(activity);set(activity,"autoCapture",false);owner.set((CameraCaptureSession)get(activity,"session"));owner.get().timer=0;});
+            UiTestWait.until(()->((Boolean)get(current.get(),"ready"))&&((androidx.camera.view.PreviewView)get(current.get(),"preview")).getPreviewStreamState().getValue()==androidx.camera.view.PreviewView.StreamState.STREAMING,"Camera preview did not start");
+            scenario.onActivity(activity->{
+                ((androidx.camera.core.ImageAnalysis)get(activity,"liveAnalysis")).clearAnalyzer();
+                try{((java.util.concurrent.ExecutorService)get(activity,"liveWorker")).submit(()->{}).get(10,java.util.concurrent.TimeUnit.SECONDS);}catch(Exception error){throw new AssertionError(error);}
+                View guide=(View)get(activity,"guide");set(guide,"documentQuad",null);guide.invalidate();
+            });
+            // Drain an already posted analysis result, then reproduce a tap outside the inner face.
+            inst.waitForIdleSync();
+            scenario.onActivity(activity->{
+                set(get(activity,"guide"),"documentQuad",null);
+                View shutter=(View)get(activity,"shutter");long now=android.os.SystemClock.uptimeMillis();
+                assertEquals("The complete 64dp shutter must be clickable",Math.round(activity.getResources().getDisplayMetrics().density*64),shutter.getWidth());
+                float x=activity.getResources().getDisplayMetrics().density*2,y=shutter.getHeight()/2f;
+                ViewGroup parent=(ViewGroup)shutter.getParent();
+                for(int action:new int[]{MotionEvent.ACTION_DOWN,MotionEvent.ACTION_UP}){
+                    MotionEvent event=MotionEvent.obtain(now,now,action,shutter.getLeft()+x,shutter.getTop()+y,0);
+                    try{assertTrue("The visible outer shutter ring must accept taps",parent.dispatchTouchEvent(event));}finally{event.recycle();}
+                }
+            });
+            UiTestWait.until(()->!owner.get().busy&&owner.get().pages.size()==1,"A manual tap without an outline must save one photo");
+            scenario.onActivity(activity->{assertNull(get(get(activity,"guide"),"documentQuad"));assertFalse(owner.get().returnRequested);});
+            java.io.File photo=new java.io.File(owner.get().pages.get(0));assertTrue(photo.isFile());
+            android.graphics.BitmapFactory.Options bounds=new android.graphics.BitmapFactory.Options();bounds.inJustDecodeBounds=true;android.graphics.BitmapFactory.decodeFile(photo.getAbsolutePath(),bounds);assertTrue(bounds.outWidth>0&&bounds.outHeight>0);
+        }finally{
+            CameraCaptureSession session=owner.get();if(session!=null){session.worker.awaitTermination(15,java.util.concurrent.TimeUnit.SECONDS);for(String path:session.pages)new java.io.File(path).delete();}
         }
     }
     boolean hasLiveRenderer(View view){if(view.getClass().getName().contains("LiveGlSurfaceView"))return true;if(view instanceof ViewGroup){ViewGroup group=(ViewGroup)view;for(int i=0;i<group.getChildCount();i++)if(hasLiveRenderer(group.getChildAt(i)))return true;}return false;}
