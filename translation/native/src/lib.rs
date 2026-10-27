@@ -148,6 +148,20 @@ fn word_json(word: &translator::ocr::PositionedWord, height: f32, baseline: u32,
         "lineHeight":height.round() as u32,"baseline":baseline,"line":word.line_index,"confidence":confidence})
 }
 
+// Firings describe visual glyph positions; correct direction after placing words.
+// Missing firings must retain the same logical text order in a whole-line span.
+fn positioned_ocr_line(visual_text: &str, firings: &[(char, f32)], is_cjk: bool, rtl: bool,
+    bounds: &translator::ocr::OrientedRect, line_index: u32) -> Vec<translator::ocr::PositionedWord> {
+    let mut words=translator::text_metrics::firing_word_boxes(visual_text,firings,is_cjk,bounds,line_index);
+    if words.is_empty() {
+        let text=if rtl {reverse_visual_to_logical(visual_text)} else {visual_text.to_owned()};
+        words.push(translator::ocr::PositionedWord{text,bounds:*bounds,line_index});
+    } else if rtl {
+        for word in &mut words {word.text=reverse_visual_to_logical(&word.text);}
+    }
+    words
+}
+
 // From translator-ocr/ppocr.rs (MIT). The upstream helper is crate-private.
 fn reverse_visual_to_logical(text: &str) -> String {
     let mut units=Vec::new();let mut run=String::new();
@@ -226,18 +240,8 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut en
             let script=scripts.get(i).copied();
             let rtl=script.is_some_and(|s|s.is_rtl());
             if rtl {rtl_lines.insert(i as u32);}
-            let text=if rtl {reverse_visual_to_logical(&line.text)} else {line.text.clone()};
-            let mut line_words=translator::text_metrics::firing_word_boxes(&text,&firings,script==Some(translator::PpocrScript::Cj),&line.oriented_box,i as u32);
-            // Multi-chunk recognition may omit CTC firings. Retain the recognized line
-            // as one searchable span instead of silently losing its text in PDFs.
-            if line_words.is_empty(){
-                all_words.push(translator::ocr::PositionedWord{text:line.text.clone(),bounds:line.oriented_box,line_index:i as u32});
-                continue;
-            }
-            for word in &mut line_words {
-                if rtl {word.text=reverse_visual_to_logical(&word.text)}
-            }
-            all_words.extend(line_words);
+            all_words.extend(positioned_ocr_line(&line.text,&firings,
+                script==Some(translator::PpocrScript::Cj),rtl,&line.oriented_box,i as u32));
         }
         let words:Vec<_>=translator::ocr::order_words_visually(all_words,&rtl_lines).iter().map(|word|{
             let line=&lines[word.line_index as usize];word_json(word,line.oriented_box.height,line.rect.bottom,line.confidence)
@@ -288,7 +292,7 @@ pub unsafe extern "system" fn Java_com_paperflow_translation_RuntimeNative_chang
 
 #[cfg(test)]
 mod boundary_helpers_tests {
-    use super::{reverse_visual_to_logical, runtime, word_json};
+    use super::{positioned_ocr_line, reverse_visual_to_logical, runtime, word_json};
 
     #[cfg_attr(feature = "ci-coverage", coverage(off))]
     #[test]
@@ -305,6 +309,49 @@ mod boundary_helpers_tests {
         for text in ["", "אב 12.5% Русский界😃", "123אבXYZג", "界😃אב"] {
             assert_eq!(reverse_visual_to_logical(&reverse_visual_to_logical(text)), text);
         }
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn long_rtl_lines_without_firings_keep_logical_text_and_line_geometry() {
+        let bounds=translator::ocr::OrientedRect{cx:300.0,cy:40.0,width:560.0,height:24.0,angle_radians:0.0};
+        for logical in ["שלום עולם 123 ".repeat(60), "مرحبا بالعالم 123 ".repeat(60)] {
+            let visual=reverse_visual_to_logical(&logical);
+            let words=positioned_ocr_line(&visual,&[],false,true,&bounds,7);
+            assert_eq!(words.len(),1);
+            assert_eq!(words[0].text,logical);
+            assert_eq!(words[0].line_index,7);
+            assert_eq!(words[0].bounds.cx,bounds.cx);
+            assert_eq!(words[0].bounds.width,bounds.width);
+            assert_eq!(words[0].bounds.height,bounds.height);
+        }
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn incomplete_ltr_firings_preserve_the_whole_line_instead_of_losing_words() {
+        let bounds=translator::ocr::OrientedRect{cx:50.0,cy:20.0,width:80.0,height:10.0,angle_radians:0.0};
+        for firings in [vec![],vec![('H',0.1)]] {
+            let words=positioned_ocr_line("Hello κόσμε 😃",&firings,false,false,&bounds,2);
+            assert_eq!(words.len(),1);
+            assert_eq!(words[0].text,"Hello κόσμε 😃");
+            assert_eq!(words[0].line_index,2);
+        }
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn positioned_rtl_words_are_corrected_once_and_ordered_for_reading() {
+        let bounds=translator::ocr::OrientedRect{cx:100.0,cy:20.0,width:180.0,height:15.0,angle_radians:0.0};
+        let visual="םלוע םולש";
+        let firings:Vec<_>=visual.chars().enumerate().map(|(i,ch)|(ch,(i+1) as f32/9.0)).collect();
+        let words=positioned_ocr_line(visual,&firings,false,true,&bounds,0);
+        assert_eq!(words.iter().map(|w|w.text.as_str()).collect::<Vec<_>>(),vec!["עולם","שלום"]);
+        assert!(words[0].bounds.cx<words[1].bounds.cx);
+        let rtl_lines=std::collections::HashSet::from([0]);
+        let ordered=translator::ocr::order_words_visually(words,&rtl_lines);
+        assert_eq!(ordered.iter().map(|w|w.text.as_str()).collect::<Vec<_>>(),vec!["שלום","עולם"]);
+        assert!(ordered.iter().all(|w|w.line_index==0));
     }
 
     #[cfg_attr(feature = "ci-coverage", coverage(off))]
