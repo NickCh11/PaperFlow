@@ -1,22 +1,53 @@
 //! PaperFlow adapter for the pinned offline-translator engine. GPL-3.0-or-later.
 //! No document or camera data leaves this library or the device.
+#![cfg_attr(feature = "ci-coverage", feature(coverage_attribute))]
+
+// Only the instrumented CI library exports this hook; release libraries have no profiler.
+#[cfg(feature = "ci-coverage")]
+mod ci_coverage {
+    use jni::{JNIEnv, objects::JClass, sys::jint};
+    unsafe extern "C" {
+        fn __llvm_profile_write_file() -> i32;
+    }
+    #[coverage(off)]
+    #[unsafe(no_mangle)]
+    pub extern "system" fn Java_com_example_myapplication_NativeCoverage_writeProfile(
+        _: JNIEnv, _: JClass,
+    ) -> jint {
+        // LLVM_PROFILE_FILE is set by the instrumentation runner before loading JNI.
+        unsafe { __llvm_profile_write_file() }
+    }
+}
 mod android_font_provider;
 #[cfg(target_os = "android")]
 mod live_pipeline_jni;
 
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, RwLock, RwLockReadGuard};
 use jni::{JNIEnv, objects::{JByteBuffer, JClass, JString}, sys::{jint, jlong, jstring}};
 use serde_json::{Value, json};
 use translator::{TranslatorSession, FsPackInstallChecker, Feature, TaskInstall, BackgroundMode};
 use translator::live_tracker_pipeline::LiveTrackerPipeline;
 
-struct Runtime { session: Arc<TranslatorSession>, bundled: String }
+struct Runtime { session: RwLock<Arc<TranslatorSession>>, bundled: String }
+impl Runtime {
+    fn session(&self) -> Result<RwLockReadGuard<'_, Arc<TranslatorSession>>, String> {
+        self.session.read().map_err(|_| "Language runtime cache is unavailable".into())
+    }
+    fn release_idle_models(&self) -> bool {
+        // Never block an inference or invalidate a retained live-camera owner.
+        let Ok(mut session) = self.session.try_write() else { return false; };
+        if Arc::strong_count(&*session) != 1 { return false; }
+        let snapshot = session.snapshot();
+        *session = Arc::new(TranslatorSession::from_catalog(snapshot.catalog.clone(), snapshot.base_dir.clone()));
+        true
+    }
+}
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 
-// ABI 3 also supplies OCR confidence and shares the session's OCR engine.
+// ABI 4 adds safe release of idle model caches without invalidating live owners.
 // Keep a handshake so old artifacts cannot silently skip the selection data.
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_apiVersion(_:JNIEnv,_:JClass)->jint {3}
+pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_apiVersion(_:JNIEnv,_:JClass)->jint {4}
 fn runtime() -> Result<&'static Runtime, String> {
     RUNTIME.get().ok_or_else(|| "Language runtime is not initialized".into())
 }
@@ -58,7 +89,7 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_open(mut env
             let checker = FsPackInstallChecker::new(&base);
             let disk=std::fs::read_to_string(std::path::Path::new(&base).join("index_v6.json")).ok();
             let session = TranslatorSession::open(&catalog,disk.as_deref(),base,&checker).map_err(|e|format!("{e:?}"))?;
-            let _ = RUNTIME.set(Runtime {session:Arc::new(session),bundled:catalog});
+            let _ = RUNTIME.set(Runtime {session:RwLock::new(Arc::new(session)),bundled:catalog});
         }
         Ok(json!({"ready":true}))
     })();
@@ -69,7 +100,9 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_open(mut env
 pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_call(mut env: JNIEnv, _: JClass, request: JString) -> jstring {
     let result = (|| {
         let req:Value=serde_json::from_str(&str_arg(&mut env,&request)?).map_err(|e|e.to_string())?;
-        let r=runtime()?; let session=&r.session;
+        let r=runtime()?;
+        if req["operation"].as_str()==Some("releaseIdleModels") {return Ok(json!({"released":r.release_idle_models()}));}
+        let session=r.session()?;
         let arg=|key:&str|req[key].as_str().unwrap_or("");
         match arg("operation") {
             "languages" => Ok(json!(session.language_overview().into_iter().map(|row|json!({
@@ -125,10 +158,18 @@ fn reverse_visual_to_logical(text: &str) -> String {
     if !run.is_empty(){units.push(run);}units.into_iter().rev().collect()
 }
 
+// Keep the upstream 2.25 MP detector budget: a smaller budget loses dense
+// Korean/Uyghur glyphs before recognition. Bound retained models and worker
+// copies instead; recognizers still read the full-resolution image.
+fn build_still_image(rgba: &[u8], width: u32, height: u32) -> Result<translator::live_frame::StillImage, String> {
+    translator::ocr_runtime::build_still_image(rgba, width, height, 1500).map_err(|error| error.to_string())
+}
+
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut env: JNIEnv, _: JClass, pixels:JByteBuffer, width:jint, height:jint, request:JString, output:JByteBuffer) -> jstring {
     let result=(|| {
         let r=runtime()?;
+        let session=r.session()?;
         let req:Value=serde_json::from_str(&str_arg(&mut env,&request)?).map_err(|e|e.to_string())?;
         if width<=0 || height<=0 || width>20000 || height>20000 {return Err("Invalid image dimensions".into())}
         let capacity=env.get_direct_buffer_capacity(&pixels).map_err(|e|e.to_string())?;
@@ -140,15 +181,15 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut en
         let source=req["source"].as_str().unwrap_or("auto");
         let target=req["target"].as_str().unwrap_or("");
         let min_conf=req["confidence"].as_f64().unwrap_or(50.0) as f32;
-        let still=r.session.build_still_image(&bytes,width as u32,height as u32,1500).map_err(|e|e.to_string())?;
+        let still=build_still_image(bytes,width as u32,height as u32)?;
         if !target.is_empty() {
             let selection=if source=="auto" {translator::OcrSourceSelection::auto()} else {translator::OcrSourceSelection::specific(source)};
-            let mut prepared=r.session.translate_from_still(&still,&bytes,width as u32,height as u32,selection,target,min_conf as u32,None,BackgroundMode::AutoDetect,None).map_err(|e|e.to_string())?;
+            let mut prepared=session.translate_from_still(&still,&bytes,width as u32,height as u32,selection,target,min_conf as u32,None,BackgroundMode::AutoDetect,None).map_err(|e|e.to_string())?;
             if let Some(edits)=req["sourceEdits"].as_array(){
                 if edits.len()!=prepared.blocks.len(){return Err("The photo layout changed. Translate it again before editing.".into())}
                 for (block,text) in prepared.blocks.iter_mut().zip(edits){block.source_text=text.as_str().ok_or("Invalid source edit")?.into();block.source_style_spans.clear();}
                 prepared.extracted_text=prepared.blocks.iter().map(|b|b.source_text.as_str()).collect::<Vec<_>>().join("\n");
-                if !req["translationEdits"].is_array(){prepared=r.session.retranslate_prepared_overlay(prepared,source,target).map_err(|e|e.to_string())?;}
+                if !req["translationEdits"].is_array(){prepared=session.retranslate_prepared_overlay(prepared,source,target).map_err(|e|e.to_string())?;}
             }
             if let Some(edits)=req["translationEdits"].as_array(){
                 if edits.len()!=prepared.blocks.len(){return Err("The photo layout changed. Translate it again before editing.".into())}
@@ -167,10 +208,10 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_image(mut en
                     "left":b.bounding_box.left,"top":b.bounding_box.top,"right":b.bounding_box.right,"bottom":b.bounding_box.bottom})).collect::<Vec<_>>()}));
         }
         // OCR alone uses exactly the same Paddle detector/recognizers, without translating.
-        let snap=r.session.snapshot();
+        let snap=session.snapshot();
         // Share the session's engine with still/live translation instead of
         // retaining a second full set of installed MNN models in this process.
-        let engine=translator::live_session::LiveOcrHost::ppocr_engine(r.session.as_ref())?;
+        let engine=translator::live_session::LiveOcrHost::ppocr_engine(session.as_ref())?;
         let boxes=translator::ocr_runtime::detect_boxes_from_still(&engine,&still,width as u32,height as u32).map_err(|e|e.to_string())?;
         let scripts=if source=="auto" {
             let predictions=engine.classify_text_boxes_image(&still.rgb,&boxes,Some(translator::coords::Quadrant::R0)).map_err(|e|e.to_string())?;
@@ -211,7 +252,9 @@ pub extern "system" fn Java_com_paperflow_translation_RuntimeNative_createLive(m
     let result=(|| {
         let r=runtime()?;
         let source=str_arg(&mut env,&source)?;let target=str_arg(&mut env,&target)?;
-        let pipeline=LiveTrackerPipeline::new(r.session.clone(),Arc::new(android_font_provider::AndroidFontProvider));
+        let session=r.session()?;
+        let host=Arc::clone(&*session);
+        let pipeline=LiveTrackerPipeline::new(host,Arc::new(android_font_provider::AndroidFontProvider));
         pipeline.set_languages(if source=="auto" {"en"} else {&source},&target,source=="auto");
         Ok::<_,String>(Arc::into_raw(pipeline) as jlong)
     })();
@@ -241,4 +284,153 @@ pub unsafe extern "system" fn Java_com_paperflow_translation_RuntimeNative_chang
         pipeline.set_languages(if source=="auto"{"en"}else{&source},&target,source=="auto");pipeline.reset();Ok::<_,String>(())
     })();
     if let Err(error)=result{let _=env.throw_new("java/io/IOException",error);}
+}
+
+#[cfg(test)]
+mod boundary_helpers_tests {
+    use super::{reverse_visual_to_logical, runtime, word_json};
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn unopened_runtime_reports_an_initialization_error() {
+        assert!(matches!(runtime(), Err(error) if error == "Language runtime is not initialized"));
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn visual_reordering_preserves_ascii_runs_and_unicode_scalars() {
+        let ascii = "0123:.* /%+-ABCxyz";
+        assert_eq!(reverse_visual_to_logical(ascii), ascii);
+        assert_eq!(reverse_visual_to_logical("אבג"), "גבא");
+        for text in ["", "אב 12.5% Русский界😃", "123אבXYZג", "界😃אב"] {
+            assert_eq!(reverse_visual_to_logical(&reverse_visual_to_logical(text)), text);
+        }
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn word_metadata_preserves_text_geometry_line_and_confidence() {
+        let word = translator::ocr::PositionedWord {
+            text: "Καλημέρα".into(),
+            bounds: translator::ocr::OrientedRect {
+                cx: 30.0, cy: 40.0, width: 20.0, height: 10.0, angle_radians: 0.0,
+            },
+            line_index: 3,
+        };
+        let value = word_json(&word, 12.6, 41, 0.75);
+        assert_eq!(value["text"], "Καλημέρα");
+        for (name, expected) in [("left", 20), ("top", 35), ("right", 40), ("bottom", 45), ("lineHeight", 13), ("baseline", 41), ("line", 3)] {
+            assert_eq!(value[name].as_u64(), Some(expected));
+        }
+        assert_eq!(value["confidence"].as_f64(), Some(0.75));
+    }
+}
+
+#[cfg(test)]
+mod still_image_tests {
+    use super::build_still_image;
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn large_still_images_bound_detection_without_reducing_recognition_resolution() {
+        let (width, height) = (2400u32, 1800u32);
+        let mut rgba = vec![0u8; width as usize * height as usize * 4];
+        for pixel in rgba.chunks_exact_mut(4) { pixel.copy_from_slice(&[10, 80, 160, 255]); }
+        let still = build_still_image(&rgba, width, height).unwrap();
+        assert_eq!((still.rgb.width(), still.rgb.height()), (width, height));
+        assert_eq!(still.rgb.as_rgb8().unwrap().get_pixel(width - 1, height - 1).0, [10, 80, 160]);
+        assert!(u64::from(still.rgb_det.width()) * u64::from(still.rgb_det.height()) <= 1500 * 1500);
+        assert!(still.det_to_full > 1.0);
+        assert!((still.rgb_det.width() as f32 * still.det_to_full - width as f32).abs() < 3.0);
+        assert!((still.rgb_det.height() as f32 * still.det_to_full - height as f32).abs() < 3.0);
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn document_sized_images_preserve_detector_resolution_for_dense_scripts() {
+        // This is the size of the all-language photo regression fixture.
+        // Reducing it before detection lost Korean and Uyghur glyph details.
+        let (width, height) = (1600u32, 1050u32);
+        let rgba = vec![255u8; width as usize * height as usize * 4];
+        let still = build_still_image(&rgba, width, height).unwrap();
+        assert_eq!((still.rgb_det.width(), still.rgb_det.height()), (width, height));
+        assert_eq!(still.det_to_full, 1.0);
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn small_still_images_keep_their_pixels_and_reject_truncated_input() {
+        let still = build_still_image(&[10, 80, 160, 255], 1, 1).unwrap();
+        assert_eq!((still.rgb_det.width(), still.rgb_det.height()), (1, 1));
+        assert_eq!(still.det_to_full, 1.0);
+        assert!(build_still_image(&[10, 80, 160], 1, 1).is_err());
+    }
+}
+
+#[cfg(test)]
+mod model_cache_tests {
+    use super::{Runtime, TranslatorSession};
+    use std::sync::{Arc, RwLock};
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    fn runtime() -> Runtime {
+        let bundled = r#"{"formatVersion":6,"generatedAt":7,"dictionaryVersion":1,"sources":{"languageIndexVersion":1,"languageIndexUpdatedAt":0,"dictionaryIndexVersion":1,"dictionaryIndexUpdatedAt":0},"languages":{},"packs":{}}"#;
+        let catalog = translator::parse_and_validate_catalog(bundled).unwrap();
+        Runtime {
+            session: RwLock::new(Arc::new(TranslatorSession::from_catalog(catalog, "/unused-test-models".into()))),
+            bundled: bundled.into(),
+        }
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn releasing_idle_models_drops_the_old_owner_and_preserves_the_current_catalog() {
+        let runtime = runtime();
+        let old = {
+            let session = runtime.session().unwrap();
+            session.replace_catalog(&runtime.bundled.replace("\"generatedAt\":7", "\"generatedAt\":19"), None, "/updated-test-models".into()).unwrap();
+            Arc::downgrade(&*session)
+        };
+        assert!(runtime.release_idle_models());
+        assert!(old.upgrade().is_none());
+        let snapshot = runtime.session().unwrap().snapshot();
+        assert_eq!(snapshot.catalog.generated_at, 19);
+        assert_eq!(snapshot.base_dir, "/updated-test-models");
+        assert!(runtime.release_idle_models());
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn a_retained_live_owner_defers_model_release_until_it_is_dropped() {
+        let runtime = runtime();
+        let live = Arc::clone(&*runtime.session().unwrap());
+        assert!(!runtime.release_idle_models());
+        assert!(Arc::ptr_eq(&live, &*runtime.session().unwrap()));
+        drop(live);
+        assert!(runtime.release_idle_models());
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn in_flight_inference_defers_release_without_waiting_for_its_read_lock() {
+        let runtime = runtime();
+        let inference = runtime.session().unwrap();
+        assert!(!runtime.release_idle_models());
+        drop(inference);
+        assert!(runtime.release_idle_models());
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn poisoned_cache_locks_fail_closed_instead_of_replacing_an_unknown_owner() {
+        let runtime = Arc::new(runtime());
+        let other = Arc::clone(&runtime);
+        let failure = std::thread::spawn(move || {
+            let _guard = other.session.write().unwrap();
+            panic!("deliberate cache-lock poisoning");
+        }).join();
+        assert!(failure.is_err());
+        assert!(!runtime.release_idle_models());
+        assert!(runtime.session().is_err());
+    }
 }

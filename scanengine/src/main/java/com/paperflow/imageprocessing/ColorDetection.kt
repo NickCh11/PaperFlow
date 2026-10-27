@@ -122,7 +122,12 @@ private fun chroma(a: Mat, b: Mat): Mat {
 }
 
 private fun erodeBorder(mask: Mat, quad: Quad): Mat {
-    val minDim = quad.edges().minOf { it.norm() }
+    // A quad always has four edges; avoid allocating a list and four Lines
+    // for every automatic color decision.
+    val minDim = minOf(
+        minOf(norm(quad.topLeft, quad.topRight), norm(quad.topRight, quad.bottomRight)),
+        minOf(norm(quad.bottomRight, quad.bottomLeft), norm(quad.bottomLeft, quad.topLeft)),
+    )
     var k = (minDim * 0.02).roundToInt()
     k = k.coerceIn(3, 15)
     if (k % 2 == 0) k += 1
@@ -175,7 +180,6 @@ fun applyGrayWorldToDocument(
 
     val nonZero = Core.countNonZero(docMask)
     if (nonZero == 0) {
-        docMask.release()
         return img.clone()
     }
 

@@ -3,7 +3,7 @@
 `.github/workflows/android-ci.yml` runs on every pull request, pushes to
 `main`/`master`, merge queue groups and manual dispatch. There are no path filters.
 Fork PRs need no repository secrets. Actions use immutable commit pins and read-only
-repository permissions. Builds do not publish or sign releases.
+repository permissions. CI does not package release APKs, publish or sign releases.
 
 ## What runs
 
@@ -11,12 +11,18 @@ repository permissions. Builds do not publish or sign releases.
 | --- | --- |
 | Unit tests, lint and translations | JVM tests, Android Lint in all modules, localization validator and its regression tests, CI tooling tests |
 | Offline language runtime | Build the pinned Rust/slimt/MNN/CLD2 runtime for ARM64, ARMv7 and x86_64, with cached native dependencies |
-| Build arm64-v8a / armeabi-v7a debug and release | Separate ARMv8 and ARMv7 debug/unsigned release APKs, including native translation code |
+| Android compilation and native checks | One compilation/R8 check, merged release manifest policy and merged native ELF/engine verification for ARM64, ARMv7 and x86_64; no release APK |
 | Device tests API 29 and 37.0 | Complete app instrumentation suite on fresh x86_64 emulators |
 | PR gate | Succeeds only when all preceding jobs succeed; failure, cancellation or a skipped job blocks this check |
 
-ARMv8 maps to `arm64-v8a` and ARMv7 to `armeabi-v7a`. Each build job verifies
-the APK's native engine libraries and ELF headers for its selected ABI.
+ARMv8 maps to `arm64-v8a` and ARMv7 to `armeabi-v7a`. Native engine libraries
+and ELF headers are verified directly in AGP's merged library tree. The common
+compilation job also checks AGP's merged release manifest with
+`tools/ci/check_android_manifest.py`, including dependency declarations. Unsafe
+debug/test-only/cleartext flags, additional permissions, unexpected exported
+components, weakened file-sharing configuration and the debug document provider
+fail the existing build/PR gate. See [BASIC_VALIDATION.md](BASIC_VALIDATION.md)
+for the core scenario map and real-device acceptance limits.
 The device test matrix runs on
 x86_64; ARM builds and packaging checks do not replace tests on real ARM devices.
 
@@ -31,19 +37,25 @@ Language fixtures use the upstream v6 core packs and PaddleOCR script models.
 The fixture installer never seeds the retired Tesseract language directory.
 This suite checks correctness, not production multithreaded performance.
 Office fixtures are in `app/src/androidTest/assets/office-fixtures`. English and
-Greek core packs and every downloadable OCR script are fetched from the upstream
+Greek core packs are fetched from the upstream
 catalog. Transport sizes and gzip integrity are checked; device fixture copies
 are compared against the local files with SHA-256. The catalog does not publish
 upstream content digests. Download tests also
 exercise the production network downloader; an unavailable upstream can fail the
 job. Downloaded packs, private files and credentials are not committed.
 
-`tools/ci/test_language_coverage.py` requires one explicit sample for each download
-language. A new catalog language without a sample fails the PR check. The device
-suite tests every sample as text and as an image, including the documented
-Bosnian/Croatian ambiguity and the Norwegian/Bokmal alias.
+The suite validates the app's integration with pinned upstream models, rather
+than benchmarking their language accuracy. It retains real offline recognition,
+automatic source/error propagation, mixed-script searchable PDF text, unchanged
+PDF appearance, Word output, translation sessions, download integrity and
+cancellation. Exhaustive language/image corpora and OCR word-error-rate scoring
+were removed at the owner's request. App-owned script-routing boundaries remain
+covered by fast deterministic JVM tests. Both Android APIs run the same complete
+remaining suite; there is no hidden skip list or reduced Sonar threshold.
 
-Reports and APKs are retained as workflow artifacts for seven days. JVM and device report
+Reports are retained as workflow artifacts for three days. No downloadable APK
+artifacts are produced by PR/push CI. Temporary debug/test APKs are necessary
+for emulator execution. JVM and device report
 validation rejects zero tests, failures, errors, skipped tests and missing source tests.
 
 These checks do not establish physical camera accuracy, translation quality for
@@ -56,25 +68,18 @@ from disk; they do not kill and relaunch the Android process.
 
 ## Require checks before merging
 
-Adding a workflow alone does **not** block merging. After pushing the files and
-running the workflow once, a repository administrator must enable a branch ruleset:
+The active repository ruleset requires **PR gate**, **Greptile Review**, an
+up-to-date branch, resolved review threads and one maintainer approval for `main`
+and `feature/offline-translator`. The latest push must be approved and stale
+approvals are dismissed. This release-only change does not alter that ruleset.
 
-An importable template is provided in `.github/rulesets/pr-gate.json`. It targets
-the default branch, requires PRs and the GitHub Actions `PR gate`, with no review
-count requirement and no bypass actors. It is a template, not an applied rule.
-Alternatively configure the same rule manually:
+`PR gate` remains the stable required check and depends on compilation/native
+checks, both emulator APIs, native builds, static checks and Sonar. Ready PRs run
+full checks automatically; drafts use `Draft / fast checks` and cannot satisfy
+the merge gate. No `full-validation` label is necessary for a ready PR.
 
-1. Repository **Settings > Rules > Rulesets > New branch ruleset**.
-2. Target the default branch and set enforcement to **Active**.
-3. Enable **Require a pull request before merging**.
-4. Enable **Require status checks to pass**, add **PR gate** from GitHub Actions,
-   and enable **Require branches to be up to date before merging**.
-5. Leave the bypass list empty if the rule must apply to administrators too.
-
-Use the stable `PR gate` check as required; its dependencies include both build
-architectures and both device jobs. Do not require only one emulator job or the old path-filtered translation
-workflow. If using a merge queue, the `merge_group` trigger provides the same gate.
-Availability of branch rules depends on the repository plan and visibility.
+The checked-in ruleset JSON is an older minimal template, not a snapshot of the
+live policy. Do not import it over the existing maintainer-review ruleset.
 
 ## Run locally
 
@@ -89,7 +94,7 @@ bash gradlew testDebugUnitTest lintDebug -PpaperflowAbi=x86_64
 python3 tools/ci/check_test_results.py app/build/test-results/testDebugUnitTest app/src/test/java
 bash gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PpaperflowAbi=x86_64
 # Start a fresh API 29+ emulator, then:
-python3 tools/ci/prepare_models.py --all-ocr --install
+python3 tools/ci/prepare_models.py --install
 bash gradlew :app:connectedDebugAndroidTest -PpaperflowAbi=x86_64 -Pandroid.testInstrumentationRunnerArguments.ci=true
 python3 tools/ci/check_test_results.py app/build/outputs/androidTest-results/connected app/src/androidTest/java
 bash gradlew :app:assembleDebug :app:assembleRelease -PpaperflowAbi=arm64-v8a
@@ -104,7 +109,7 @@ documents, change preferences temporarily and exercise downloads and permissions
 
 ## Universal builds and appearance checks
 
-The build matrix now also includes `all`: a universal APK with ARMv8, ARMv7 and x86_64. All three build jobs are required by PR gate. The native APK validator checks each included ABI separately. See [Appearance and adaptable layouts](APPEARANCE.md) for the additional night-mode and compact-screen regression checks.
+CI checks the three configured native architectures without packaging distributable APKs. Only the published-release workflow builds ARM64, ARMv7 and universal APKs; its native APK validator checks each included ABI separately. See [Appearance and adaptable layouts](APPEARANCE.md) for the additional night-mode and compact-screen regression checks.
 
 The workflow installs JDK 25, matching the repository's existing `gradle/gradle-daemon-jvm.properties` criteria and the daemon used for local validation.
 
@@ -117,6 +122,7 @@ This leaves space for the API 37.0 system image and AVD data; it does not affect
 
 The emulator action uses Command-line Tools 22.0 through its `latest` path. Older
 runner tools can silently create an invalid `android-0` AVD target for API 37.0;
-CI checks the generated target before booting. Each AVD has 4 GB RAM and an 8 GB
+CI checks the generated target before booting. API 29 has 2 GB RAM and API 37 has
+4 GB RAM; both have an 8 GB
 data partition. The language fixture installer waits for the package manager and
 collects emulator logcat on installation failures.

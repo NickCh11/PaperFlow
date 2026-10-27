@@ -1,0 +1,153 @@
+name: SonarQube Cloud
+
+on:
+  workflow_call:
+    inputs:
+      device-coverage:
+        type: boolean
+        default: false
+      pr-number:
+        type: string
+        default: ''
+      pr-branch:
+        type: string
+        default: ''
+      pr-base:
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonar-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  configuration:
+    name: SonarQube configuration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: Check onboarding and trusted PR source
+        id: check
+        env:
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          IS_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          if [ "$IS_FORK" = true ]; then
+            echo '::notice::Sonar analysis is not run with secrets on fork PR code. Run the existing secret-free Android PR checks.'
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+          elif [ -z "$SONAR_ORGANIZATION" ] || [ -z "$SONAR_PROJECT_KEY" ] || [ -z "$SONAR_TOKEN" ]; then
+            echo '::error::SonarQube Cloud is not activated. Create a private Cloud project, set SONAR_ORGANIZATION and SONAR_PROJECT_KEY variables and the SONAR_TOKEN Actions secret. See docs/PR_REVIEW.md.'
+            echo '### SonarQube Cloud: setup required' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Analysis did not run. Follow docs/PR_REVIEW.md; this configuration check is not a quality-gate result.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            exit 1
+          else
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          fi
+
+  analysis:
+    name: SonarQube analysis
+    needs: configuration
+    if: needs.configuration.outputs.ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - name: Install pinned Android tools
+        run: bash tools/ci/install_android_tools.sh 'platforms;android-37.0' 'build-tools;36.0.0'
+      - name: Restore compiled inputs from this run
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: sonar-inputs
+          path: build/ci-inputs
+      - name: Unpack compiled inputs
+        run: tar -xzf build/ci-inputs/sonar-inputs.tgz
+      - name: Restore device test coverage from this run
+        if: inputs.device-coverage
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          pattern: device-coverage-api-*
+          path: build/device-coverage
+      - name: Merge current-run coverage without recompiling or repeating JVM tests
+        run: bash gradlew coverageReport -x testDebugUnitTest -PpaperflowAbi=x86_64 -PpaperflowCoverage=true
+      - name: Restore matching instrumented native objects
+        if: inputs.device-coverage
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: native-coverage-x86_64
+          path: build/native-coverage/x86_64
+      - name: Export real Android JNI and Rust unit-test branch coverage
+        if: inputs.device-coverage
+        run: |
+          toolchain=$(cat tools/ci/native_coverage_toolchain.txt)
+          rustup toolchain install "$toolchain" --profile minimal --component llvm-tools-preview
+          python3 tools/ci/export_native_coverage.py --profiles build/device-coverage
+      - name: Identify measured scope
+        env:
+          DEVICE_COVERAGE: ${{ inputs.device-coverage }}
+        run: |
+          if [ "$DEVICE_COVERAGE" != true ]; then
+            echo 'Fast draft/branch analysis imports JVM coverage only. Ready PRs run full validation automatically; the full-validation label can also request device/native coverage for a draft.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Verify JVM test reports
+        run: |
+          python3 tools/ci/check_test_results.py app/build/test-results/testDebugUnitTest app/src/test/java
+          python3 tools/ci/check_test_results.py scanengine/build/test-results/testDebugUnitTest scanengine/src/test/java
+          python3 tools/ci/check_test_results.py translation/build/test-results/testDebugUnitTest translation/src/test/java
+      - name: Report progress toward whole-project 100 percent coverage
+        run: |
+          status=0
+          native=()
+          if [ -f build/coverage/native.lcov ]; then native+=(--native-lcov build/coverage/native.lcov); fi
+          python3 tools/ci/check_coverage.py --target 100 "${native[@]}" --json build/coverage/whole-project.json --markdown build/coverage/whole-project.md || status=$?
+          if [ "$status" -gt 1 ]; then
+            exit "$status"
+          fi
+          cat build/coverage/whole-project.md >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -eq 1 ]; then
+            echo '::warning::Whole-project 100 percent coverage has not been reached. See the coverage report for uncovered lines, branches and unmeasured native code. The Sonar quality gate is checked separately.'
+          fi
+      - name: Analyze and wait for quality gate
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr-number }}
+          PR_BRANCH: ${{ inputs.pr-branch }}
+          PR_BASE: ${{ inputs.pr-base }}
+        run: |
+          args=()
+          if [ -n "$PR_NUMBER" ]; then
+            args+=("-Dsonar.pullrequest.key=$PR_NUMBER" "-Dsonar.pullrequest.branch=$PR_BRANCH" "-Dsonar.pullrequest.base=$PR_BASE")
+          elif [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            args+=("-Dsonar.branch.name=$GITHUB_REF_NAME")
+          fi
+          bash gradlew sonar -PpaperflowAbi=x86_64 -PpaperflowCoverage=true "${args[@]}" -Dsonar.qualitygate.wait=true -Dsonar.qualitygate.timeout=600 --info
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: sonar-jvm-test-reports
+          path: |
+            app/build/test-results/testDebugUnitTest/
+            scanengine/build/test-results/testDebugUnitTest/
+            translation/build/test-results/testDebugUnitTest/
+            **/build/reports/jacoco/coverageReport/
+            build/coverage/
+          retention-days: 3

@@ -7,7 +7,6 @@
     <string name="ui_translation_previous_page">Previous page</string>
     <string name="ui_translation_next_page">Next page</string>
     <string name="ui_ocr_pdf_intro">Convert a scanned PDF into a searchable PDF with text you can select and copy. Only the pages you choose are processed.</string>
-    <string name="ui_translation_pages_help">Swipe left or right to preview pages. PDF exports contain every page; image exports save or share every translated image.</string>
     <string name="ui_translation_images">Images (all pages)</string>
     <string name="ui_translation_page_progress">Translating page %1$d of %2$d…</string>
     <string name="ui_translation_saved_images">All translated images were saved.</string>
@@ -25,4 +24,7 @@
     <string name="ui_update_language_packs">Check for language pack updates</string>
     <string name="ui_updating_language_packs">Checking language pack updates…</string>
     <string name="ui_offline_translation_help">Choose a source language or use automatic detection, then select the target language. Photo, live camera and text translation run on this device after the required language packs are downloaded. Photo mode keeps the full frame; document modes enable paper detection.</string>
+    <string name="ui_on_device_ocr" formatted="false">On-device OCR</string>
+    <string name="ui_word_routes_description" formatted="false">Automatic uses embedded PDF text where available and recognizes scanned pages on this device using the offline translator and your enabled downloaded languages. Editable layout preserves positioned text and page graphics; appearance mode preserves page images. Complex fonts and layouts may change.</string>
+    <string name="ui_no_embedded_pdf_text_use_offline_ocr" formatted="false">No embedded PDF text found. Choose on-device OCR using the offline translator.</string>
 </resources>

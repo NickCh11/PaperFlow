@@ -709,7 +709,6 @@
     <!-- LanguageModels.java:39; LanguageModels.java:52; LanguageModels.java:66 -->
     <string name="ui_download_cancelled" formatted="false">Download cancelled</string>
     <!-- LanguageModels.java:60 -->
-    <string name="ui_download_server_returned_value">Download server returned %1$s</string>
     <!-- LanguageModels.java:66 -->
     <string name="ui_language_file_is_larger_than_expected" formatted="false">Language file is larger than expected</string>
     <!-- LanguageModels.java:71 -->
@@ -723,7 +722,6 @@
     <!-- LocalTranslationActivity.java:130 -->
     <string name="ui_reading_text_and_detecting_its_language" formatted="false">Reading text and detecting its language…</string>
     <!-- LocalTranslationActivity.java:157 -->
-    <string name="ui_translating_value_value">Translating %1$s / %2$s…</string>
     <!-- LocalTranslationActivity.java:164 -->
     <string name="ui_preparing_your_translation" formatted="false">Preparing your translation…</string>
     <!-- LocalTranslationActivity.java:221; LongImageActivity.java:63; PdfViewerActivity.java:99 -->
@@ -905,9 +903,7 @@
     <!-- MainActivity.java:260; MainActivity.java:278; MainActivity.java:491 -->
     <string name="ui_pdf_text_only_includes_greek" formatted="false">PDF text only · includes Greek</string>
     <!-- MainActivity.java:260; MainActivity.java:278; MainActivity.java:491 -->
-    <string name="ui_on_device_ocr_tesseract" formatted="false">On-device OCR · Tesseract</string>
     <!-- MainActivity.java:260; MainActivity.java:278; MainActivity.java:491 -->
-    <string name="ui_google_cloud_ocr_greek" formatted="false">Google Cloud OCR · Greek</string>
     <!-- MainActivity.java:260; MainActivity.java:278; MainActivity.java:491 -->
     <string name="ui_editable_page_layout_local" formatted="false">Editable page layout · local</string>
     <!-- MainActivity.java:260; MainActivity.java:278; MainActivity.java:491 -->
@@ -993,29 +989,20 @@
     <!-- MainActivity.java:456 -->
     <string name="ui_could_not_open_pdf" formatted="false">Could not open PDF</string>
     <!-- MainActivity.java:459 -->
-    <string name="ui_google_cloud_api_key" formatted="false">Google Cloud API key</string>
     <!-- MainActivity.java:462 -->
-    <string name="ui_google_cloud_vision_is_available_for_the_optional_cloud_word_ocr_route_enab" formatted="false">Google Cloud Vision is available for the optional cloud Word OCR route. Enable the required APIs and billing in your Google project. Saving settings does not upload documents.</string>
     <!-- MainActivity.java:462 -->
-    <string name="ui_google_api_settings" formatted="false">Google API settings</string>
     <!-- MainActivity.java:464 -->
-    <string name="ui_enter_your_google_cloud_api_key" formatted="false">Enter your Google Cloud API key</string>
     <!-- MainActivity.java:466 -->
-    <string name="ui_could_not_save_google_cloud_settings" formatted="false">Could not save Google Cloud settings</string>
     <!-- MainActivity.java:490 -->
-    <string name="ui_automatic_uses_embedded_pdf_text_including_greek_and_on_device_ocr_for_scan" formatted="false">Automatic uses embedded PDF text, including Greek, and on-device OCR for scanned pages. Local OCR uses Tesseract with your enabled downloaded languages. Google Cloud OCR is optional and requires an API key. Editable layout keeps text in positioned boxes with the page graphics; appearance mode keeps page images. Complex fonts and layouts may change. Text-only routes remain available.</string>
     <!-- MainActivity.java:490; MainActivity.java:538; ToolWorkflowActivity.java:207 -->
     <string name="ui_ocr_languages_84fba977" formatted="false">OCR Languages</string>
     <!-- MainActivity.java:492 -->
     <string name="ui_convert_to_word" formatted="false">Convert to Word</string>
     <!-- MainActivity.java:495 -->
-    <string name="ui_could_not_read_google_api_settings" formatted="false">Could not read Google API settings</string>
     <!-- MainActivity.java:497 -->
     <string name="ui_upload_and_convert" formatted="false">Upload and convert</string>
     <!-- MainActivity.java:497 -->
-    <string name="ui_each_pdf_page_will_be_rendered_and_sent_to_google_cloud_vision_for_ocr_incl" formatted="false">Each PDF page will be rendered and sent to Google Cloud Vision for OCR, including any personal or confidential content. Your Google project may be charged. Continue only if you want to upload this document.</string>
     <!-- MainActivity.java:497 -->
-    <string name="ui_upload_pages_to_google_cloud" formatted="false">Upload pages to Google Cloud?</string>
     <!-- MainActivity.java:506; OfficeExport.java:40; OfficeImport.java:56 -->
     <string name="ui_conversion_cancelled" formatted="false">Conversion cancelled</string>
     <!-- MainActivity.java:506 -->
@@ -1145,7 +1132,6 @@
     <!-- OfficePackage.java:16 -->
     <string name="ui_unsupported_xml_declaration" formatted="false">Unsupported XML declaration</string>
     <!-- OfflineTranslator.java:16 -->
-    <string name="ui_download_the_value_translation_language_first">Download the %1$s translation language first</string>
     <!-- OfflineTranslator.java:19 -->
     <string name="ui_could_not_start_offline_translation" formatted="false">Could not start offline translation</string>
     <!-- OfflineTranslator.java:21 -->
@@ -1879,7 +1865,7 @@
     <!-- ToolWorkflowActivity.java:510; ToolWorkflowActivity.java:553 -->
     <string name="ui_cancelling_after_the_current_page" formatted="false">Cancelling after the current page…</string>
     <!-- ToolWorkflowActivity.java:511 -->
-    <string name="ui_compressing_value_value">Compressing...\n%1$s / %2$s</string>
+    <string name="ui_compressing_value_value">Compressing…\n%1$s / %2$s</string>
     <!-- ToolWorkflowActivity.java:511 -->
     <string name="ui_processing_value_of_value">Processing %1$s of %2$s…</string>
     <!-- ToolWorkflowActivity.java:545 -->
@@ -1901,19 +1887,14 @@
     <!-- WordConversion.java:47 -->
     <string name="ui_this_pdf_has_no_pages_b4f57307" formatted="false">This PDF has no pages</string>
     <!-- WordConversion.java:62 -->
-    <string name="ui_no_embedded_pdf_text_found_choose_on_device_or_google_cloud_ocr" formatted="false">No embedded PDF text found. Choose on-device or Google Cloud OCR.</string>
     <!-- WordConversion.java:62 -->
     <string name="ui_no_readable_text_found_check_the_active_ocr_languages_and_image_clarity" formatted="false">No readable text found. Check the active OCR languages and image clarity.</string>
     <!-- WordConversion.java:73 -->
     <string name="ui_download_and_enable_ocr_languages_in_ocr_languages_first" formatted="false">Download and enable OCR languages in OCR Languages first</string>
     <!-- WordConversion.java:76 -->
-    <string name="ui_configure_a_google_cloud_api_key_first" formatted="false">Configure a Google Cloud API key first</string>
     <!-- WordConversion.java:82 -->
-    <string name="ui_google_cloud_returned_http_value">Google Cloud returned HTTP %1$s</string>
     <!-- WordConversion.java:83 -->
-    <string name="ui_google_cloud_http_value">Google Cloud HTTP %1$s</string>
     <!-- WordConversion.java:84 -->
-    <string name="ui_google_cloud_returned_no_ocr_response" formatted="false">Google Cloud returned no OCR response</string>
     <string name="ui_me" formatted="false">Me</string>
     <string name="ui_sign_by_value">Sign by: %1$s</string>
     <string name="ui_close_camera" formatted="false">Close camera</string>
@@ -1945,4 +1926,7 @@
     <string name="ui_appearance_light">Light</string>
     <string name="ui_appearance_dark">Dark</string>
     <string name="ui_appearance_help">System default follows the light or dark appearance of your device.</string>
+    <string name="ui_translation_target_value" translatable="false">→ %1$s</string>
+    <string name="ui_brightness_value">Brightness: %1$d</string>
+    <string name="ui_contrast_value">Contrast: %1$d</string>
 </resources>

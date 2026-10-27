@@ -42,6 +42,10 @@ class OcrDocument(
     }
 
     private var fontDict: COSDictionary? = null
+    private var unicodeStream: PDStream? = null
+    // Identity-H encodes 16-bit character IDs, not UTF-16 code units. One ID
+    // maps to one complete Unicode scalar, including a supplementary pair.
+    private val characterCodes = linkedMapOf(0x20 to 1)
 
     fun ensureResourcesAreCreated() {
         if (fontDict != null)
@@ -87,6 +91,7 @@ class OcrDocument(
         // -- Object 5 : ToUnicode CMap --
         val toUnicode = buildToUnicodeCMap()
         val toUnicodeStream = PDStream(document)
+        unicodeStream = toUnicodeStream
         toUnicodeStream.createOutputStream().use {
             it.write(toUnicode.toByteArray(Charsets.US_ASCII))
         }
@@ -109,14 +114,18 @@ class OcrDocument(
         append("12 dict begin\n")
         append("begincmap\n")
         append("/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n")
-        append("/CMapName /Adobe-Identify-UCS def\n")
+        append("/CMapName /PaperFlow-OCR-UCS def\n")
         append("/CMapType 2 def\n")
         append("1 begincodespacerange\n")
         append("<0000> <FFFF>\n")
         append("endcodespacerange\n")
-        append("1 beginbfrange\n")
-        append("<0000> <FFFF> <0000>\n")
-        append("endbfrange\n")
+        for (batch in characterCodes.entries.chunked(100)) {
+            append("${batch.size} beginbfchar\n")
+            for ((codepoint, code) in batch) {
+                append("<%04X> <%s>\n".format(Locale.US, code, codepointToUtf16beHex(codepoint)))
+            }
+            append("endbfchar\n")
+        }
         append("endcmap\n")
         append("CMapName currentdict /CMap defineresource pop\n")
         append("end\nend\n")
@@ -136,9 +145,20 @@ class OcrDocument(
             ?: COSDictionary().also {
                 resources.cosObject.setItem(COSName.FONT, it)
             }
-        fontResources.setItem(COSName.getPDFName("PF_OCR_GLYPHLESS"), fontDict)
+        // Each writer assigns its own character IDs. Keep existing mappings
+        // intact when another OCR pass appends text, including shared resources.
+        var suffix = 0
+        var fontName = COSName.getPDFName("PF_OCR_GLYPHLESS")
+        while (fontResources.containsKey(fontName) && fontResources.getDictionaryObject(fontName) !== fontDict) {
+            suffix++
+            fontName = COSName.getPDFName("PF_OCR_GLYPHLESS_$suffix")
+        }
+        fontResources.setItem(fontName, fontDict)
 
-        val textStream = "q\n1 0 0 1 ${page.cropBox.lowerLeftX} ${page.cropBox.lowerLeftY} cm\n" + buildTextStream(ocrTextBoxes, dimensions) + "Q\n"
+        val textStream = "q\n1 0 0 1 ${page.cropBox.lowerLeftX} ${page.cropBox.lowerLeftY} cm\n" + buildTextStream(ocrTextBoxes, dimensions, fontName.name) + "Q\n"
+        unicodeStream!!.createOutputStream().use {
+            it.write(buildToUnicodeCMap().toByteArray(Charsets.US_ASCII))
+        }
         com.tom_roush.pdfbox.pdmodel.PDPageContentStream(document, page,
             com.tom_roush.pdfbox.pdmodel.PDPageContentStream.AppendMode.APPEND, true, true).use {
             it.appendRawCommands(textStream)
@@ -148,6 +168,7 @@ class OcrDocument(
     private fun buildTextStream(
         ocrTextBoxes: List<OcrTextBox>,
         dimensions: PageDimensions,
+        fontName: String,
     ): String {
         val scaleX = dimensions.pageWidth / dimensions.imageWidth
         val scaleY = dimensions.pageHeight / dimensions.imageHeight
@@ -160,22 +181,26 @@ class OcrDocument(
             // nominal width: fontSize / kCharWidth (Tesseract convention)
             // Include the explicit separator in the fitted width. Otherwise it
             // overlaps the next word and PDF readers can sort it inside that word.
-            val nominalWidth = (textBox.text.length + 1) * fontSize / 2f
+            val nominalWidth = (textBox.text.codePointCount(0, textBox.text.length) + 1) * fontSize / 2f
             val hScale = if (nominalWidth > 0f) (wordWidth / nominalWidth) * 100f else 100f
             val baselineY = dimensions.pageHeight - (textBox.lineBottom * scaleY) + fontSize * 0.2f
 
-            val utf16hex = buildString {
+            val encoded = buildString {
                 textBox.text.codePoints().forEach { cp ->
-                    append(codepointToUtf16beHex(cp))
+                    val code = characterCodes.getOrPut(cp) {
+                        require(characterCodes.size < 65535) { "Too many distinct OCR characters for one PDF font" }
+                        characterCodes.size + 1
+                    }
+                    append("%04X".format(Locale.US, code))
                 }
             }
 
             sb.append("BT\n")
-            sb.append(String.format(Locale.US, "/PF_OCR_GLYPHLESS %.3f Tf\n", fontSize))
+            sb.append(String.format(Locale.US, "/%s %.3f Tf\n", fontName, fontSize))
             sb.append(String.format(Locale.US,"%.3f Tz\n", hScale))
             sb.append("3 Tr\n")
             sb.append(String.format(Locale.US,"%.3f %.3f Td\n", x, baselineY))
-            sb.append("<${utf16hex}0020> Tj\n")
+            sb.append("<${encoded}0001> Tj\n")
             sb.append("ET\n")
         }
         return sb.toString()

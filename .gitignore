@@ -9,6 +9,8 @@ Thumbs.db
 
 # Generated Android / native build output
 .gradle/
+.sonar/
+.scannerwork/
 **/build/
 **/.cxx/
 **/.externalNativeBuild/

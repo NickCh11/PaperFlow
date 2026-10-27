@@ -1,23 +1,122 @@
 name: Publish Android release
 
 on:
-  push:
-    tags: ['v*']
-  workflow_dispatch:
+  release:
+    types: [published]
 
-permissions:
-  contents: read
-  actions: read
+permissions: {}
 
 concurrency:
   group: paperflow-release
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Sign and publish versioned APKs
+  prepare:
+    permissions:
+      contents: read
+      actions: read
+    name: Validate published release and exact main CI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.prepare.outputs.sha }}
+      complete: ${{ steps.prepare.outputs.complete }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate source, version, CI and existing assets
+        id: prepare
+        run: python3 tools/ci/release_android.py prepare
+      - name: Check signing configuration without reading secret values
+        if: steps.prepare.outputs.complete != 'true'
+        env:
+          HAS_KEYSTORE: ${{ secrets.PAPERFLOW_KEYSTORE_BASE64 != '' }}
+          HAS_STORE_PASSWORD: ${{ secrets.PAPERFLOW_STORE_PASSWORD != '' }}
+          HAS_ALIAS: ${{ secrets.PAPERFLOW_KEY_ALIAS != '' }}
+          HAS_KEY_PASSWORD: ${{ secrets.PAPERFLOW_KEY_PASSWORD != '' }}
+        run: |
+          for configured in "$HAS_KEYSTORE" "$HAS_STORE_PASSWORD" "$HAS_ALIAS" "$HAS_KEY_PASSWORD"; do
+            if [ "$configured" != true ]; then
+              echo '::error::Configure all four PAPERFLOW signing secrets. No new signing key will be generated. See docs/BUILD.md.'
+              exit 1
+            fi
+          done
+
+  language-runtime:
+    permissions:
+      contents: read
+    needs: prepare
+    if: needs.prepare.outputs.complete != 'true'
+    uses: ./.github/workflows/language-runtime.yml
+    with:
+      validation-artifacts: false
+
+  build:
+    permissions:
+      contents: read
+      actions: read
+    name: Build and sign release APKs
+    needs: [prepare, language-runtime]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          pattern: language-runtime-*
+          path: translation
+          merge-multiple: true
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
+      - run: bash tools/ci/install_android_tools.sh
+      - name: Revalidate source and build three release variants
+        run: |
+          python3 tools/ci/release_android.py prepare
+          python3 tools/ci/release_android.py build
+      - name: Sign and verify every APK
+        env:
+          PAPERFLOW_KEYSTORE_BASE64: ${{ secrets.PAPERFLOW_KEYSTORE_BASE64 }}
+          PAPERFLOW_STORE_PASSWORD: ${{ secrets.PAPERFLOW_STORE_PASSWORD }}
+          PAPERFLOW_KEY_ALIAS: ${{ secrets.PAPERFLOW_KEY_ALIAS }}
+          PAPERFLOW_KEY_PASSWORD: ${{ secrets.PAPERFLOW_KEY_PASSWORD }}
+        run: python3 tools/ci/release_android.py sign
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: signed-release-bundle
+          path: build/release-dist/
+          if-no-files-found: error
+          retention-days: 3
+      - name: Preserve R8 mappings for release crash diagnosis
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: release-r8-mappings
+          path: build/release-mappings/
+          if-no-files-found: warn
+          retention-days: 30
+
+  publish:
+    name: Attach verified APKs to existing release
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: write
       actions: read
@@ -25,25 +124,14 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ needs.prepare.outputs.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Require the exact source commit to pass Android CI
-        run: python3 tools/ci/release_android.py prepare
-      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
-          distribution: temurin
-          java-version: '25'
-      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
-      - name: Install APK signing tools
-        run: bash tools/ci/install_android_tools.sh 'build-tools;36.0.0'
-      - name: Download, verify and sign tested release APKs
-        env:
-          PAPERFLOW_KEYSTORE_BASE64: ${{ secrets.PAPERFLOW_KEYSTORE_BASE64 }}
-          PAPERFLOW_STORE_PASSWORD: ${{ secrets.PAPERFLOW_STORE_PASSWORD }}
-          PAPERFLOW_KEY_ALIAS: ${{ secrets.PAPERFLOW_KEY_ALIAS }}
-          PAPERFLOW_KEY_PASSWORD: ${{ secrets.PAPERFLOW_KEY_PASSWORD }}
-        run: python3 tools/ci/release_android.py sign
-      - name: Publish complete GitHub Release
+          name: signed-release-bundle
+          path: build/release-dist
+      - name: Verify bundle and upload without replacing assets
         run: python3 tools/ci/release_android.py publish

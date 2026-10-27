@@ -232,10 +232,15 @@ fun enhanceGrayscaleImage(img: Mat): Mat {
 // Steps 1 to 5 of enhanceGrayscaleImage, without the conversion back to BGR.
 // Binarization reuses it for the same illumination flattening.
 private fun flattenedGrayscale(img: Mat): Mat {
+    require(!img.empty()) { "Image must contain pixels" }
+    val channels = img.channels()
+    require(channels == 1 || channels == 3 || channels == 4) {
+        "Only grayscale, BGR or BGRA images are supported"
+    }
 
     // -- 1. Convert to grayscale --------
     val gray = Mat()
-    when (img.channels()) {
+    when (channels) {
         4    -> Imgproc.cvtColor(img, gray, Imgproc.COLOR_BGRA2GRAY)
         3    -> Imgproc.cvtColor(img, gray, Imgproc.COLOR_BGR2GRAY)
         else -> img.copyTo(gray)
@@ -263,14 +268,9 @@ private fun flattenedGrayscale(img: Mat): Mat {
         Core.add(blur, Scalar(1.0), blur)
         Core.log(blur, logBlur)
         Core.subtract(logImg, logBlur, diff)
-        val diffGray = Mat()
-        if (diff.channels() > 1) {
-            Imgproc.cvtColor(diff, diffGray, Imgproc.COLOR_BGRA2GRAY)
-        } else {
-            diff.copyTo(diffGray)
-        }
-        Core.addWeighted(retinex, 1.0, diffGray, weight, 0.0, retinex)
-        diffGray.release()
+        // The input was converted to one channel before the Retinex pass.
+        // Accumulate it directly instead of allocating another image per scale.
+        Core.addWeighted(retinex, 1.0, diff, weight, 0.0, retinex)
     }
 
     // -- 3. exp() + p1/p99 normalization ---------

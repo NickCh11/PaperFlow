@@ -55,6 +55,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
         volatile boolean busy,disposed,cancelled;boolean restoring;Uri pendingDestination;
         final Set<File> snapshots=java.util.concurrent.ConcurrentHashMap.newKeySet();volatile File snapshot;File lastExport,exportEvent;String exportAction,exportMime;
         final Set<File> importedSources=java.util.concurrent.ConcurrentHashMap.newKeySet();
+        void ownInputs(Collection<String> paths){for(String path:paths)try{importedSources.add(TemporaryInputs.owned(getApplication().getFilesDir(),path));}catch(IOException ignored){}}
 
         public TranslationSession(Application app){super(app);
             android.content.SharedPreferences prefs=app.getSharedPreferences("photo-translation",0);
@@ -215,12 +216,14 @@ public class LocalTranslationActivity extends BackHandlingActivity {
                 main.post(()->{if(disposed||cancelled){for(File file:imported)file.delete();if(!disposed)fail(new InterruptedIOException(UiText.get(R.string.ui_translation_cancelled)));return;}importedSources.addAll(imported);capturedPages.clear();for(File file:imported)capturedPages.add(file.getPath());pageSnapshots.clear();capturedIndex=0;captureMode="Photo";busy=false;load(Uri.fromFile(imported.get(0)));});
             }catch(Exception|OutOfMemoryError error){for(File file:imported)file.delete();fail(error);}});
         }
+        private static final class BatchSession extends TranslationSession {
+            BatchSession(Application app){super(app);}
+            @Override void publishResult(TranslationRenderer.Result output,ArrayList<TranslationRenderer.Block> ready,String from,String to,boolean fallback)throws Exception{
+                try{checkCancelled();snapshot=TranslationSnapshot.write(getApplication(),source,output,ready,from,to,sourceOverride,true,fallback);}finally{output.bitmap.recycle();}
+            }
+        }
         File translateBatchPage(String path)throws Exception {
-            checkCancelled();TranslationSession page=new TranslationSession(getApplication()){
-                @Override void publishResult(TranslationRenderer.Result output,ArrayList<TranslationRenderer.Block> ready,String from,String to,boolean fallback)throws Exception{
-                    try{checkCancelled();snapshot=TranslationSnapshot.write(getApplication(),source,output,ready,from,to,sourceOverride,true,fallback);}finally{output.bitmap.recycle();}
-                }
-            };
+            checkCancelled();TranslationSession page=new BatchSession(getApplication());
             page.parentCancelled=()->cancelled||disposed||parentCancelled.getAsBoolean();page.sourceOverride=sourceOverride;page.target=target;page.explicitTarget=true;
             try {
                 BitmapFactory.Options options=new BitmapFactory.Options();options.inJustDecodeBounds=true;BitmapFactory.decodeFile(path,options);options.inJustDecodeBounds=false;options.inSampleSize=1;
@@ -265,8 +268,15 @@ public class LocalTranslationActivity extends BackHandlingActivity {
             if(restoring){pendingDestination=uri;return;}if(busy)return;if(lastExport==null){fail(new IOException(UiText.get(R.string.ui_could_not_save_image)));return;}
             if(exportFiles.size()>1){copyImages(uri);return;}
             final File file=lastExport;begin("Saving to device…");
-            worker.execute(()->{try(InputStream in=new FileInputStream(file);OutputStream out=getApplication().getContentResolver().openOutputStream(uri,"w")){
-                if(out==null)throw new IOException(UiText.get(R.string.ui_could_not_open_the_selected_location));byte[] buffer=new byte[65536];int n;while((n=in.read(buffer))!=-1)out.write(buffer,0,n);
+            worker.execute(()->{try{
+                // A queued save can be cancelled before its destination is opened.
+                // Check first so opening with "w" cannot truncate that document.
+                checkCancelled();
+                try(InputStream in=new FileInputStream(file);OutputStream out=getApplication().getContentResolver().openOutputStream(uri,"w")){
+                    // Once writing starts, finish this document. SAF may replace
+                    // an existing file and cannot atomically roll it back on cancel.
+                    if(out==null)throw new IOException(UiText.get(R.string.ui_could_not_open_the_selected_location));byte[] buffer=new byte[65536];int n;while((n=in.read(buffer))!=-1)out.write(buffer,0,n);
+                }
                 main.post(()->{if(disposed)return;busy=false;error=false;message=UiText.get(R.string.ui_saved_to_device);publish();});
             }catch(Exception problem){fail(problem);}});
         }
@@ -284,7 +294,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
             }catch(Exception error){for(Uri destination:created)try{android.provider.DocumentsContract.deleteDocument(getApplication().getContentResolver(),destination);}catch(Exception ignored){}fail(error);}});
         }
         void cancel(){cancelled=true;message=UiText.get(R.string.ui_stopping_after_the_current_step);publish();}
-        @Override protected void onCleared(){disposed=true;cancelled=true;worker.execute(()->{for(File dir:snapshots)TranslationSnapshot.remove(getApplication(),dir);snapshots.clear();for(File file:importedSources)file.delete();if(source!=null&&!source.isRecycled())source.recycle();if(result!=null&&!result.bitmap.isRecycled())result.bitmap.recycle();});worker.shutdown();}
+        @Override protected void onCleared(){disposed=true;cancelled=true;worker.execute(()->{for(File dir:snapshots)TranslationSnapshot.remove(getApplication(),dir);snapshots.clear();try{TemporaryInputs.remove(getApplication().getFilesDir(),importedSources,new BookDraftStore(getApplication()).read().pages);}catch(IOException unreadableDraft){/* Keep inputs if draft ownership cannot be established. */}if(source!=null&&!source.isRecycled())source.recycle();if(result!=null&&!result.bitmap.isRecycled())result.bitmap.recycle();});worker.shutdown();}
     }
 
     static String languageName(String code){return Locale.forLanguageTag(code.replace('_','-')).getDisplayName(UiText.context().getResources().getConfiguration().getLocales().get(0));}
@@ -295,13 +305,14 @@ public class LocalTranslationActivity extends BackHandlingActivity {
             ArrayList<String> cached=state.getStringArrayList("translated_page_snapshots");if(cached!=null)for(int i=0;i<cached.size();i++)if(cached.get(i)!=null)try{File file=TranslationSnapshot.owned(this,cached.get(i),"translation-sessions");if(file.isDirectory()){session.pageSnapshots.put(i,file);session.snapshots.add(file);}}catch(IOException ignored){}
             ArrayList<String> outputs=state.getStringArrayList("translation_export_files");if(outputs!=null&&session.exportFiles.isEmpty())for(String path:outputs)try{File file=new File(path).getCanonicalFile();if(file.isFile()&&(file.getPath().startsWith(getCacheDir().getCanonicalPath()+File.separator)||file.getPath().startsWith(getFilesDir().getCanonicalPath()+File.separator)))session.exportFiles.add(file);}catch(IOException ignored){}
             session.exportPageCount=state.getInt("translation_export_page_count",1);
-            for(String path:session.capturedPages)try{File file=TranslationSnapshot.owned(this,path,"translation-inputs");session.importedSources.add(file);}catch(IOException ignored){}
+            session.ownInputs(session.capturedPages);
         }
         picker=registerForActivityResult(new ActivityResultContracts.OpenMultipleDocuments(),uris->{if(uris!=null&&!uris.isEmpty()){original=false;session.importImages(uris);}});
         camera=registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),result->{
             if(result.getResultCode()!=RESULT_OK||result.getData()==null)return;
             ArrayList<String> pages=result.getData().getStringArrayListExtra("pages");
             if(pages!=null&&!pages.isEmpty()){
+                session.ownInputs(pages);
                 original=false;session.captureMode=result.getData().getStringExtra("capture_mode");
                 session.sourceOverride=result.getData().getStringExtra("translation_source");if(session.sourceOverride==null)session.sourceOverride="auto";
                 String selectedTarget=result.getData().getStringExtra("translation_target");if(selectedTarget!=null){session.target=selectedTarget;session.explicitTarget=true;}
@@ -340,7 +351,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
     private void updateUi(){
         if(destroyed)return;
         status.setText(session.message);status.setTextColor(session.error?0xFFB33A35:MUTED);progress.setVisibility(session.busy?View.VISIBLE:View.GONE);
-        detected.setEnabled(!session.busy);detected.setText(session.sourceLanguage.isEmpty() ? (session.sourceOverride.equals("auto") ? UiText.get(R.string.ui_auto_detect) : UiText.format(R.string.ui_value_7cd939c2, languageName(session.sourceOverride))) : UiText.format(R.string.ui_value_7cd939c2, (session.sourceOverride.equals("auto")?"Auto: ":"")+languageName(session.sourceLanguage)));target.setText(!session.explicitTarget&&session.sourceLanguage.isEmpty() ? UiText.get(R.string.ui_auto_translate) : UiText.format(R.string.ui_to_value, languageName(session.target)));target.setEnabled(!session.busy);
+        detected.setEnabled(!session.busy);detected.setText(session.sourceLanguage.isEmpty() ? (session.sourceOverride.equals("auto") ? UiText.get(R.string.ui_auto_detect) : UiText.format(R.string.ui_value_7cd939c2, languageName(session.sourceOverride))) : UiText.format(R.string.ui_value_7cd939c2, (session.sourceOverride.equals("auto")?"Auto: ":"")+languageName(session.sourceLanguage)));target.setText(!session.explicitTarget&&session.sourceLanguage.isEmpty() ? UiText.get(R.string.ui_auto_translate) : UiText.format(R.string.ui_to_value, languageName(session.target)));target.setContentDescription(target.getText());detected.setContentDescription(UiText.get(R.string.ui_photo_language)+": "+detected.getText());target.setEnabled(!session.busy);
         boolean ready=session.result!=null;translatedTab.setEnabled(ready);originalTab.setEnabled(session.source!=null);
         translatedTab.setTextColor(!original&&ready?BRAND:MUTED);originalTab.setTextColor(original?BRAND:MUTED);
         translatedTab.setBackground(round(!original&&ready?AppTheme.soft():AppTheme.surface(),6));originalTab.setBackground(round(original?AppTheme.soft():AppTheme.surface(),6));
@@ -423,16 +434,16 @@ public class LocalTranslationActivity extends BackHandlingActivity {
     @Override public void handleBackPressed(){back();}
     @Override protected void onSaveInstanceState(Bundle state){state.putBoolean("show_original",original);state.putStringArrayList("captured_pages",session.capturedPages);state.putInt("captured_index",session.previousPage>=0?session.previousPage:session.capturedIndex);state.putString("translation_capture_mode",session.captureMode);if(session.snapshot!=null)state.putString("translation_session",session.snapshot.getAbsolutePath());if(session.lastExport!=null)state.putString("pending_export",session.lastExport.getAbsolutePath());ArrayList<String> snapshots=new ArrayList<>();for(int i=0;i<session.capturedPages.size();i++){File file=session.pageSnapshots.get(i);snapshots.add(file==null?null:file.getPath());}state.putStringArrayList("translated_page_snapshots",snapshots);ArrayList<String> exports=new ArrayList<>();for(File file:session.exportFiles)exports.add(file.getPath());state.putStringArrayList("translation_export_files",exports);state.putInt("translation_export_page_count",session.exportPageCount);super.onSaveInstanceState(state);}
     @Override protected void onDestroy(){destroyed=true;super.onDestroy();}
-    private TextView text(String value,int size,int color){TextView view=new TextView(this);view.setText(value);view.setTextSize(size);view.setTextColor(color);view.setGravity(Gravity.CENTER_VERTICAL);return view;}
+    private TextView text(String value,int size,int color){return EditorViews.text(this,value,size,color);}
     private TextView button(String value,boolean filled){TextView view=text(value,15,filled ? AppTheme.onAccent() :BRAND);view.setGravity(Gravity.CENTER);view.setTypeface(null,android.graphics.Typeface.BOLD);view.setPadding(dp(10),dp(8),dp(10),dp(8));view.setBackground(round(filled ? BRAND : AppTheme.surface(),6));AppTheme.polishAction(view);view.setContentDescription(value);return view;}
     private GradientDrawable round(int color,int radius){GradientDrawable background=new GradientDrawable();background.setColor(color);background.setCornerRadius(dp(radius));return background;}
     private LinearLayout.LayoutParams space(int width,int height,int top){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(width,height);lp.topMargin=dp(top);return lp;}
     private int dp(int value){return Math.round(value*getResources().getDisplayMetrics().density);}
     private class PreviewView extends View {
-        Bitmap bitmap;float zoom=1,panX,panY,lastX,lastY,downX,downY;boolean multitouch;final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);final ScaleGestureDetector pinch;
+        final RectF destination=new RectF();Bitmap bitmap;float zoom=1,panX,panY,lastX,lastY,downX,downY;boolean multitouch;final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);final ScaleGestureDetector pinch;
         PreviewView(){super(LocalTranslationActivity.this);setContentDescription(UiText.get(R.string.ui_translation_preview_pinch_to_zoom_drag_to_move));pinch=new ScaleGestureDetector(getContext(),new ScaleGestureDetector.SimpleOnScaleGestureListener(){@Override public boolean onScale(ScaleGestureDetector detector){zoom=Math.max(1,Math.min(6,zoom*detector.getScaleFactor()));if(zoom==1)panX=panY=0;invalidate();return true;}});}
         void setBitmap(Bitmap value){if(bitmap!=value){bitmap=value;zoom=1;panX=panY=0;invalidate();}}
-        @Override protected void onDraw(Canvas canvas){if(bitmap==null||bitmap.isRecycled())return;float fit=Math.min(getWidth()/(float)bitmap.getWidth(),getHeight()/(float)bitmap.getHeight());float w=bitmap.getWidth()*fit*zoom,h=bitmap.getHeight()*fit*zoom;canvas.drawBitmap(bitmap,null,new RectF((getWidth()-w)/2+panX,(getHeight()-h)/2+panY,(getWidth()+w)/2+panX,(getHeight()+h)/2+panY),paint);}
+        @Override protected void onDraw(Canvas canvas){if(bitmap==null||bitmap.isRecycled())return;float fit=Math.min(getWidth()/(float)bitmap.getWidth(),getHeight()/(float)bitmap.getHeight());float w=bitmap.getWidth()*fit*zoom,h=bitmap.getHeight()*fit*zoom;destination.set((getWidth()-w)/2+panX,(getHeight()-h)/2+panY,(getWidth()+w)/2+panX,(getHeight()+h)/2+panY);canvas.drawBitmap(bitmap,null,destination,paint);}
         @Override public boolean onTouchEvent(MotionEvent event){if(bitmap==null)return false;pinch.onTouchEvent(event);if(event.getActionMasked()==MotionEvent.ACTION_DOWN){downX=lastX=event.getX();downY=lastY=event.getY();multitouch=false;}else if(event.getPointerCount()>1)multitouch=true;else if(event.getActionMasked()==MotionEvent.ACTION_MOVE&&!pinch.isInProgress()){if(zoom>1){panX+=event.getX()-lastX;panY+=event.getY()-lastY;invalidate();}lastX=event.getX();lastY=event.getY();}else if(event.getActionMasked()==MotionEvent.ACTION_UP&&!multitouch&&zoom<=1.01f){float dx=event.getX()-downX,dy=event.getY()-downY;if(Math.abs(dx)>dp(60)&&Math.abs(dx)>Math.abs(dy)*1.5f)showPage(session.capturedIndex+(dx<0?1:-1));else performClick();}return true;}
         @Override public boolean performClick(){super.performClick();return true;}
     }

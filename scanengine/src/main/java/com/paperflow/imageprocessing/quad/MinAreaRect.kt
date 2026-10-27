@@ -34,16 +34,20 @@ fun minAreaRect(polygon: List<Point>, imgWidth: Int? = null, imgHeight: Int? = n
         val cosA = cos(angle)
         val sinA = sin(angle)
 
-        // Rotation matrix
-        val rotX = { p: Point -> p.x * cosA - p.y * sinA }
-        val rotY = { p: Point -> p.x * sinA + p.y * cosA }
-
-        val rotated = hull.map { Point(rotX(it), rotY(it)) }
-
-        val minX = rotated.minOf { it.x }
-        val maxX = rotated.maxOf { it.x }
-        val minY = rotated.minOf { it.y }
-        val maxY = rotated.maxOf { it.y }
+        // Accumulate bounds in one pass, without a new point/list per angle.
+        var minX = Double.POSITIVE_INFINITY
+        var maxX = Double.NEGATIVE_INFINITY
+        var minY = Double.POSITIVE_INFINITY
+        var maxY = Double.NEGATIVE_INFINITY
+        for (point in hull) {
+            val x = point.x * cosA - point.y * sinA
+            val y = point.x * sinA + point.y * cosA
+            // minOf/maxOf retain the previous NaN and signed-zero semantics.
+            minX = minOf(minX, x)
+            maxX = maxOf(maxX, x)
+            minY = minOf(minY, y)
+            maxY = maxOf(maxY, y)
+        }
 
         val area = (maxX - minX) * (maxY - minY)
         if (area < bestArea) {

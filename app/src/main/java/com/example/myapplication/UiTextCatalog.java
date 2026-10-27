@@ -6,6 +6,7 @@ import java.util.*;
 final class UiTextCatalog {
     private static final Map<String,Integer> IDS=new HashMap<>();
     static {
+        IDS.put("On-device OCR",R.string.ui_on_device_ocr);
         IDS.put("Photo",R.string.ui_photo_capture_mode);
         add0();
         add1();
@@ -431,8 +432,6 @@ final class UiTextCatalog {
         IDS.put("Favorites",R.string.ui_favorites);
         IDS.put("Automatic · PDF text, then local OCR",R.string.ui_automatic_pdf_text_then_local_ocr);
         IDS.put("PDF text only · includes Greek",R.string.ui_pdf_text_only_includes_greek);
-        IDS.put("On-device OCR · Tesseract",R.string.ui_on_device_ocr_tesseract);
-        IDS.put("Google Cloud OCR · Greek",R.string.ui_google_cloud_ocr_greek);
         IDS.put("Editable page layout · local",R.string.ui_editable_page_layout_local);
         IDS.put("Keep page appearance · images",R.string.ui_keep_page_appearance_images);
         IDS.put("Show all",R.string.ui_show_all);
@@ -472,18 +471,9 @@ final class UiTextCatalog {
         IDS.put("Search tools",R.string.ui_search_tools);
         IDS.put("Smart document workflows for work and life.",R.string.ui_smart_document_workflows_for_work_and_life);
         IDS.put("Could not open PDF",R.string.ui_could_not_open_pdf);
-        IDS.put("Google Cloud API key",R.string.ui_google_cloud_api_key);
-        IDS.put("Google Cloud Vision is available for the optional cloud Word OCR route. Enable the required APIs and billing in your Google project. Saving settings does not upload documents.",R.string.ui_google_cloud_vision_is_available_for_the_optional_cloud_word_ocr_route_enab);
-        IDS.put("Google API settings",R.string.ui_google_api_settings);
-        IDS.put("Enter your Google Cloud API key",R.string.ui_enter_your_google_cloud_api_key);
-        IDS.put("Could not save Google Cloud settings",R.string.ui_could_not_save_google_cloud_settings);
-        IDS.put("Automatic uses embedded PDF text, including Greek, and on-device OCR for scanned pages. Local OCR uses Tesseract with your enabled downloaded languages. Google Cloud OCR is optional and requires an API key. Editable layout keeps text in positioned boxes with the page graphics; appearance mode keeps page images. Complex fonts and layouts may change. Text-only routes remain available.",R.string.ui_automatic_uses_embedded_pdf_text_including_greek_and_on_device_ocr_for_scan);
         IDS.put("OCR Languages",R.string.ui_ocr_languages_84fba977);
         IDS.put("Convert to Word",R.string.ui_convert_to_word);
-        IDS.put("Could not read Google API settings",R.string.ui_could_not_read_google_api_settings);
         IDS.put("Upload and convert",R.string.ui_upload_and_convert);
-        IDS.put("Each PDF page will be rendered and sent to Google Cloud Vision for OCR, including any personal or confidential content. Your Google project may be charged. Continue only if you want to upload this document.",R.string.ui_each_pdf_page_will_be_rendered_and_sent_to_google_cloud_vision_for_ocr_incl);
-        IDS.put("Upload pages to Google Cloud?",R.string.ui_upload_pages_to_google_cloud);
         IDS.put("Conversion cancelled",R.string.ui_conversion_cancelled);
         IDS.put("Conversion complete",R.string.ui_conversion_complete);
         IDS.put("Enter the password to convert this document.",R.string.ui_enter_the_password_to_convert_this_document);
@@ -863,11 +853,8 @@ final class UiTextCatalog {
         IDS.put("This translation language is not available",R.string.ui_this_translation_language_is_not_available);
         IDS.put("Too much text in one photo. Choose a smaller section.",R.string.ui_too_much_text_in_one_photo_choose_a_smaller_section);
         IDS.put("This PDF has no pages",R.string.ui_this_pdf_has_no_pages_b4f57307);
-        IDS.put("No embedded PDF text found. Choose on-device or Google Cloud OCR.",R.string.ui_no_embedded_pdf_text_found_choose_on_device_or_google_cloud_ocr);
         IDS.put("No readable text found. Check the active OCR languages and image clarity.",R.string.ui_no_readable_text_found_check_the_active_ocr_languages_and_image_clarity);
         IDS.put("Download and enable OCR languages in OCR Languages first",R.string.ui_download_and_enable_ocr_languages_in_ocr_languages_first);
-        IDS.put("Configure a Google Cloud API key first",R.string.ui_configure_a_google_cloud_api_key_first);
-        IDS.put("Google Cloud returned no OCR response",R.string.ui_google_cloud_returned_no_ocr_response);
         IDS.put("Me",R.string.ui_me);
         IDS.put("Close camera",R.string.ui_close_camera);
     }

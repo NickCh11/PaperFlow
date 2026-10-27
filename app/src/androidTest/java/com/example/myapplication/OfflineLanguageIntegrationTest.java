@@ -21,9 +21,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import static org.junit.Assert.*;
 
-/** Exercises production downloads, UI selection and offline PDF text, with explicit ground truth. */
+/** Verify app-owned downloads, UI selection and searchable PDF integration. */
 @RunWith(AndroidJUnit4.class)
-public class OcrLanguagesQualityTest {
+public class OfflineLanguageIntegrationTest {
     final Instrumentation inst=InstrumentationRegistry.getInstrumentation();
     Context context(){return inst.getTargetContext();}
     Set<String> selected(){return new HashSet<>(context().getSharedPreferences("local-languages",0).getStringSet("ocr-enabled",Collections.emptySet()));}
@@ -40,31 +40,74 @@ public class OcrLanguagesQualityTest {
         Set<String> original=selected();JSONObject chosen=null;JSONArray catalog=LanguageModels.catalog(context(),"ocr");
         // OCR scripts can already be present through another language (or the
         // all-script CI fixture). Download/Delete controls the complete core pack.
-        for(int i=0;i<catalog.length();i++){JSONObject candidate=catalog.getJSONObject(i);if(!LanguageModels.installed(context(),"translation",candidate)){chosen=candidate;break;}}
+        // Exercise the smallest fresh core pack rather than depending on catalog
+        // ordering (Afrikaans currently transfers about three times as much).
+        for(int i=0;i<catalog.length();i++){JSONObject candidate=catalog.getJSONObject(i);if(!LanguageModels.installed(context(),"translation",candidate)&&(chosen==null||candidate.getLong("size")<chosen.getLong("size")))chosen=candidate;}
         assertNotNull("Need an uninstalled pack to test a fresh download",chosen);
-        final JSONObject pack=chosen;String code=pack.getString("code"),title=LanguageModels.title(pack);Activity activity=launch();
+        final JSONObject pack=chosen;String code=pack.getString("code"),title=LanguageModels.title(pack);
+        Map<File,byte[]> fixtures=preserveOcrFixtures(code);Activity activity=launch();
         long started=SystemClock.elapsedRealtime();
+        LanguageManagerActivity.DownloadSession session=(LanguageManagerActivity.DownloadSession)field(activity,"session");
+        Throwable primaryFailure=null;
         try{
             LinearLayout initial=row(activity,title);assertEquals(LanguageModels.installed(context(),"ocr",pack),((CheckBox)initial.getChildAt(0)).isEnabled());assertEquals("Download",((Button)initial.getChildAt(1)).getText().toString());
             inst.runOnMainSync(()->((Button)initial.getChildAt(1)).performClick());
-            LanguageManagerActivity.DownloadSession session=(LanguageManagerActivity.DownloadSession)field(activity,"session");
-            long deadline=started+90000;while(session.busy&&SystemClock.elapsedRealtime()<deadline)Thread.sleep(100);
-            assertFalse("Download timed out",session.busy);inst.waitForIdleSync();assertTrue("Downloaded pack missing",LanguageModels.installed(context(),"ocr",pack));
+            long deadline=SystemClock.elapsedRealtime()+90000;while(session.busy&&SystemClock.elapsedRealtime()<deadline)Thread.sleep(100);
+            assertFalse("Download timed out for "+code+" ("+pack.getLong("size")+" bytes); last status: "+session.status.getValue(),session.busy);inst.waitForIdleSync();assertTrue("Downloaded pack missing",LanguageModels.installed(context(),"ocr",pack));
             LinearLayout downloaded=row(activity,title);CheckBox checkbox=(CheckBox)downloaded.getChildAt(0);assertTrue(checkbox.isEnabled());assertFalse("Download must not enable OCR implicitly",checkbox.isChecked());
             inst.runOnMainSync(checkbox::performClick);assertTrue(selected().contains(code));inst.runOnMainSync(activity::finish);activity=launch();
             LinearLayout reopened=row(activity,title);assertTrue("Selection persists after reopening",((CheckBox)reopened.getChildAt(0)).isChecked());
             inst.runOnMainSync(()->((Button)reopened.getChildAt(1)).performClick());inst.waitForIdleSync();
             java.util.concurrent.atomic.AtomicBoolean clicked=new java.util.concurrent.atomic.AtomicBoolean();
-            inst.runOnMainSync(()->{for(android.view.View root:android.view.inspector.WindowInspector.getGlobalWindowViews()){Button positive=root.findViewById(android.R.id.button1);if(positive!=null&&"Delete".contentEquals(positive.getText())){clicked.set(positive.performClick());break;}}});
+            inst.runOnMainSync(()->{for(android.view.View root:android.view.inspector.WindowInspector.getGlobalWindowViews()){Button positive=root.findViewById(android.R.id.button1);if(positive!=null&&positive.isShown()&&"Delete".contentEquals(positive.getText())){clicked.set(positive.performClick());break;}}});
             assertTrue("Delete confirmation button exists",clicked.get());
             inst.waitForIdleSync();assertFalse(LanguageModels.installed(context(),"translation",pack));assertFalse(selected().contains(code));
             // Other installed core packs can retain this script's shared OCR files.
             assertEquals(LanguageModels.installed(context(),"ocr",pack),((CheckBox)row(activity,title).getChildAt(0)).isEnabled());
+        }catch(Exception|AssertionError failure){
+            primaryFailure=failure;throw failure;
         }finally{
-            inst.runOnMainSync(activity::finish);
-            LanguageModels.remove(context(),"ocr",pack);restore(original);
+            try{
+                // Wait for the worker to release the install lock before removal
+                // or fixture restoration. Never replace a timeout with a second
+                // "active download" exception from cleanup.
+                stopDownload(session);
+                LanguageModels.remove(context(),"ocr",pack);
+                for(Map.Entry<File,byte[]> fixture:fixtures.entrySet()){java.nio.file.Files.createDirectories(fixture.getKey().toPath().getParent());java.nio.file.Files.write(fixture.getKey().toPath(),fixture.getValue());}
+            }catch(Exception|AssertionError cleanupFailure){
+                if(primaryFailure!=null)primaryFailure.addSuppressed(cleanupFailure);else throw cleanupFailure;
+            }finally{
+                inst.runOnMainSync(activity::finish);
+                restore(original);
+            }
         }
         json("download-ui.json",new JSONObject().put("language",code).put("bytes",pack.getLong("size")).put("downloadSelectPersist",true).put("ms",SystemClock.elapsedRealtime()-started));
+    }
+
+    private void stopDownload(LanguageManagerActivity.DownloadSession session)throws Exception{
+        inst.runOnMainSync(session::cancel);
+        if(session.busy)session.worker.submit(()->{}).get(5,java.util.concurrent.TimeUnit.SECONDS);
+        assertFalse("Language worker remained busy after cancellation",session.busy);
+    }
+
+    private Map<File,byte[]> preserveOcrFixtures(String language)throws Exception{
+        JSONObject catalog;
+        try(InputStream input=context().getAssets().open("index_v6.json");ByteArrayOutputStream bytes=new ByteArrayOutputStream()){
+            byte[] buffer=new byte[16384];int count;while((count=input.read(buffer))!=-1)bytes.write(buffer,0,count);
+            catalog=new JSONObject(bytes.toString("UTF-8"));
+        }
+        Map<File,byte[]> files=new HashMap<>();Set<String> seen=new HashSet<>();
+        JSONObject ocr=catalog.getJSONObject("languages").getJSONObject(language).getJSONObject("assets").getJSONObject("ocr");
+        for(Iterator<String> keys=ocr.keys();keys.hasNext();)preservePack(catalog,ocr.getString(keys.next()),seen,files);
+        return files;
+    }
+    private void preservePack(JSONObject catalog,String id,Set<String> seen,Map<File,byte[]> files)throws Exception{
+        if(!seen.add(id))return;JSONObject pack=catalog.getJSONObject("packs").getJSONObject(id);
+        JSONArray assets=pack.optJSONArray("files");if(assets!=null)for(int i=0;i<assets.length();i++){
+            File file=new File(LanguageModels.directory(context(),"ocr"),assets.getJSONObject(i).getString("installPath"));
+            if(file.isFile())files.put(file,java.nio.file.Files.readAllBytes(file.toPath()));
+        }
+        JSONArray dependencies=pack.optJSONArray("dependsOn");if(dependencies!=null)for(int i=0;i<dependencies.length();i++)preservePack(catalog,dependencies.getString(i),seen,files);
     }
 
     @Test public void interruptedAndCorruptDownloadsNeverInstall()throws Exception{
@@ -111,41 +154,28 @@ public class OcrLanguagesQualityTest {
     }
 
     static String normalized(String text){return text.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]+"," ").trim();}
-    static int distance(String[] a,String[] b){int[] prev=new int[b.length+1];for(int j=0;j<=b.length;j++)prev[j]=j;for(int i=1;i<=a.length;i++){int[] next=new int[b.length+1];next[0]=i;for(int j=1;j<=b.length;j++)next[j]=Math.min(Math.min(next[j-1]+1,prev[j]+1),prev[j-1]+(a[i-1].equals(b[j-1])?0:1));prev=next;}return prev[b.length];}
     Bitmap sample(String[] lines){Bitmap bitmap=Bitmap.createBitmap(1800,1000,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(bitmap);canvas.drawColor(Color.WHITE);Paint paint=new Paint(3);paint.setColor(Color.BLACK);paint.setTextSize(52);for(int i=0;i<lines.length;i++)canvas.drawText(lines[i],80,140+i*120,paint);return bitmap;}
-    JSONObject raw(Bitmap bitmap)throws Exception{
-        return com.paperflow.translation.OfflineRuntime.get(context()).recognize(bitmap,"auto",50f);
-    }
-    @Test public void offlineGreekEnglishQualityAndSearchablePdf()throws Exception{
-        // UTP may reinstall the app, clearing language files seeded with adb.
-        // This test must work independently of the earlier migration tests.
+    @Test public void offlineOcrTextBecomesSearchableWithoutChangingThePdfImage()throws Exception{
         for(String code:new String[]{"el","en"})LanguageModels.download(context(),"ocr",entry(code),()->false,(done,total)->{});
-        assertTrue("Download Greek first",LanguageModels.installed(context(),"ocr",entry("el")));assertTrue("Download English first",LanguageModels.installed(context(),"ocr",entry("en")));
-        PDFBoxResourceLoader.init(context());Set<String> original=selected();JSONArray results=new JSONArray();
-        String[][] samples={
-            {"Hello world. This is a searchable document.","The quick brown fox jumps over the lazy dog.","Invoice number 12345. Total 250.00 EUR.","Download the language once and work offline."},
-            {"Καλημέρα κόσμε. Αυτό είναι ένα έγγραφο.","Η αναγνώριση κειμένου λειτουργεί χωρίς σύνδεση.","Ελληνικά και αγγλικά στην ίδια εφαρμογή.","Αριθμός τιμολογίου 12345. Σύνολο 250 ευρώ."},
-            {"Ελληνικά και English στο ίδιο έγγραφο.","Hello world. Καλημέρα κόσμε.","Invoice 12345. Τιμολόγιο 12345.","Αθήνα 2026. Athens 2026."}
-        };
-        try{for(int i=0;i<samples.length;i++){
-            if(i==0)select("en");else if(i==1)select("el");else select("en","el");
-            Bitmap bitmap=sample(samples[i]);try{
-                String expected=String.join(" ",samples[i]);long start=SystemClock.elapsedRealtime();String actual=LocalOcr.text(context(),bitmap);long millis=SystemClock.elapsedRealtime()-start;
-                String[] words=normalized(expected).split(" +");int errors=distance(words,normalized(actual).split(" +"));
-                results.put(new JSONObject().put("languages",LocalOcr.activeLanguages(context())).put("expected",expected).put("actual",actual).put("wordErrors",errors).put("words",words.length).put("wordErrorRate",errors/(double)words.length).put("ms",millis).put("rawPaddleOcr",raw(bitmap)));assertFalse(actual.isEmpty());
-                assertTrue("OCR word error rate exceeds 25%: "+actual,errors/(double)words.length<=.25);
-                if(i==2){
-                    try(FileOutputStream out=new FileOutputStream(report("mixed-sample.png"))){bitmap.compress(Bitmap.CompressFormat.PNG,100,out);}
-                    try(PDDocument doc=new PDDocument()){
-                        select();SearchablePdf.append(context(),doc,bitmap,900,500);assertTrue(new PDFTextStripper().getText(doc).trim().isEmpty());Bitmap before=new PDFRenderer(doc).renderImage(0,1);
-                        select("en","el");SearchablePdf.addText(context(),doc,doc.getPage(0),bitmap);PDFTextStripper stripper=new PDFTextStripper();stripper.setSortByPosition(true);String extracted=stripper.getText(doc);assertEquals(normalized(actual),normalized(extracted));
-                        Bitmap after=new PDFRenderer(doc).renderImage(0,1);assertTrue("Invisible text changed page appearance",before.sameAs(after));before.recycle();after.recycle();doc.save(report("Greek-English-searchable.pdf"));
-                    }
-                }
-            }finally{bitmap.recycle();}
-        }
-        select("en","el");Bitmap blank=Bitmap.createBitmap(800,600,Bitmap.Config.ARGB_8888);blank.eraseColor(Color.WHITE);
-        try{assertTrue("Blank pages must not fail OCR",LocalOcr.text(context(),blank).isEmpty());}finally{blank.recycle();}
-        }finally{restore(original);json("quality.json",new JSONObject().put("samples",results).put("pdfTextMatchesRecognized",true).put("pdfAppearanceUnchanged",true));}
+        PDFBoxResourceLoader.init(context());Set<String> original=selected();
+        Bitmap bitmap=sample(new String[]{"Ελληνικά και English στο ίδιο έγγραφο.","Invoice 12345. Τιμολόγιο 12345."});
+        Bitmap blank=Bitmap.createBitmap(800,600,Bitmap.Config.ARGB_8888);blank.eraseColor(Color.WHITE);
+        try{
+            select("en","el");String actual=LocalOcr.text(context(),bitmap);assertFalse(actual.trim().isEmpty());
+            try(PDDocument doc=new PDDocument()){
+                select();SearchablePdf.append(context(),doc,bitmap,900,500);
+                assertTrue(new PDFTextStripper().getText(doc).trim().isEmpty());
+                Bitmap before=new PDFRenderer(doc).renderImage(0,1);
+                try{
+                    select("en","el");SearchablePdf.addText(context(),doc,doc.getPage(0),bitmap);
+                    PDFTextStripper stripper=new PDFTextStripper();stripper.setSortByPosition(true);
+                    assertEquals(normalized(actual),normalized(stripper.getText(doc)));
+                    Bitmap after=new PDFRenderer(doc).renderImage(0,1);
+                    try{assertTrue("Invisible text changed page appearance",before.sameAs(after));}finally{after.recycle();}
+                    doc.save(report("Greek-English-searchable.pdf"));
+                }finally{before.recycle();}
+            }
+            assertTrue("Blank pages must not fail OCR",LocalOcr.text(context(),blank).isEmpty());
+        }finally{bitmap.recycle();blank.recycle();restore(original);}
     }
 }

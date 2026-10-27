@@ -26,6 +26,11 @@ abstract class CheckLanguageRuntimeTask : DefaultTask() {
 }
 android {
     namespace = "com.paperflow.translation"
+    buildTypes.named("debug") {
+        enableUnitTestCoverage = providers.gradleProperty("paperflowCoverage").orNull == "true"
+        enableAndroidTestCoverage = providers.gradleProperty("paperflowCoverage").orNull == "true"
+    }
+    testCoverage { jacocoVersion = "0.8.15" }
     compileSdk = 37
     ndkVersion = "27.2.12479018"
     providers.gradleProperty("paperflowNdkPath").orNull?.let { ndkPath = it }
@@ -36,7 +41,10 @@ android {
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_11; targetCompatibility = JavaVersion.VERSION_11 }
 }
-dependencies { implementation(libs.camera.core) }
+dependencies {
+    implementation(libs.camera.core)
+    testImplementation(libs.junit)
+}
 
 val requiredAbis = providers.gradleProperty("paperflowAbi").orNull?.let { listOf(it) }
     ?: listOf("arm64-v8a", "armeabi-v7a", "x86_64")

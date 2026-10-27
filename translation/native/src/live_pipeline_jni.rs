@@ -71,6 +71,46 @@ fn pack_result(
     packed as jlong
 }
 
+#[cfg(test)]
+mod packet_tests {
+    use super::*;
+
+    // These golden packets are also decoded by FrameResultProtocolTest on the JVM.
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn signed_packet_keeps_all_fields_and_flags() {
+        assert_eq!(pack_result(PlanarTrackerState::Locked, 0x1234, 37, 1.25, true, true, true) as u64,
+                   0xa004_a246_9800_0500);
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn oversized_payload_saturates_and_anchor_wraps_without_changing_flags() {
+        assert_eq!(pack_result(PlanarTrackerState::Lost, 0x1_ffff, u32::MAX, f32::INFINITY, false, false, false) as u64,
+                   0xdfff_ffff_e01f_ffff);
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn scale_clamps_negative_values_and_rounds_to_nearest_fixed_point() {
+        assert_eq!(pack_result(PlanarTrackerState::Idle, 0, 0, -2.0, false, false, false), 0);
+        assert_eq!(pack_result(PlanarTrackerState::Idle, 0, 0, 1.0006, false, false, false), 1025);
+    }
+
+    #[cfg_attr(feature = "ci-coverage", coverage(off))]
+    #[test]
+    fn every_tracker_state_uses_its_assigned_wire_bits() {
+        for (state, expected) in [
+            (PlanarTrackerState::Idle, 0x0000_0000_0000_0400u64),
+            (PlanarTrackerState::Acquiring, 0x4000_0000_0000_0400),
+            (PlanarTrackerState::Locked, 0x8000_0000_0000_0400),
+            (PlanarTrackerState::Lost, 0xc000_0000_0000_0400),
+        ] {
+            assert_eq!(pack_result(state, 0, 0, 1.0, false, false, false) as u64, expected);
+        }
+    }
+}
+
 // ---------------------------------------------------------------------
 // GPU per-frame path. Camera arrives as a GL_TEXTURE_EXTERNAL_OES; all
 // three calls MUST run on the GL render thread Kotlin owns, with its EGL
@@ -496,6 +536,16 @@ pub extern "system" fn Java_dev_davidv_translator_LivePipelineJni_screenMonitorT
     pack_monitor(action, pipeline.wants_tick())
 }
 
+#[cfg(feature = "gpu")]
+fn empty_bytes_or_exception<'local>(env: &JNIEnv<'local>) -> jni::objects::JByteArray<'local> {
+    // NewByteArray is forbidden while a JVM exception is pending; preserve it on return.
+    if env.exception_check().unwrap_or(true) {
+        jni::objects::JByteArray::default()
+    } else {
+        env.new_byte_array(0).unwrap_or_default()
+    }
+}
+
 /// DEBUG: read back the canonical RGBA frame (top-down) for on-device
 /// inspection of orientation / mirror / text size. Returns an empty array on
 /// failure. Must run on the GL thread after a `processFrameGl` so the external
@@ -511,7 +561,7 @@ pub extern "system" fn Java_dev_davidv_translator_LivePipelineJni_debugReadCanon
     display_xform: jni::objects::JFloatArray<'local>,
 ) -> jni::objects::JByteArray<'local> {
     if renderer_ptr == 0 || canonical_w <= 0 || canonical_h <= 0 {
-        return env.new_byte_array(0).unwrap_or_default();
+        return empty_bytes_or_exception(&env);
     }
     // SAFETY: ptr came from `createGlRenderer`; used only on its owning thread.
     let renderer = unsafe { &mut *(renderer_ptr as *mut GlesRenderer) };
@@ -520,13 +570,13 @@ pub extern "system" fn Java_dev_davidv_translator_LivePipelineJni_debugReadCanon
         .get_float_array_region(&display_xform, 0, &mut dx)
         .is_err()
     {
-        return env.new_byte_array(0).unwrap_or_default();
+        return empty_bytes_or_exception(&env);
     }
     let Some(rgba) = renderer.read_camera_rgba(canonical_w as u32, canonical_h as u32, &dx) else {
-        return env.new_byte_array(0).unwrap_or_default();
+        return empty_bytes_or_exception(&env);
     };
     let Ok(arr) = env.new_byte_array(rgba.len() as i32) else {
-        return env.new_byte_array(0).unwrap_or_default();
+        return empty_bytes_or_exception(&env);
     };
     let signed: &[i8] =
         unsafe { std::slice::from_raw_parts(rgba.as_ptr() as *const i8, rgba.len()) };

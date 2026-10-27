@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-val appVersion = Properties().apply {
+val appVersion = providers.gradleProperty("paperflowReleaseVersion").orNull ?: Properties().apply {
     rootProject.file("version.properties").inputStream().use { load(it) }
 }.getProperty("versionName") ?: error("Missing versionName in version.properties")
 require(appVersion.matches(Regex("(0|[1-9][0-9]{0,3})\\.(0|[1-9][0-9]{0,2})\\.(0|[1-9][0-9]{0,2})"))) {
@@ -51,12 +51,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            enableUnitTestCoverage = providers.gradleProperty("paperflowCoverage").orNull == "true"
+            enableAndroidTestCoverage = providers.gradleProperty("paperflowCoverage").orNull == "true"
+        }
         release {
-            proguardFiles("proguard-rules.pro")
-            optimization {
-                enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
-            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
     compileOptions {
@@ -64,6 +66,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
     testOptions { animationsDisabled = true }
+    testCoverage { jacocoVersion = "0.8.15" }
 }
 
 dependencies {
