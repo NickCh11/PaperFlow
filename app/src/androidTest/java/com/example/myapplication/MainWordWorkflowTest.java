@@ -68,6 +68,15 @@ public class MainWordWorkflowTest {
     void stopped(){UiTestWait.until(()->!task.running&&task.error.getValue()==null&&field(activity,"wordProgressDialog")==null,"Word conversion did not stop cleanly");}
 
     @Test public void cancellingTheRouteChooserStartsNoConversion()throws Exception{open(false,"");routeButton(android.R.id.button2);assertFalse(task.running);assertNull(task.job);assertTrue(history().isEmpty());unchanged();}
+    @Test public void missingOcrAutomaticallyOpensLanguagesAndKeepsThePdf()throws Exception{
+        SharedPreferences languages=context.getSharedPreferences("local-languages",0);Set<String> previous=new HashSet<>(languages.getStringSet("ocr-enabled",Collections.emptySet()));
+        try{
+            assertTrue(languages.edit().putStringSet("ocr-enabled",Collections.emptySet()).commit());open(false,"");intercept();convert(WordConversion.LOCAL);
+            UiTestWait.until(()->!outgoing.isEmpty()&&!task.running,"Missing OCR did not open Languages");
+            assertEquals(1,outgoing.size());assertEquals(new ComponentName(context,LanguageManagerActivity.class),outgoing.get(0).getComponent());assertEquals("ocr",outgoing.get(0).getStringExtra("kind"));assertNull(task.result.getValue());assertNull(task.error.getValue());unchanged();
+            scenario.recreate();inst.waitForIdleSync();assertEquals("Cancelling/returning must not reopen Languages",1,outgoing.size());
+        }finally{languages.edit().putStringSet("ocr-enabled",previous).commit();}
+    }
     @Test public void nativeTextConversionProducesMultipageWordAndAHistoryEntry()throws Exception{
         open(false,"");convert(WordConversion.NATIVE);WordConversion.Result result=converted();assertEquals(2,result.pages);assertEquals(2,result.nativePages);assertEquals(0,result.ocrPages);String document=xml(result.file);assertTrue(document.contains("Workflow page 1 &amp; value"));assertTrue(document.contains("Workflow page 2 &amp; value"));assertTrue(document.contains("w:type=\"page\""));assertEquals(1,history().size());assertEquals(result.file.getPath(),history().get(0).getString("source_result"));dialogButton("wordResultDialog",android.R.id.button2);assertNull(main(()->task.result.getValue()));unchanged();
     }

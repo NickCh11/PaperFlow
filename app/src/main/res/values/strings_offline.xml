@@ -43,4 +43,6 @@
     <string name="ui_translation_import_size_limit">Choose a file smaller than 256 MB.</string>
     <string name="ui_translation_invalid_pdf_page">This PDF contains an invalid page size.</string>
     <string name="ui_translation_opening_page">Opening page…</string>
+    <string name="ui_language_pack_required">Download and enable a language pack, then return to continue.</string>
+    <string name="ui_retake_this_page">Retake page</string>
 </resources>

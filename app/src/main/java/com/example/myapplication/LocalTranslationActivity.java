@@ -49,7 +49,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
         final Map<Integer,File> pageSnapshots=new HashMap<>();
         final ArrayList<File> exportFiles=new ArrayList<>();int exportPageCount=1;
         java.util.function.BooleanSupplier parentCancelled=()->false;
-        String captureMode="Photo";
+        String captureMode="Photo";LanguageAccess.Missing missingPack;
         String target="en",sourceLanguage="",sourceOverride="auto",message=UiText.get(R.string.ui_photo_translation_offline_help);
         boolean explicitTarget,error,readableLayout;
         volatile boolean busy,disposed,cancelled;boolean restoring;Uri pendingDestination;
@@ -65,7 +65,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
         void status(String value){main.post(()->{if(!disposed&&!cancelled){message=value;publish();}});}
         void begin(String value){cancelled=false;busy=true;error=false;message=value;publish();}
         void checkCancelled()throws InterruptedIOException{if(disposed||cancelled||parentCancelled.getAsBoolean()||Thread.currentThread().isInterrupted())throw new InterruptedIOException(UiText.get(R.string.ui_translation_cancelled));}
-        void fail(Throwable error){main.post(()->{if(disposed)return;if(previousPage>=0){capturedIndex=previousPage;previousPage=-1;}busy=false;this.error=true;String text=error.getMessage();message=text==null ? UiText.get(R.string.ui_could_not_translate_this_photo_try_again_or_choose_a_clearer_photo) : text;publish();});}
+        void fail(Throwable error){main.post(()->{if(disposed)return;if(previousPage>=0){capturedIndex=previousPage;previousPage=-1;}busy=false;this.error=true;missingPack=LanguageAccess.missing(error);String text=error.getMessage();message=text==null ? UiText.get(R.string.ui_could_not_translate_this_photo_try_again_or_choose_a_clearer_photo) : text;publish();});}
         JSONObject language(String kind,String code)throws Exception{
             JSONArray list=LanguageModels.catalog(getApplication(),kind);
             for(int i=0;i<list.length();i++)if(code.equals(list.getJSONObject(i).getString("code")))return list.getJSONObject(i);
@@ -74,12 +74,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
         void ensureLanguage(String kind,String code)throws Exception{
             checkCancelled();JSONObject entry=language(kind,code);
             if(LanguageModels.installed(getApplication(),kind,entry))return;
-            String title=LanguageModels.title(entry);
-            status(UiText.format(R.string.ui_first_time_download_value_your_photo_stays_on_this_device, title));
-            try{LanguageModels.download(getApplication(),kind,entry,()->cancelled||disposed||parentCancelled.getAsBoolean(),(done,total)->status(UiText.format(R.string.ui_downloading_value_value, title, done*100/Math.max(1,total))));}
-            catch(InterruptedIOException cancelled){throw cancelled;}
-            catch(Exception problem){throw new IOException(UiText.format(R.string.ui_could_not_download_value_connect_to_the_internet_and_tap_try_again, title),problem);}
-            checkCancelled();
+            throw new LanguageAccess.Missing(kind,LanguageModels.packCode(entry));
         }
         void load(Uri uri){
             if(busy)return;begin(UiText.get(R.string.ui_translation_opening_page));
@@ -346,6 +341,7 @@ public class LocalTranslationActivity extends BackHandlingActivity {
         UiInsets.apply(root);setContentView(root);
     }
     private void updateUi(){
+        if(session.missingPack!=null&&!session.busy){LanguageAccess.Missing request=session.missingPack;session.missingPack=null;LanguageAccess.open(this,request.kind,request.code);}
         if(destroyed)return;
         status.setText(session.message);status.setTextColor(session.error?0xFFB33A35:MUTED);progress.setVisibility(session.busy?View.VISIBLE:View.GONE);
         detected.setEnabled(!session.busy);detected.setText(session.sourceLanguage.isEmpty() ? (session.sourceOverride.equals("auto") ? UiText.get(R.string.ui_auto_detect) : UiText.format(R.string.ui_value_7cd939c2, languageName(session.sourceOverride))) : UiText.format(R.string.ui_value_7cd939c2, (session.sourceOverride.equals("auto")?"Auto: ":"")+languageName(session.sourceLanguage)));target.setText(!session.explicitTarget&&session.sourceLanguage.isEmpty() ? UiText.get(R.string.ui_auto_translate) : UiText.format(R.string.ui_to_value, languageName(session.target)));target.setContentDescription(target.getText());detected.setContentDescription(UiText.get(R.string.ui_photo_language)+": "+detected.getText());target.setEnabled(!session.busy);

@@ -63,7 +63,7 @@ final class WordConversion {
 
     /** Waits on the worker; if cancelled, completion owns cleanup while the engine exits immediately. */
     private static String localText(Context context,Bitmap bitmap,Job job)throws Exception{
-        try{job.check();if(com.paperflow.scanengine.LocalOcr.activeLanguages(context).isEmpty())throw new IllegalStateException(UiText.get(R.string.ui_download_and_enable_ocr_languages_in_ocr_languages_first));String text=com.paperflow.scanengine.LocalOcr.text(context,bitmap);job.check();return text;}finally{bitmap.recycle();}
+        try{job.check();if(com.paperflow.scanengine.LocalOcr.activeLanguages(context).isEmpty())throw new LanguageAccess.Missing("ocr","");String text=com.paperflow.scanengine.LocalOcr.text(context,bitmap);job.check();return text;}finally{bitmap.recycle();}
     }
     private static void writeDocx(ArrayList<String> pages,File output,Job job)throws Exception{
         try(ZipOutputStream zip=new ZipOutputStream(new FileOutputStream(output),StandardCharsets.UTF_8)){

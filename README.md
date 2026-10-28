@@ -101,6 +101,8 @@ Scan paper, create searchable PDFs and translate photos on your device
 - **Folder protection:** restrict access with a PIN or biometrics.
 - **Export:** save to your device, share or manually save through providers such as Google Drive and OneDrive.
 - **Appearance:** choose light, dark or system default.
+- **Retake a page:** use **Retake page** directly in the crop or filter preview; other pages stay in place. Cancelling keeps the previous capture.
+- **Language packs:** OCR and translation open Offline languages automatically when a required pack is missing. Download it, then return and retry; incomplete or cancelled downloads are not enabled.
 - **App language:** follow the device language or choose an available translation; English is currently bundled.
 
 ## Models and processing engines
