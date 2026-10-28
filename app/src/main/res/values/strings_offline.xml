@@ -2,7 +2,6 @@
     <string name="ui_no_translated_pages">Translate at least one page before exporting.</string>
     <string name="ui_translation_snapshot_unavailable">The saved translation is unavailable. Translate this page again.</string>
     <string name="ui_translation_pdf">PDF (all pages, selectable text)</string>
-    <string name="ui_translation_import_images">Import images</string>
     <string name="ui_new_translation">New translation</string>
     <string name="ui_translation_previous_page">Previous page</string>
     <string name="ui_translation_next_page">Next page</string>
@@ -21,7 +20,6 @@
     <string name="ui_source_language_ambiguous">Choose the source language for this short or ambiguous text.</string>
     <string name="ui_photo_translation_offline_help">Translate images and PDFs offline, with automatic text and language detection</string>
     <string name="ui_photo_no_detection">Photo mode · no page detection</string>
-    <string name="ui_update_language_packs">Check for language pack updates</string>
     <string name="ui_updating_language_packs">Checking language pack updates…</string>
     <string name="ui_offline_translation_help">Choose a source language or use automatic detection, then select the target language. Photo, live camera and text translation run on this device after the required language packs are downloaded. Photo mode keeps the full frame; document modes enable paper detection.</string>
     <string name="ui_on_device_ocr" formatted="false">On-device OCR</string>

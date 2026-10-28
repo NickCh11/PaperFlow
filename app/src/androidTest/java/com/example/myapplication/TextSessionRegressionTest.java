@@ -21,6 +21,12 @@ public class TextSessionRegressionTest {
     private void ready(AtomicReference<TextTranslationActivity> activity)throws Exception{UiTestWait.until(()->!task(activity.get()).loading&&!task(activity.get()).busy,"Text editor did not finish loading");}
     private void seed(TextTranslationActivity a){TextTranslationActivity.Task t=task(a);t.source="Original κείμενο";t.translated="Translated Ελληνικά\nSecond line";t.from="en";t.to="el";t.publish();}
 
+    @Test public void textTranslationUsesInstalledOfflineModelsAndKeepsTheOriginal(){
+        Context context=inst.getTargetContext();TextTranslationActivity.Task task=new TextTranslationActivity.Task((Application)context.getApplicationContext());String original="This is a document. The book is on the table.";
+        try{inst.runOnMainSync(()->{task.source=original;task.from="en";task.to="el";task.translate();});UiTestWait.until(()->!task.busy,"Offline text translation did not finish");assertEquals(original,task.source);assertEquals("en",task.detected);assertFalse(task.message,task.translated.isEmpty());assertTrue(task.translated,task.translated.codePoints().anyMatch(c->Character.UnicodeBlock.of(c)==Character.UnicodeBlock.GREEK));assertNull(task.missingPack);
+        }finally{inst.runOnMainSync(task::onCleared);}
+    }
+
     @Test public void invalidRestoredSessionStopsLoadingAndCannotBeLoadedTwice()throws Exception{
         Context context=inst.getTargetContext();File invalid=File.createTempFile("text-corrupt-",".json",context.getCacheDir());Files.write(invalid.toPath(),"{broken".getBytes(StandardCharsets.UTF_8));
         TextTranslationActivity.Task t=new TextTranslationActivity.Task((Application)context.getApplicationContext());

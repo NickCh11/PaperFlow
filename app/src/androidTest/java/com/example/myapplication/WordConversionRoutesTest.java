@@ -106,7 +106,7 @@ public class WordConversionRoutesTest {
             for(int route:new int[]{WordConversion.AUTO,WordConversion.LOCAL,WordConversion.LAYOUT,WordConversion.APPEARANCE}){
                 WordConversion.Result result=WordConversion.convert(context,source.getPath(),"",route,new WordConversion.Job(),(d,t,m)->{});
                 try{String xml=document(result.file);assertEquals(1,result.pages);
-                    if(route==WordConversion.AUTO||route==WordConversion.LOCAL){assertEquals(1,result.ocrPages);assertTrue(xml.matches("(?s).*<w:t[^>]*>[^<]*[A-Za-z]{4}.*"));assertFalse(xml.contains("<w:txbxContent>"));try(ZipFile zip=new ZipFile(result.file)){assertNull(zip.getEntry("word/media/page1.jpg"));}}
+                    if(route==WordConversion.AUTO||route==WordConversion.LOCAL){assertEquals(1,result.ocrPages);assertTrue(xml,xml.toUpperCase(Locale.ROOT).contains("PAPERFLOW"));assertFalse(xml.contains("<w:txbxContent>"));try(ZipFile zip=new ZipFile(result.file)){assertNull(zip.getEntry("word/media/page1.jpg"));}}
                     else{assertEquals(route==WordConversion.LAYOUT,xml.contains("<w:txbxContent>"));try(ZipFile zip=new ZipFile(result.file)){assertNotNull(zip.getEntry("word/media/page1.jpg"));}}
                 }finally{result.file.delete();}
             }
