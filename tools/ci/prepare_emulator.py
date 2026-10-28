@@ -18,8 +18,8 @@ def prepare(adb):
         raise RuntimeError("Heap adjustment is restricted to an Android emulator")
     # heap-size on emulator-runner controls the maximum, not ART's growth limit.
     # Zygote must restart so system_server and subsequent apps inherit the change.
-    command(adb, "root")
     try:
+        command(adb, "root")
         command(adb, "wait-for-device")
         if command(adb, "shell", "id", "-u") != "0":
             raise RuntimeError("API 29 emulator must support temporary adb root")

@@ -1,4 +1,5 @@
 import unittest
+import subprocess
 from unittest.mock import patch
 
 from prepare_emulator import prepare
@@ -55,6 +56,18 @@ class EmulatorPreparationTest(unittest.TestCase):
     def test_readiness_failure_is_not_ignored_and_root_is_dropped(self):
         with patch("prepare_emulator.command", side_effect=self.emulator), patch("prepare_emulator.wait_for_android", side_effect=RuntimeError("package manager timeout")):
             with self.assertRaisesRegex(RuntimeError, "timeout"):
+                prepare(self.adb)
+        self.assertFalse(self.root)
+        self.assertIn(("unroot",), self.commands)
+
+    def test_root_timeout_after_device_accepts_request_still_drops_root(self):
+        def timeout(adb, *args):
+            result = self.emulator(adb, *args)
+            if args == ("root",):
+                raise subprocess.TimeoutExpired("adb root", 45)
+            return result
+        with patch("prepare_emulator.command", side_effect=timeout), patch("prepare_emulator.wait_for_android"):
+            with self.assertRaises(subprocess.TimeoutExpired):
                 prepare(self.adb)
         self.assertFalse(self.root)
         self.assertIn(("unroot",), self.commands)
