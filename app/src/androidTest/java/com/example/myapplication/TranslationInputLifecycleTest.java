@@ -44,25 +44,25 @@ public class TranslationInputLifecycleTest {
     Set<String> importedFiles(){File[] files=new File(app.getFilesDir(),"translation-inputs").listFiles();Set<String> result=new HashSet<>();if(files!=null)for(File file:files)result.add(file.getPath());return result;}
     @Test public void importsOwnCopiesAndNavigationLoadsTheCorrectPageWithoutChangingOriginals()throws Exception{
         File red=image(Color.RED),blue=image(Color.BLUE);byte[] before=Files.readAllBytes(red.toPath());
-        inst.runOnMainSync(()->session.importImages(Arrays.asList(Uri.fromFile(red),Uri.fromFile(blue))));idle();
+        inst.runOnMainSync(()->session.importFiles(Arrays.asList(Uri.fromFile(red),Uri.fromFile(blue))));idle();
         assertFalse(session.message,session.error);assertEquals(2,session.capturedPages.size());assertEquals(2,session.importedSources.size());
         assertEquals("Photo",session.captureMode);assertEquals(1,session.recognitions);assertEquals(Color.RED,session.source.getPixel(0,0));
         for(String path:session.capturedPages){assertEquals(new File(app.getFilesDir(),"translation-inputs").getCanonicalFile(),new File(path).getCanonicalFile().getParentFile());assertFalse(path.equals(red.getPath())||path.equals(blue.getPath()));}
         inst.runOnMainSync(()->session.selectPage(1));idle();assertEquals(Color.BLUE,session.source.getPixel(0,0));assertEquals(2,session.recognitions);
-        inst.runOnMainSync(()->{session.selectPage(1);session.selectPage(-1);session.selectPage(2);session.busy=true;session.selectPage(0);session.importImages(Collections.singletonList(Uri.fromFile(red)));session.busy=false;session.importImages(Collections.emptyList());});
+        inst.runOnMainSync(()->{session.selectPage(1);session.selectPage(-1);session.selectPage(2);session.busy=true;session.selectPage(0);session.importFiles(Collections.singletonList(Uri.fromFile(red)));session.busy=false;session.importFiles(Collections.emptyList());});
         assertEquals(1,session.capturedIndex);assertEquals(2,session.recognitions);assertArrayEquals(before,Files.readAllBytes(red.toPath()));
         List<String> owned=new ArrayList<>(session.capturedPages);inst.runOnMainSync(session::onCleared);assertTrue(session.worker.awaitTermination(10,TimeUnit.SECONDS));
         for(String path:owned)assertFalse("Session disposal must remove its imported copies",new File(path).exists());assertTrue(red.isFile());assertTrue(blue.isFile());
     }
     @Test public void unreadableSecondInputRollsBackEarlierCopiesAndKeepsThePreview()throws Exception{
         File red=image(Color.RED);Set<String> before=importedFiles();Bitmap preview=BitmapFactory.decodeFile(red.getPath());
-        inst.runOnMainSync(()->{session.source=preview;session.importImages(Arrays.asList(Uri.fromFile(red),Uri.fromFile(new File(app.getCacheDir(),"missing-"+UUID.randomUUID()))));});idle();
+        inst.runOnMainSync(()->{session.source=preview;session.importFiles(Arrays.asList(Uri.fromFile(red),Uri.fromFile(new File(app.getCacheDir(),"missing-"+UUID.randomUUID()))));});idle();
         assertTrue(session.error);assertSame(preview,session.source);assertFalse(preview.isRecycled());assertTrue(session.capturedPages.isEmpty());assertEquals(before,importedFiles());assertEquals(0,session.recognitions);
     }
     @Test public void cancellationAfterCopyBeforePublicationDeletesAllStagedInputs()throws Exception{
         File red=image(Color.RED);Set<String> before=importedFiles();
         inst.runOnMainSync(()->{
-            session.importImages(Collections.singletonList(Uri.fromFile(red)));
+            session.importFiles(Collections.singletonList(Uri.fromFile(red)));
             // The worker only posts publication. Hold the UI until copying finishes,
             // then cancel before the posted callback can adopt those files.
             try{session.worker.submit(()->{}).get(10,TimeUnit.SECONDS);}catch(Exception error){throw new AssertionError(error);}
@@ -71,7 +71,7 @@ public class TranslationInputLifecycleTest {
     }
     @Test public void parentCancellationStopsAnImportBeforeAnyCopyIsAdopted()throws Exception{
         File red=image(Color.RED);Set<String> before=importedFiles();
-        inst.runOnMainSync(()->{session.parentCancelled=()->true;session.importImages(Collections.singletonList(Uri.fromFile(red)));});idle();
+        inst.runOnMainSync(()->{session.parentCancelled=()->true;session.importFiles(Collections.singletonList(Uri.fromFile(red)));});idle();
         assertTrue(session.error);assertTrue(session.capturedPages.isEmpty());assertEquals(before,importedFiles());assertEquals(0,session.recognitions);
     }
     @Test public void editsSendBothTextListsAndRenderFailurePreservesTheSource()throws Exception{

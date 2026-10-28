@@ -51,7 +51,7 @@ Scan paper, create searchable PDFs and translate photos on your device
 |---|---|
 | **OCR PDF** | Make selected PDF pages searchable and their text copyable. |
 | **Batch OCR** | Recognize text in multiple documents at once. |
-| **Translation** | Translate scans and images offline, with all pages exported as PDF or images. |
+| **Translation** | Import images or PDF files; file types are detected automatically. Translate pages offline and export all pages as PDF or images. Up to 100 pages per import and 256 MB per input file; password-protected PDFs need an unlocked copy. |
 
 ### 📄 PDF tools
 

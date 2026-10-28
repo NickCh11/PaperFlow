@@ -29,7 +29,7 @@ final class TranslationBatch {
         try {
             if(pdf){
                 File file=new File(directory,"Translated document.pdf");outputs.add(file);
-                try(PDDocument document=new PDDocument()){
+                try(PDDocument document=new PDDocument(com.tom_roush.pdfbox.io.MemoryUsageSetting.setupTempFileOnly())){
                     for(File snapshot:snapshots){check(cancelled);append(context,document,snapshot);}
                     check(cancelled);document.save(file);
                 }

@@ -19,7 +19,7 @@
     <string name="ui_photo_capture_mode">Photo</string>
     <string name="ui_page_capture_mode">Page</string>
     <string name="ui_source_language_ambiguous">Choose the source language for this short or ambiguous text.</string>
-    <string name="ui_photo_translation_offline_help">Offline translation with automatic text and language detection</string>
+    <string name="ui_photo_translation_offline_help">Translate images and PDFs offline, with automatic text and language detection</string>
     <string name="ui_photo_no_detection">Photo mode · no page detection</string>
     <string name="ui_update_language_packs">Check for language pack updates</string>
     <string name="ui_updating_language_packs">Checking language pack updates…</string>
@@ -34,4 +34,13 @@
     <string name="ui_word_route_images">Pages as pictures\nKeep each page as a picture in Word. The text is not editable.</string>
     <string name="ui_language_manager_title">Offline languages</string>
     <string name="ui_language_manager_updates">Check for updates</string>
+    <string name="ui_document_translation">Document translation</string>
+    <string name="ui_translation_import_files">Import images or PDF</string>
+    <string name="ui_translation_opening_pdf_page">Opening PDF page %1$d of %2$d…</string>
+    <string name="ui_translation_locked_pdf">This PDF needs a password. Open an unlocked copy to translate it.</string>
+    <string name="ui_translation_unsupported_input">Could not read this file. Choose an image or a PDF.</string>
+    <string name="ui_translation_import_page_limit">Choose up to 100 pages per import.</string>
+    <string name="ui_translation_import_size_limit">Choose a file smaller than 256 MB.</string>
+    <string name="ui_translation_invalid_pdf_page">This PDF contains an invalid page size.</string>
+    <string name="ui_translation_opening_page">Opening page…</string>
 </resources>
