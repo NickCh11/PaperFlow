@@ -37,7 +37,7 @@ Scan paper, create searchable PDFs and translate photos on your device
 |---|---|
 | **Smart Scan** | Scan pages with live boundaries and automatic perspective correction. |
 | **Batch Scan** | Capture several pages in one document. |
-| **Book** | Scan book spreads and crop each page separately. |
+| **Book** | Single saves one page; Double saves two per photo. A detected spine refines the split; otherwise the spread is split in the middle. |
 | **ID Cards** | Scan both sides of an ID card. |
 | **Slides** | Capture presentation slides. |
 | **Whiteboard** | Scan whiteboards into readable documents. |

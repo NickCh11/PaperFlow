@@ -122,7 +122,7 @@ public class CameraCaptureSession extends AndroidViewModel {
             ArrayList<String> result=new ArrayList<>();
             if("Book".equals(captureMode)){
                 java.util.List<float[]> quads;
-                try{quads=LearnedPageBounds.book(image,doublePage);}catch(Exception error){android.util.Log.w("PaperFlowBook","Book analysis unavailable; retaining whole page",error);float[] whole=PageBoundaryDetector.detectImageGeometry(image);quads=java.util.Collections.singletonList(whole==null?new float[]{0,0,1,0,1,1,0,1}:whole);}
+                try{quads=LearnedPageBounds.book(image,doublePage);}catch(Exception error){android.util.Log.w("PaperFlowBook","Book analysis unavailable; using the selected page split",error);float[] whole=PageBoundaryDetector.detectImageGeometry(image);quads=LearnedPageBounds.bookFallback(image,whole,doublePage);}
                 try{for(float[] quad:quads){Bitmap page=PageGeometry.crop(image.copy(Bitmap.Config.ARGB_8888,false),quad);File output=newFile("book-page");try{save(page,output);result.add(output.getAbsolutePath());}catch(Exception error){output.delete();throw error;}finally{page.recycle();}}}
                 catch(Exception error){for(String path:result)new File(path).delete();throw error;}
                 source.delete();
