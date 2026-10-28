@@ -14,4 +14,4 @@ Buttons use rounded surfaces and ripple feedback. Settings rows and tool grids m
 
 ## Universal APK
 
-A build without `-PpaperflowAbi` includes `arm64-v8a`, `armeabi-v7a` and `x86_64`. The CI matrix builds this universal APK plus the two separate ARM APKs, in debug and unsigned release variants. `check_apk.py <apk> all` checks every required native engine and ELF architecture separately for all three ABIs.
+A build without `-PpaperflowAbi` includes `arm64-v8a`, `armeabi-v7a` and `x86_64`. Only the published-release workflow builds this universal APK plus the two separate signed ARM APKs. PR/push CI validates compilation/R8, manifest and native libraries without packaging release APKs. `check_apk.py <apk> all` checks every required native engine and ELF architecture separately for all three ABIs.

@@ -17,6 +17,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -294,12 +295,36 @@ public class PdfViewerActivity extends AppCompatActivity {
         intent.putExtra("pdf_password", password);
         startActivity(intent);
     }
-    private class ZoomImage extends View {
+    class ZoomImage extends View {
         private Bitmap bitmap; private float scale = 1, dx, dy, lastX, lastY; private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG); private final ScaleGestureDetector detector;
+        private final RectF destination = new RectF();
+        private final int touchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
+        private float downX, downY;
+        private boolean clickCandidate;
         ZoomImage() { super(PdfViewerActivity.this); detector = new ScaleGestureDetector(PdfViewerActivity.this, new ScaleGestureDetector.SimpleOnScaleGestureListener() { @Override public boolean onScale(ScaleGestureDetector d) { scale = Math.max(1, Math.min(5, scale * d.getScaleFactor())); if (scale == 1) { dx = 0; dy = 0; } invalidate(); return true; } }); }
         void setBitmap(Bitmap b) { bitmap = b; invalidate(); }
-        @Override protected void onDraw(Canvas canvas) { if (bitmap == null) return; float fit = Math.min(getWidth() / (float) bitmap.getWidth(), getHeight() / (float) bitmap.getHeight()); float w = bitmap.getWidth() * fit * scale, h = bitmap.getHeight() * fit * scale; canvas.drawBitmap(bitmap, null, new RectF((getWidth() - w) / 2 + dx, (getHeight() - h) / 2 + dy, (getWidth() + w) / 2 + dx, (getHeight() + h) / 2 + dy), paint); }
-        @Override public boolean onTouchEvent(MotionEvent event) { detector.onTouchEvent(event); if (event.getActionMasked() == MotionEvent.ACTION_DOWN) { lastX = event.getX(); lastY = event.getY(); } else if (event.getActionMasked() == MotionEvent.ACTION_MOVE && event.getPointerCount() == 1 && !detector.isInProgress()) { dx += event.getX() - lastX; dy += event.getY() - lastY; lastX = event.getX(); lastY = event.getY(); invalidate(); } return true; }
+        @Override protected void onDraw(Canvas canvas) { if (bitmap == null) return; float fit = Math.min(getWidth() / (float) bitmap.getWidth(), getHeight() / (float) bitmap.getHeight()); float w = bitmap.getWidth() * fit * scale, h = bitmap.getHeight() * fit * scale; destination.set((getWidth() - w) / 2 + dx, (getHeight() - h) / 2 + dy, (getWidth() + w) / 2 + dx, (getHeight() + h) / 2 + dy); canvas.drawBitmap(bitmap, null, destination, paint); }
+        @Override public boolean performClick() { return super.performClick(); }
+        @Override public boolean onTouchEvent(MotionEvent event) {
+            detector.onTouchEvent(event);
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN) {
+                downX = lastX = event.getX(); downY = lastY = event.getY(); clickCandidate = true;
+            } else if (action == MotionEvent.ACTION_POINTER_DOWN || action == MotionEvent.ACTION_CANCEL) {
+                clickCandidate = false;
+            } else if (action == MotionEvent.ACTION_MOVE) {
+                float travelX = event.getX() - downX, travelY = event.getY() - downY;
+                if (travelX * travelX + travelY * travelY > (float) touchSlop * touchSlop) clickCandidate = false;
+                if (event.getPointerCount() == 1 && !detector.isInProgress()) {
+                    dx += event.getX() - lastX; dy += event.getY() - lastY;
+                    lastX = event.getX(); lastY = event.getY(); invalidate();
+                }
+            } else if (action == MotionEvent.ACTION_UP) {
+                boolean clicked = clickCandidate; clickCandidate = false;
+                if (clicked) performClick();
+            }
+            return true;
+        }
         void release() { if (bitmap != null) { bitmap.recycle(); bitmap = null; } }
     }
 

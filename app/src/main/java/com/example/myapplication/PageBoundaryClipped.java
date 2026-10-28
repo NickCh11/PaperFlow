@@ -57,10 +57,10 @@ final class PageBoundaryClipped {
             double score=count+quality/(COLUMNS*200.);if(score>bestScore){bestScore=score;best=candidate;}
         }
         if(best==null)return null;
-        Peak[] points=matches(peaks,best,tolerance);double sx=0,sy=0,sxx=0,sxy=0,n=0;
+        Peak[] points=matches(peaks,best,tolerance);double sx=0,sy=0,sxx=0,sxy=0;int n=0;
         for(Peak p:points)if(p!=null){sx+=p.x;sy+=p.y;sxx+=p.x*p.x;sxy+=p.x*p.y;n++;}
         double denominator=n*sxx-sx*sx;if(Math.abs(denominator)<1)return null;double slope=(n*sxy-sx*sy)/denominator,intercept=(sy-slope*sx)/n;
-        double[] residuals=new double[(int)n];int index=0;for(Peak p:points)if(p!=null)residuals[index++]=top?slope*p.x+intercept-p.y:p.y-(slope*p.x+intercept);Arrays.sort(residuals);
+        double[] residuals=new double[n];int index=0;for(Peak p:points)if(p!=null)residuals[index++]=top?slope*p.x+intercept-p.y:p.y-(slope*p.x+intercept);Arrays.sort(residuals);
         double margin=Math.max(1,residuals[(int)((residuals.length-1)*.90)]);return new Edge(slope,intercept+(top?-margin:margin));
     }
     private static Peak[] matches(List<Peak> points,Edge edge,double tolerance){Peak[] best=new Peak[COLUMNS];for(Peak p:points){double error=Math.abs(edge.y(p.x)-p.y);if(error>tolerance)continue;Peak previous=best[p.column];if(previous==null||error<Math.abs(edge.y(previous.x)-previous.y))best[p.column]=p;}return best;}

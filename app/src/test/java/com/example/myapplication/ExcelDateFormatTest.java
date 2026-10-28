@@ -4,6 +4,16 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ExcelDateFormatTest {
+    @Test public void formatLiteralsColorsAndElapsedUnitsKeepTheirMeaning(){
+        assertEquals("2023-03-15",ExcelDateFormat.render(45000,0,"[Red]yyyy-mm-dd",false));
+        assertEquals("36:00",ExcelDateFormat.render(1.5,0,"[HH]:mm",false));
+        assertNull(ExcelDateFormat.render(12,0,"[Blue]0.00;\"days\"",false));
+        assertNull(ExcelDateFormat.render(12,0,"\\d0",false));
+    }
+    @Test public void longMalformedBracketSequencesCannotBecomeDates(){
+        assertNull(ExcelDateFormat.render(45000,0,"[".repeat(100000)+"yyyy",false));
+        assertNull(ExcelDateFormat.render(45000,0,"\""+"days".repeat(25000),false));
+    }
     @Test public void builtInTimesKeepMinutesAndSeconds() {
         assertEquals("12:30 PM", ExcelDateFormat.render(0.520833333333,18,"",false));
         assertEquals("12:30:15", ExcelDateFormat.render(45000.521006944444,21,"",false));

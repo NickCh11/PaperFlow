@@ -52,19 +52,7 @@ import java.util.UUID;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
-import android.security.keystore.KeyGenParameterSpec;
-import android.security.keystore.KeyProperties;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity {
     private final int INK = AppTheme.ink();
@@ -100,6 +88,12 @@ public class MainActivity extends AppCompatActivity {
     private boolean favoritesOnly = false;
     private long folderId=0; private boolean trashView; private String sortOrder="last_opened DESC, created DESC"; private boolean libraryVisible;private String section="Home";
     private final ExecutorService pdfWorker = Executors.newSingleThreadExecutor();
+    private final ExecutorService libraryWorker=Executors.newSingleThreadExecutor();
+    private final java.util.concurrent.ThreadPoolExecutor thumbnailWorker=new java.util.concurrent.ThreadPoolExecutor(2,2,0,java.util.concurrent.TimeUnit.SECONDS,new java.util.concurrent.ArrayBlockingQueue<>(64),new java.util.concurrent.ThreadPoolExecutor.DiscardOldestPolicy());
+    private final android.util.LruCache<String,Bitmap> libraryThumbnails=new android.util.LruCache<String,Bitmap>(4*1024*1024){@Override protected int sizeOf(String key,Bitmap b){return b.getAllocationByteCount();}};
+    private final java.util.concurrent.atomic.AtomicInteger libraryGeneration = new java.util.concurrent.atomic.AtomicInteger();
+    private int libraryOffset;private String libraryQueryKey="";
+
     private String pendingAppendPath, pendingAppendName, pendingAppendPassword="";
     private LinearLayout cameraRow, selectionBar;
     private TextView selectionCount;
@@ -117,7 +111,7 @@ public class MainActivity extends AppCompatActivity {
         captureLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             if(result.getResultCode()!=RESULT_OK||result.getData()==null){clearPendingAppend();return;}
             Intent data=result.getData(); ArrayList<String> paths=data.getStringArrayListExtra("pages");
-            if(paths!=null&&!paths.isEmpty()){ArrayList<String> uris=new ArrayList<>();for(String path:paths)uris.add(Uri.fromFile(new File(path)).toString());Intent editor=editorIntent(uris,data.getStringExtra("capture_mode"),true,data.getBooleanExtra("import_pdf",false));if(data.hasExtra("initial_filter"))editor.putExtra("initial_filter",data.getIntExtra("initial_filter",1)).putExtra("auto_detect",data.getBooleanExtra("auto_detect",true));startActivity(editor);}
+            if(paths!=null&&!paths.isEmpty()){ArrayList<String> uris=new ArrayList<>();for(String path:paths)uris.add(Uri.fromFile(new File(path)).toString());Intent editor=editorIntent(uris,data.getStringExtra("capture_mode"),data.getBooleanExtra("start_crop",true),data.getBooleanExtra("import_pdf",false));if(data.hasExtra("initial_filter"))editor.putExtra("initial_filter",data.getIntExtra("initial_filter",1)).putExtra("auto_detect",data.getBooleanExtra("auto_detect",true));startActivity(editor);}
             else if(data.getBooleanExtra("import_pdf",false))pdfPicker.launch(new String[]{"application/pdf"});
         });
         pdfPicker = registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
@@ -177,7 +171,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void renderHome() {
-        libraryVisible=false;selectedDocuments.clear();
+        libraryVisible=false;prepareLibrarySelection(true);
         selectNavigation("Home");
         content.removeAllViews();
         content.setPadding(dp(16), dp(10), dp(16), dp(24));
@@ -217,22 +211,12 @@ public class MainActivity extends AppCompatActivity {
         TextView recent = new TextView(this); recent.setText(UiText.get(R.string.ui_recents)); recent.setTextSize(18); recent.setTypeface(null, Typeface.BOLD); recent.setTextColor(INK); sectionHeader.addView(recent, new LinearLayout.LayoutParams(0, -2, 1));
         TextView viewAll = new TextView(this); viewAll.setText(UiText.get(R.string.ui_view_all)); viewAll.setTextSize(12); viewAll.setTextColor(MUTED);AppIcon nextIcon=new AppIcon("Next",MUTED);nextIcon.setBounds(0,0,dp(12),dp(12));viewAll.setCompoundDrawables(null,null,nextIcon,null);viewAll.setCompoundDrawablePadding(dp(2));sectionHeader.addView(viewAll); viewAll.setOnClickListener(v -> renderAllDocuments());LinearLayout.LayoutParams sectionParams=new LinearLayout.LayoutParams(-1,-2);sectionParams.topMargin=dp(6);content.addView(sectionHeader,sectionParams);
         addSelectionBar();
-        Cursor cursor = store.db().query("docs", null, searchQuery.isEmpty() ? "deleted_at=0 AND "+FolderLock.visibleSql(this,store) : "deleted_at=0 AND "+FolderLock.visibleSql(this,store)+" AND (instr(search_text,?)>0 OR instr(search_meta,?)>0)", searchQuery.isEmpty() ? null : new String[]{DocumentStore.normalize(searchQuery),DocumentStore.normalize(searchQuery)}, null, null, "last_opened DESC, created DESC");
-        if (cursor.getCount() == 0) {
-            LinearLayout empty = new LinearLayout(this); empty.setGravity(Gravity.CENTER); empty.setOrientation(LinearLayout.VERTICAL); empty.setBackgroundColor(AppTheme.surface()); empty.setMinimumHeight(dp(440));
-            View illustration = new EmptyDocumentIllustration(); empty.addView(illustration, new LinearLayout.LayoutParams(dp(112), dp(128)));
-            TextView emptyText = new TextView(this); emptyText.setText(searchQuery.isEmpty() ? UiText.get(R.string.ui_no_recent_file) : UiText.get(R.string.ui_no_files_found)); emptyText.setGravity(Gravity.CENTER);emptyText.setTextSize(16); emptyText.setTextColor(MUTED); emptyText.setPadding(0, dp(12), 0, dp(20)); empty.addView(emptyText);
-            Button scan = new Button(this); scan.setText(UiText.get(R.string.ui_scan_new_docs)); scan.setTextColor(BRAND); scan.setTextSize(14); scan.setAllCaps(false);
-            android.graphics.drawable.GradientDrawable outline = new android.graphics.drawable.GradientDrawable(); outline.setColor(AppTheme.surface()); outline.setCornerRadius(dp(6)); outline.setStroke(dp(1), BRAND); scan.setBackground(outline);
-            LinearLayout.LayoutParams scanParams = new LinearLayout.LayoutParams(dp(168), dp(44)); empty.addView(scan, scanParams); scan.setOnClickListener(v -> startScan()); content.addView(empty);
-        } else {
-            while (cursor.moveToNext()) addDocumentCard(cursor.getLong(cursor.getColumnIndexOrThrow("id")), cursor.getString(cursor.getColumnIndexOrThrow("name")), cursor.getString(cursor.getColumnIndexOrThrow("path")), cursor.getInt(cursor.getColumnIndexOrThrow("pages")), cursor.getLong(cursor.getColumnIndexOrThrow("last_opened")), cursor.getInt(cursor.getColumnIndexOrThrow("favorite")) != 0);
-        }
-        cursor.close();
+        loadLibraryRows(true);
     }
 
     private class EmptyDocumentIllustration extends View {
         private final android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.DashPathEffect dash = new android.graphics.DashPathEffect(new float[]{3, 3}, 0);
         EmptyDocumentIllustration() { super(MainActivity.this); }
         @Override protected void onDraw(android.graphics.Canvas canvas) {
             super.onDraw(canvas);
@@ -242,7 +226,7 @@ public class MainActivity extends AppCompatActivity {
             canvas.drawRect(24, 9, 88, 116, paint);
             paint.setStyle(android.graphics.Paint.Style.STROKE); paint.setStrokeWidth(1); paint.setColor(AppTheme.border());
             canvas.drawRect(24, 9, 88, 116, paint);
-            paint.setStrokeWidth(1.5f); paint.setColor(AppTheme.accent()); paint.setPathEffect(new android.graphics.DashPathEffect(new float[]{3, 3}, 0));
+            paint.setStrokeWidth(1.5f); paint.setColor(AppTheme.accent()); paint.setPathEffect(dash);
             canvas.drawRect(20, 13, 92, 121, paint); paint.setPathEffect(null);
             paint.setStrokeWidth(1.5f); paint.setColor(AppTheme.accent());
             canvas.drawLine(39, 29, 77, 29, paint); canvas.drawLine(32, 43, 82, 43, paint);
@@ -253,7 +237,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void renderAllDocuments() {
-        libraryVisible=true;selectedDocuments.clear();selectNavigation("All Documents");
+        libraryVisible=true;prepareLibrarySelection(false);selectNavigation("All Documents");
         content.removeAllViews();title(content,trashView ? UiText.get(R.string.ui_trash) : favoritesOnly ? UiText.get(R.string.ui_favorites) : folderTitle(),24);
         LinearLayout controls=new LinearLayout(this);content.addView(controls);
         String[] labels={"Folders","Sort",trashView?"Library":"Trash"};
@@ -264,24 +248,56 @@ public class MainActivity extends AppCompatActivity {
             try(Cursor folders=store.db().rawQuery("SELECT id,name FROM folders WHERE parent=? ORDER BY name COLLATE NOCASE",new String[]{Long.toString(folderId)})){while(folders.moveToNext()){long id=folders.getLong(0);String name=folders.getString(1);TextView row=recentAction((FolderLock.protectedFolder(this,id)?"🔒 ":"▣ ")+name);content.addView(row,new LinearLayout.LayoutParams(-1,dp(50)));row.setOnClickListener(v->{if(FolderLock.ensureFolder(this,store,id,()->{folderId=id;renderAllDocuments();})){folderId=id;renderAllDocuments();}});row.setOnLongClickListener(v->{editFolder(id,name);return true;});}}
             addSelectionBar();
         }
-        String where=(trashView?"deleted_at>0":"deleted_at=0"+(favoritesOnly?" AND favorite=1":" AND folder_id="+folderId))+" AND "+FolderLock.visibleSql(this,store);
-        try(Cursor cursor=store.db().query("docs",null,where,null,null,null,trashView?"deleted_at DESC":sortOrder)){
-            if(cursor.getCount()==0)label(content,trashView ? UiText.get(R.string.ui_trash_is_empty_deleted_files_stay_here_until_you_remove_them_permanently) : UiText.get(R.string.ui_no_documents_in_this_folder),14,MUTED,false);
-            while(cursor.moveToNext()){
-                long id=cursor.getLong(cursor.getColumnIndexOrThrow("id"));String name=cursor.getString(cursor.getColumnIndexOrThrow("name")),path=cursor.getString(cursor.getColumnIndexOrThrow("path"));
-                if(trashView){TextView row=recentAction(UiText.format(R.string.ui_value_restore_remove, name));content.addView(row,new LinearLayout.LayoutParams(-1,dp(56)));row.setOnClickListener(v->trashActions(id,name,path));}
-                else addDocumentCard(id,name,path,cursor.getInt(cursor.getColumnIndexOrThrow("pages")),cursor.getLong(cursor.getColumnIndexOrThrow("created")),cursor.getInt(cursor.getColumnIndexOrThrow("favorite"))!=0);
-            }
-        }
+        loadLibraryRows(false);
     }
+    private static final class LibraryRow {
+        final long id,created;final String name,path;final int pages;final boolean favorite;
+        LibraryRow(Cursor c,boolean home){id=c.getLong(0);name=c.getString(1);path=c.getString(2);pages=c.getInt(3);created=c.getLong(home?4:5);favorite=c.getInt(6)!=0;}
+    }
+    private void prepareLibrarySelection(boolean home){
+        String order=home?"last_opened DESC, created DESC":trashView?"deleted_at DESC":sortOrder;
+        String key=home+"|"+searchQuery+"|"+order+"|"+trashView+"|"+favoritesOnly+"|"+folderId;
+        if(!key.equals(libraryQueryKey)){libraryOffset=0;libraryQueryKey=key;selectedDocuments.clear();}
+    }
+    private void loadLibraryRows(boolean home){
+        final String query=searchQuery,order=home?"last_opened DESC, created DESC":trashView?"deleted_at DESC":sortOrder;
+        final boolean trash=trashView,favorites=favoritesOnly;final long folder=folderId;
+        String key=home+"|"+query+"|"+order+"|"+trash+"|"+favorites+"|"+folder;
+        if(!key.equals(libraryQueryKey)){libraryOffset=0;libraryQueryKey=key;}
+        final int offset=libraryOffset,version=libraryGeneration.get();
+        libraryWorker.execute(()->{ArrayList<LibraryRow> rows=new ArrayList<>();boolean more;
+            try(DocumentStore reader=new DocumentStore(getApplicationContext())){
+                String where=home?"deleted_at=0 AND "+DocumentStore.recentRevisionSql():(trash?"deleted_at>0":"deleted_at=0"+(favorites?" AND favorite=1":" AND folder_id="+folder));
+                where+=" AND "+FolderLock.visibleSql(this,reader);String[] arguments=null;
+                if(home&&!query.isEmpty()){where+=" AND (instr(search_text,?)>0 OR instr(search_meta,?)>0)";arguments=new String[]{DocumentStore.normalize(query),DocumentStore.normalize(query)};}
+                try(Cursor c=reader.db().query("docs",new String[]{"id","name","path","pages","last_opened","created","favorite"},where,arguments,null,null,order,offset+","+(PageWindow.SIZE+1))){while(c.moveToNext()&&rows.size()<PageWindow.SIZE)rows.add(new LibraryRow(c,home));more=c.getPosition()<c.getCount();}
+                final boolean hasMore=more;
+                runOnUiThread(()->{if(isDestroyed()||version!=libraryGeneration.get())return;
+                    if(rows.isEmpty()&&offset>0){libraryOffset=Math.max(0,offset-PageWindow.SIZE);if(home)renderHome();else renderAllDocuments();return;}
+                    if(rows.isEmpty()){if(home)showEmptyHome();else label(content,trash?UiText.get(R.string.ui_trash_is_empty_deleted_files_stay_here_until_you_remove_them_permanently):UiText.get(R.string.ui_no_documents_in_this_folder),14,MUTED,false);}
+                    for(LibraryRow row:rows){if(!home&&trash){TextView view=recentAction(UiText.format(R.string.ui_value_restore_remove,row.name));content.addView(view,new LinearLayout.LayoutParams(-1,dp(56)));view.setOnClickListener(v->trashActions(row.id,row.name,row.path));}else addDocumentCard(row.id,row.name,row.path,row.pages,row.created,row.favorite);}
+                    if(offset>0||hasMore){LinearLayout controls=new LinearLayout(this);Button previous=new Button(this),next=new Button(this);previous.setText(R.string.ui_previous);next.setText(R.string.ui_next);previous.setEnabled(offset>0);next.setEnabled(hasMore);controls.addView(previous,new LinearLayout.LayoutParams(0,-2,1));controls.addView(next,new LinearLayout.LayoutParams(0,-2,1));content.addView(controls);previous.setOnClickListener(v->{libraryOffset=Math.max(0,offset-PageWindow.SIZE);if(home)renderHome();else renderAllDocuments();});next.setOnClickListener(v->{libraryOffset=offset+PageWindow.SIZE;if(home)renderHome();else renderAllDocuments();});}
+                });
+            }catch(Exception error){runOnUiThread(()->{if(!isDestroyed()&&version==libraryGeneration.get())Toast.makeText(this,UiText.get(R.string.ui_could_not_open_pdf),Toast.LENGTH_LONG).show();});}
+        });
+    }
+    private void showEmptyHome(){
+            LinearLayout empty = new LinearLayout(this); empty.setGravity(Gravity.CENTER); empty.setOrientation(LinearLayout.VERTICAL); empty.setBackgroundColor(AppTheme.surface()); empty.setMinimumHeight(dp(440));
+            View illustration = new EmptyDocumentIllustration(); empty.addView(illustration, new LinearLayout.LayoutParams(dp(112), dp(128)));
+            TextView emptyText = new TextView(this); emptyText.setText(searchQuery.isEmpty() ? UiText.get(R.string.ui_no_recent_file) : UiText.get(R.string.ui_no_files_found)); emptyText.setGravity(Gravity.CENTER);emptyText.setTextSize(16); emptyText.setTextColor(MUTED); emptyText.setPadding(0, dp(12), 0, dp(20)); empty.addView(emptyText);
+            Button scan = new Button(this); scan.setText(UiText.get(R.string.ui_scan_new_docs)); scan.setTextColor(BRAND); scan.setTextSize(14); scan.setAllCaps(false);
+            android.graphics.drawable.GradientDrawable outline = new android.graphics.drawable.GradientDrawable(); outline.setColor(AppTheme.surface()); outline.setCornerRadius(dp(6)); outline.setStroke(dp(1), BRAND); scan.setBackground(outline);
+            LinearLayout.LayoutParams scanParams = new LinearLayout.LayoutParams(dp(168), dp(44)); empty.addView(scan, scanParams); scan.setOnClickListener(v -> startScan()); content.addView(empty);
+    }
+
     private String folderTitle(){if(folderId==0)return "All Documents";try(Cursor c=store.db().rawQuery("SELECT name FROM folders WHERE id=?",new String[]{Long.toString(folderId)})){return c.moveToFirst()?c.getString(0):"Documents";}}
     private void chooseSort(){String[] labels={"Recently opened","Newest first","Oldest first","Name A–Z","Name Z–A"};String[] orders={"last_opened DESC, created DESC","created DESC","created ASC","name COLLATE NOCASE ASC","name COLLATE NOCASE DESC"};new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_sort_documents)).setItems(UiText.labels(labels),(d,w)->{sortOrder=orders[w];getPreferences(0).edit().putString("library_sort",sortOrder).apply();renderAllDocuments();}).show();}
     private void folderOptions(){if(!FolderLock.ensureFolder(this,store,folderId,this::folderOptions))return;new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_folders)).setItems(new String[]{UiText.get(R.string.ui_create_folder_here), UiText.get(R.string.ui_all_documents)},(d,w)->{if(w==1){folderId=0;trashView=false;renderAllDocuments();return;}EditText input=new EditText(this);input.setSingleLine();new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_new_folder)).setView(input).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_create),(x,y)->{String name=input.getText().toString().trim();if(!name.isEmpty()){ContentValues v=new ContentValues();v.put("name",name);v.put("parent",folderId);store.db().insertOrThrow("folders",null,v);trashView=false;renderAllDocuments();}}).show();}).show();}
-    private void editFolder(long id,String name){new AlertDialog.Builder(this).setTitle(name).setItems(new String[]{UiText.get(R.string.ui_rename), UiText.get(R.string.ui_remove_empty_folder), UiText.get(R.string.ui_folder_protection), UiText.get(R.string.ui_move_folder)},(d,w)->{if(w==3){chooseFolderDestination(id);return;}if(w==2){FolderLock.configure(this,id,this::renderAllDocuments);return;}if(!FolderLock.ensureFolder(this,store,id,()->editFolder(id,name)))return;if(w==0){EditText input=new EditText(this);input.setText(name);new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_rename_folder)).setView(input).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_save),(x,y)->{if(!input.getText().toString().trim().isEmpty()){ContentValues v=new ContentValues();v.put("name",input.getText().toString().trim());store.db().update("folders",v,"id=?",new String[]{Long.toString(id)});renderAllDocuments();}}).show();}else{try(Cursor c=store.db().rawQuery("SELECT (SELECT COUNT(*) FROM docs WHERE folder_id=?)+(SELECT COUNT(*) FROM folders WHERE parent=?)+(SELECT COUNT(*) FROM document_guards WHERE folder_id=?)",new String[]{Long.toString(id),Long.toString(id),Long.toString(id)})){if(c.moveToFirst()&&c.getLong(0)==0){store.db().delete("folders","id=?",new String[]{Long.toString(id)});renderAllDocuments();}else Toast.makeText(this,UiText.get(R.string.ui_move_the_folder_s_documents_and_subfolders_first),Toast.LENGTH_LONG).show();}}}).show();}
+    private void editFolder(long id,String name){new AlertDialog.Builder(this).setTitle(name).setItems(new String[]{UiText.get(R.string.ui_rename), UiText.get(R.string.ui_remove_empty_folder), UiText.get(R.string.ui_folder_protection), UiText.get(R.string.ui_move_folder)},(d,w)->{if(w==3){chooseFolderDestination(id);return;}if(w==2){d.dismiss();getWindow().getDecorView().post(()->{if(!isFinishing()&&!isDestroyed())FolderLock.configure(this,id,this::renderAllDocuments);});return;}if(!FolderLock.ensureFolder(this,store,id,()->editFolder(id,name)))return;if(w==0){EditText input=new EditText(this);input.setText(name);new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_rename_folder)).setView(input).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_save),(x,y)->{if(!input.getText().toString().trim().isEmpty()){ContentValues v=new ContentValues();v.put("name",input.getText().toString().trim());store.db().update("folders",v,"id=?",new String[]{Long.toString(id)});renderAllDocuments();}}).show();}else{try(Cursor c=store.db().rawQuery("SELECT (SELECT COUNT(*) FROM docs WHERE folder_id=?)+(SELECT COUNT(*) FROM folders WHERE parent=?)+(SELECT COUNT(*) FROM document_guards WHERE folder_id=?)",new String[]{Long.toString(id),Long.toString(id),Long.toString(id)})){if(c.moveToFirst()&&c.getLong(0)==0){store.db().delete("folders","id=?",new String[]{Long.toString(id)});renderAllDocuments();}else Toast.makeText(this,UiText.get(R.string.ui_move_the_folder_s_documents_and_subfolders_first),Toast.LENGTH_LONG).show();}}}).show();}
     private void chooseFolderDestination(long id){
         if(!FolderLock.ensureFolder(this,store,id,()->chooseFolderDestination(id)))return;
         java.util.Set<Long> excluded=FolderMoves.descendants(store,id);ArrayList<Long> ids=new ArrayList<>();ArrayList<String> labels=new ArrayList<>();ids.add(0L);labels.add(UiText.get(R.string.ui_all_documents));
-        try(Cursor c=store.db().rawQuery("SELECT id FROM folders ORDER BY name COLLATE NOCASE",null)){while(c.moveToNext())if(!excluded.contains(c.getLong(0))){ids.add(c.getLong(0));labels.add(folderPath(c.getLong(0)));}}
+        try(Cursor c=store.db().rawQuery("SELECT id FROM folders ORDER BY name COLLATE NOCASE",null)){while(c.moveToNext())if(!excluded.contains(Long.valueOf(c.getLong(0)))){ids.add(c.getLong(0));labels.add(folderPath(c.getLong(0)));}}
         new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_move_folder_to)).setItems(labels.toArray(new String[0]),(d,w)->moveFolderTo(id,ids.get(w))).setNegativeButton(UiText.get(R.string.ui_cancel),null).show();
     }
     private void moveFolderTo(long id,long target){
@@ -312,12 +328,16 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout textColumn = new LinearLayout(this); textColumn.setOrientation(LinearLayout.VERTICAL); textColumn.setGravity(Gravity.TOP); textColumn.setPadding(dp(12), 0, dp(4), 0);
         textColumn.addView(title); textColumn.addView(metadata); details.addView(textColumn, new LinearLayout.LayoutParams(0, -1, 1));
         CheckBox selection = new CheckBox(this); selection.setButtonTintList(android.content.res.ColorStateList.valueOf(Color.rgb(220, 222, 222))); selection.setPadding(0, 0, 0, 0); details.addView(selection, new LinearLayout.LayoutParams(dp(24), dp(40)));
-        selection.setContentDescription(UiText.format(R.string.ui_select_value, name));selection.setChecked(selectedDocuments.containsKey(id));selection.setOnCheckedChangeListener((v,checked)->{if(checked)selectedDocuments.put(id,path);else selectedDocuments.remove(id);updateSelectionBar();});
+        selection.setContentDescription(UiText.format(R.string.ui_select_value, name));selection.setChecked(selectedDocuments.containsKey(Long.valueOf(id)));selection.setOnCheckedChangeListener((v,checked)->{if(checked)selectedDocuments.put(id,path);else selectedDocuments.remove(Long.valueOf(id));updateSelectionBar();});
         preview.setOnClickListener(v->openPdf(path));textColumn.setOnClickListener(v->openPdf(path));
 
-        pdfWorker.execute(() -> {
-            Bitmap bitmap = renderPdfThumbnail(path, dp(144), dp(144));
-            if (bitmap != null) runOnUiThread(() -> { if (!isDestroyed() && path.equals(preview.getTag())) preview.setImageBitmap(bitmap); else bitmap.recycle(); });
+        final int version=libraryGeneration.get();
+        thumbnailWorker.execute(()->{
+            if(version!=libraryGeneration.get()||isDestroyed())return;
+            String key=path+"|"+new File(path).lastModified()+"|"+dp(144);
+            Bitmap cached=libraryThumbnails.get(key);Bitmap bitmap=cached==null?renderPdfThumbnail(path,dp(144),dp(144)):cached;
+            if(bitmap==null)return;
+            runOnUiThread(()->{if(version==libraryGeneration.get()&&!isDestroyed()&&preview.isAttachedToWindow()){libraryThumbnails.put(key,bitmap);preview.setImageBitmap(bitmap);}else if(cached==null)bitmap.recycle();});
         });
 
         LinearLayout actions = new LinearLayout(this); actions.setGravity(Gravity.CENTER); LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(-1, dp(48)); actionParams.topMargin = dp(16); card.addView(actions, actionParams);
@@ -356,7 +376,7 @@ public class MainActivity extends AppCompatActivity {
         new AlertDialog.Builder(this).setTitle(name).setItems(UiText.labels(actions), (dialog, which) -> {
             if (which == 0) { ContentValues values = new ContentValues(); values.put("favorite", favorite ? 0 : 1); store.db().update("docs", values, "id=?", new String[]{String.valueOf(id)}); renderHome(); }
             else if (which == 1) renameDocument(id, name);
-            else if (which == 2) {store.trash(id);if(libraryVisible)renderAllDocuments();else renderHome();}
+            else if (which == 2) {store.trash(id);selectedDocuments.remove(Long.valueOf(id));if(libraryVisible)renderAllDocuments();else renderHome();}
             else if(which==3)moveDocuments(java.util.Collections.singletonList(id));
             else if(which==4)startCloudExport(new ArrayList<>(java.util.Collections.singletonList(path)),new ArrayList<>(java.util.Collections.singletonList(name)));
         }).show();
@@ -454,50 +474,22 @@ public class MainActivity extends AppCompatActivity {
         try{File directory=new File(getFilesDir(),"documents");if(!directory.exists()&&!directory.mkdirs())throw new IllegalStateException();File copy=new File(directory,"paperflow-word-source-"+System.currentTimeMillis()+".pdf");try(InputStream in=getContentResolver().openInputStream(uri);FileOutputStream out=new FileOutputStream(copy)){if(in==null)throw new IllegalStateException();byte[] buffer=new byte[8192];int n;while((n=in.read(buffer))!=-1)out.write(buffer,0,n);}beginWordConversion(copy.getAbsolutePath(),"Document");}
         catch(Exception e){Toast.makeText(this,UiText.get(R.string.ui_could_not_open_pdf),Toast.LENGTH_LONG).show();}
     }
-    private void promptGoogleApiKey(Runnable afterSave) {
-        EditText keyInput = new EditText(this); keyInput.setSingleLine(true); keyInput.setHint(UiText.get(R.string.ui_google_cloud_api_key)); keyInput.setInputType(129);
-        try{String[] settings=readGoogleSettings();keyInput.setText(settings[0]);}catch(Exception ignored){}
-        LinearLayout fields = new LinearLayout(this); fields.setOrientation(LinearLayout.VERTICAL); fields.setPadding(dp(20), dp(8), dp(20), dp(4)); fields.addView(keyInput);
-        AlertDialog settingsDialog=new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_google_api_settings)).setMessage(UiText.get(R.string.ui_google_cloud_vision_is_available_for_the_optional_cloud_word_ocr_route_enab)).setView(fields).setNegativeButton(UiText.get(R.string.ui_cancel), null).setPositiveButton(UiText.get(R.string.ui_save),null).create();settingsDialog.setOnShowListener(shown->settingsDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(button->{
-            String key = keyInput.getText().toString().trim();
-            if(key.isEmpty()){keyInput.setError(UiText.get(R.string.ui_enter_your_google_cloud_api_key));return;}
-            try { writeGoogleSettings(key, "en");settingsDialog.dismiss();afterSave.run(); }
-            catch (Exception e) { Toast.makeText(this, UiText.get(R.string.ui_could_not_save_google_cloud_settings), Toast.LENGTH_LONG).show(); }
-        }));settingsDialog.show();
-    }
-    private SecretKey googleSettingsKey() throws Exception {
-        java.security.KeyStore keyStore = java.security.KeyStore.getInstance("AndroidKeyStore"); keyStore.load(null);
-        java.security.Key existing = keyStore.getKey("paperflow_google_translation", null); if (existing instanceof SecretKey) return (SecretKey) existing;
-        KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
-        generator.init(new KeyGenParameterSpec.Builder("paperflow_google_translation", KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT).setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build()); return generator.generateKey();
-    }
-    private void writeGoogleSettings(String apiKey, String target) throws Exception {
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.ENCRYPT_MODE, googleSettingsKey()); byte[] encrypted = cipher.doFinal((apiKey + "\n" + target).getBytes(StandardCharsets.UTF_8));
-        getSharedPreferences("google_translation", MODE_PRIVATE).edit().putString("iv", android.util.Base64.encodeToString(cipher.getIV(), android.util.Base64.NO_WRAP)).putString("value", android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP)).apply();
-    }
-    private String[] readGoogleSettings() throws Exception {
-        android.content.SharedPreferences prefs = getSharedPreferences("google_translation", MODE_PRIVATE); String iv = prefs.getString("iv", null), value = prefs.getString("value", null); if (iv == null || value == null) return new String[]{"", "en"};
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.DECRYPT_MODE, googleSettingsKey(), new GCMParameterSpec(128, android.util.Base64.decode(iv, android.util.Base64.NO_WRAP))); String[] parts = new String(cipher.doFinal(android.util.Base64.decode(value, android.util.Base64.NO_WRAP)), StandardCharsets.UTF_8).split("\\n", 2); return new String[]{parts[0], parts.length > 1 ? parts[1] : "en"};
-    }
-    private String readGoogleApiKey() throws Exception { return readGoogleSettings()[0]; }
     private void beginWordConversion(String pdfPath, String name) {
         beginWordConversion(pdfPath,name,"");
     }
     private void beginWordConversion(String pdfPath,String name,String password) {
         if(!FolderLock.ensureDocument(this,pdfPath,()->beginWordConversion(pdfPath,name,password)))return;
         if(wordState.running){showWordProgress();return;}
-        LinearLayout choices=new LinearLayout(this);choices.setOrientation(LinearLayout.VERTICAL);choices.setPadding(dp(18),dp(8),dp(18),dp(4));TextView explanation=new TextView(this);explanation.setText(UiText.get(R.string.ui_automatic_uses_embedded_pdf_text_including_greek_and_on_device_ocr_for_scan));explanation.setTextSize(13);choices.addView(explanation);android.widget.Button ocrLanguages=new android.widget.Button(this);ocrLanguages.setText(UiText.get(R.string.ui_ocr_languages_84fba977));ocrLanguages.setOnClickListener(v->startActivity(new Intent(this,LanguageManagerActivity.class).putExtra("kind","ocr")));choices.addView(ocrLanguages);
-        android.widget.RadioGroup routes=new android.widget.RadioGroup(this);String[] labels={"Automatic · PDF text, then local OCR","PDF text only · includes Greek","On-device OCR · Tesseract","Google Cloud OCR · Greek","Editable page layout · local","Keep page appearance · images"};for(int i=0;i<labels.length;i++){android.widget.RadioButton option=new android.widget.RadioButton(this);option.setId(View.generateViewId());option.setText(UiText.label(labels[i]));option.setTag(i);routes.addView(option);if(i==4)option.setChecked(true);}choices.addView(routes);
+        LinearLayout choices=new LinearLayout(this);choices.setOrientation(LinearLayout.VERTICAL);choices.setPadding(dp(18),dp(8),dp(18),dp(4));TextView explanation=new TextView(this);explanation.setText(UiText.get(R.string.ui_word_routes_description));explanation.setTextSize(13);choices.addView(explanation);android.widget.Button ocrLanguages=new android.widget.Button(this);ocrLanguages.setText(UiText.get(R.string.ui_ocr_languages_84fba977));ocrLanguages.setOnClickListener(v->startActivity(new Intent(this,LanguageManagerActivity.class).putExtra("kind","ocr")));choices.addView(ocrLanguages);
+        android.widget.RadioGroup routes=new android.widget.RadioGroup(this);String[] labels={"Automatic · PDF text, then local OCR","PDF text only · includes Greek","On-device OCR","Editable page layout · local","Keep page appearance · images"};int[] routeIds={WordConversion.AUTO,WordConversion.NATIVE,WordConversion.LOCAL,WordConversion.LAYOUT,WordConversion.APPEARANCE};for(int i=0;i<labels.length;i++){android.widget.RadioButton option=new android.widget.RadioButton(this);option.setId(View.generateViewId());option.setText(UiText.label(labels[i]));option.setTag(routeIds[i]);routes.addView(option);if(routeIds[i]==WordConversion.LAYOUT)option.setChecked(true);}choices.addView(routes);
         new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_convert_to_word)).setView(choices).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_convert),(d,w)->{View selected=routes.findViewById(routes.getCheckedRadioButtonId());int route=selected==null?WordConversion.AUTO:(Integer)selected.getTag();chooseWordRoute(pdfPath,name==null?"Document":name,password,route);}).show();
     }
     private void chooseWordRoute(String path,String name,String password,int route){
-        if(route!=WordConversion.CLOUD){convertPdfToWord(path,name,password,route,"");return;}String key;try{key=readGoogleApiKey();}catch(Exception e){Toast.makeText(this,UiText.get(R.string.ui_could_not_read_google_api_settings),Toast.LENGTH_LONG).show();return;}
-        if(key.isEmpty()){promptGoogleApiKey(()->beginWordConversion(path,name,password));return;}final String apiKey=key;
-        new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_upload_pages_to_google_cloud)).setMessage(UiText.get(R.string.ui_each_pdf_page_will_be_rendered_and_sent_to_google_cloud_vision_for_ocr_incl)).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_upload_and_convert),(d,w)->convertPdfToWord(path,name,password,route,apiKey)).show();
+        if(FolderLock.ensureDocument(this,path,()->chooseWordRoute(path,name,password,route)))convertPdfToWord(path,name,password,route);
     }
-    private void convertPdfToWord(String path,String name,String password,int route,String key){
+    private void convertPdfToWord(String path,String name,String password,int route){
         if(wordState.running){showWordProgress();return;}wordState.error.setValue(null);wordState.result.setValue(null);wordState.path=path;wordState.name=name;wordState.password=password;wordState.route=route;wordState.orientation=getRequestedOrientation();wordState.running=true;WordConversion.Job job=new WordConversion.Job();wordState.job=job;wordState.progress.setValue(new WordProgress(0,0,"Opening PDF…"));setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LOCKED);showWordProgress();
-        android.content.Context app=getApplicationContext();WordState task=wordState;task.worker.execute(()->{WordConversion.Result result=null;try{result=WordConversion.convert(app,path,password,route,key,job,(completed,total,message)->task.progress.postValue(new WordProgress(completed,total,message)));job.check();if(task.disposed){result.file.delete();return;}ConversionHistory.add(app,result.file,name+".docx","application/vnd.openxmlformats-officedocument.wordprocessingml.document",java.util.Collections.singletonList(path));task.running=false;task.result.postValue(result);}catch(Exception e){if(result!=null)result.file.delete();task.running=false;if(!task.disposed)task.error.postValue(job.cancelled?new java.util.concurrent.CancellationException("Conversion cancelled"):e);}});
+        android.content.Context app=getApplicationContext();WordState task=wordState;task.worker.execute(()->{WordConversion.Result result=null;try{result=WordConversion.convert(app,path,password,route,job,(completed,total,message)->task.progress.postValue(new WordProgress(completed,total,message)));job.check();if(task.disposed){result.file.delete();return;}ConversionHistory.add(app,result.file,name+".docx","application/vnd.openxmlformats-officedocument.wordprocessingml.document",java.util.Collections.singletonList(path));task.running=false;task.result.postValue(result);}catch(Exception e){if(result!=null)result.file.delete();task.running=false;if(!task.disposed)task.error.postValue(job.cancelled?new java.util.concurrent.CancellationException("Conversion cancelled"):e);}});
     }
     private void observeWordConversion(){
         wordState.progress.observe(this,progress->{if(wordState.running){showWordProgress();if(progress!=null&&wordProgressDialog!=null){wordProgressDialog.setIndeterminate(progress.total==0);if(progress.total>0){wordProgressDialog.setMax(progress.total);wordProgressDialog.setProgress(progress.completed);}wordProgressDialog.setMessage(wordState.job!=null&&wordState.job.cancelled ? UiText.get(R.string.ui_cancelling) : progress.message);}}});
@@ -525,7 +517,7 @@ public class MainActivity extends AppCompatActivity {
             cancel.setOnClickListener(v->{if(wordErrorDialog!=prompt||!prompt.isShowing()||wordState.job!=failedJob||wordState.error.getValue()!=failedError)return;wordErrorDialog=null;prompt.dismiss();wordState.error.setValue(null);});
             confirm.setOnClickListener(v->{if(wordErrorDialog!=prompt||!prompt.isShowing()||wordState.job!=failedJob||wordState.error.getValue()!=failedError||isFinishing()||isDestroyed())return;if(field.getText().length()==0){field.setError(UiText.get(R.string.ui_enter_the_password));return;}String entered=field.getText().toString();wordErrorDialog=null;prompt.dismiss();wordState.error.setValue(null);chooseWordRoute(path,name,entered,route);});});prompt.show();
     }
-    @Override protected void onDestroy(){pdfWorker.execute(store::close);pdfWorker.shutdown();dismissWordProgress();if(wordResultDialog!=null)wordResultDialog.dismiss();if(wordErrorDialog!=null)wordErrorDialog.dismiss();super.onDestroy();}
+    @Override protected void onDestroy(){libraryGeneration.incrementAndGet();libraryWorker.shutdownNow();thumbnailWorker.shutdownNow();libraryThumbnails.evictAll();pdfWorker.execute(store::close);pdfWorker.shutdown();dismissWordProgress();if(wordResultDialog!=null)wordResultDialog.dismiss();if(wordErrorDialog!=null)wordErrorDialog.dismiss();super.onDestroy();}
     private void shareWordFile(File file,String title){Uri uri=FileProvider.getUriForFile(this,getPackageName()+".files",file);Intent intent=new Intent(Intent.ACTION_SEND);intent.setType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");intent.putExtra(Intent.EXTRA_STREAM,uri);intent.putExtra(Intent.EXTRA_SUBJECT,title+".docx");intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);startActivity(Intent.createChooser(intent,UiText.get(R.string.ui_share_word_document)));}
     private void showOpenSourceLicenses(){try{java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();try(java.io.InputStream in=getAssets().open("licenses/THIRD_PARTY_NOTICES.md")){byte[] bytes=new byte[8192];int n;while((n=in.read(bytes))!=-1)out.write(bytes,0,n);}android.widget.ScrollView scroll=new android.widget.ScrollView(this);TextView text=new TextView(this);text.setText(out.toString("UTF-8"));text.setTextIsSelectable(true);text.setPadding(dp(20),dp(12),dp(20),dp(12));scroll.addView(text);new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_open_source_licenses)).setView(scroll).setPositiveButton(UiText.get(R.string.ui_close),null).show();}catch(Exception e){Toast.makeText(this,UiText.get(R.string.ui_could_not_load_licenses),Toast.LENGTH_LONG).show();}}
     private void renderSettings() {
@@ -537,15 +529,43 @@ public class MainActivity extends AppCompatActivity {
         settingHelp(UiText.get(R.string.app_language_help));
         label(content,UiText.get(R.string.ui_paperflow_local_storage),15,MUTED,false).setPadding(0,dp(16),0,0);
         settingHelp(UiText.get(R.string.ui_documents_are_saved_locally_use_save_to_cloud_to_export_copies_to_your_own));
-        setting(UiText.get(R.string.ui_ocr_languages_84fba977),"OCR PDF",()->startActivity(new Intent(this,LanguageManagerActivity.class).putExtra("kind","ocr")));
-        setting(UiText.get(R.string.ui_translation_languages),"Photo Translation",()->startActivity(new Intent(this,LanguageManagerActivity.class).putExtra("kind","translation")));
-        setting(UiText.get(R.string.ui_lock_folders_now),"Lock",()->{FolderLock.lockAll();renderSettings();});
+        setting(UiText.get(R.string.ui_offline_languages),"OCR PDF",()->startActivity(new Intent(this,LanguageManagerActivity.class)));
+        setting(UiText.get(R.string.ui_folder_protection),"Lock",this::chooseFolderProtection);
+        settingHelp(UiText.get(R.string.ui_folder_protection_settings_help));
+        setting(UiText.get(R.string.ui_lock_folders_now),"Lock",this::lockFoldersFromSettings);
         setting(UiText.get(R.string.ui_scan_and_export_preferences),"Smart Scan",this::scanPreferences);
         setting(UiText.get(R.string.ui_save_to_cloud),"Cloud",this::chooseCloudDocuments);
         setting(UiText.get(R.string.ui_trash),"Delete",()->{trashView=true;renderAllDocuments();});
         setting(UiText.get(R.string.ui_open_source_licenses),"Page Count",this::showOpenSourceLicenses);
         setting(UiText.get(R.string.ui_conversion_history),"History",()->startActivity(new Intent(this,ConversionHistoryActivity.class)));
         setting(UiText.get(R.string.ui_favorites),"Star",()->{favoritesOnly=true;folderId=0;trashView=false;renderAllDocuments();});
+    }
+    private void chooseFolderProtection(){
+        ArrayList<Long> ids=new ArrayList<>();ArrayList<String> names=new ArrayList<>();
+        try(Cursor rows=store.db().rawQuery("SELECT id,parent FROM folders ORDER BY name COLLATE NOCASE",null)){
+            while(rows.moveToNext())if(FolderLock.allowed(this,store,rows.getLong(1))){ids.add(rows.getLong(0));names.add(folderPath(rows.getLong(0)));}
+        }
+        if(ids.isEmpty()){
+            new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_folder_protection)).setMessage(UiText.get(R.string.ui_create_folder_before_protection)).setPositiveButton(android.R.string.ok,null).show();return;
+        }
+        new ProtectedDialogs.Builder(this).setTitle(UiText.get(R.string.ui_folder_protection)).setItems(names.toArray(new String[0]),(dialog,which)->{
+            long id=ids.get(which);dialog.dismiss();getWindow().getDecorView().post(()->{
+                if(isFinishing()||isDestroyed())return;
+                try(Cursor row=store.db().rawQuery("SELECT id FROM folders WHERE id=?",new String[]{Long.toString(id)})){
+                    if(!row.moveToFirst()){Toast.makeText(this,UiText.get(R.string.ui_folder_no_longer_exists),Toast.LENGTH_LONG).show();return;}
+                }
+                FolderLock.configure(this,id,this::renderSettings);
+            });
+        }).setNegativeButton(UiText.get(R.string.ui_cancel),null).show();
+    }
+    private void lockFoldersFromSettings(){
+        boolean protectedFolder=false;
+        try(Cursor rows=store.db().rawQuery("SELECT id FROM folders",null)){
+            while(rows.moveToNext())if(FolderLock.protectedFolder(this,rows.getLong(0))){protectedFolder=true;break;}
+        }
+        FolderLock.lockAll();renderSettings();
+        if(protectedFolder)Toast.makeText(this,UiText.get(R.string.ui_protected_folders_locked),Toast.LENGTH_SHORT).show();
+        else new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_folder_protection)).setMessage(UiText.get(R.string.ui_no_protected_folders)).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_protect_folder),(dialog,which)->getWindow().getDecorView().post(()->{if(!isFinishing()&&!isDestroyed())chooseFolderProtection();})).show();
     }
     private void setting(String label,String icon,Runnable action){
         TextView row=new TextView(this);row.setText(label);row.setTextColor(INK);row.setTextSize(15);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(16),dp(12),dp(16),dp(12));row.setMinimumHeight(dp(56));setIcon(row,icon,BRAND,22,false);
@@ -558,22 +578,30 @@ public class MainActivity extends AppCompatActivity {
         if(w==7){galleryPreferences();return;}
         if(w==8){new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_open_camera_on_launch)).setSingleChoiceItems(new String[]{UiText.get(R.string.ui_show_home), UiText.get(R.string.ui_open_camera)},prefs.getBoolean("launch_camera",false)?1:0,(x,y)->{prefs.edit().putBoolean("launch_camera",y==1).apply();x.dismiss();}).show();return;}
         if(w==5){new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_curved_paper_paperscan_pro)).setSingleChoiceItems(new String[]{UiText.get(R.string.ui_off), UiText.get(R.string.ui_book_pages), UiText.get(R.string.ui_all_paperscan_pro_pages)},prefs.getInt("dewarp",1),(x,y)->{prefs.edit().putInt("dewarp",y).apply();x.dismiss();}).show();return;}
-        if(w==6){boolean[] checked={prefs.getBoolean("edge_fingers",false),prefs.getBoolean("demoire",false)};new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_automatic_cleanup_paperscan_pro)).setMultiChoiceItems(new String[]{UiText.get(R.string.ui_detect_fingers_at_paper_edges), UiText.get(R.string.ui_reduce_color_moire)},checked,(x,y,b)->checked[y]=b).setMessage(UiText.get(R.string.ui_review_the_preview_edge_detection_can_confuse_colored_illustrations_with_fi)).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_apply),(x,y)->prefs.edit().putBoolean("edge_fingers",checked[0]).putBoolean("demoire",checked[1]).apply()).show();return;}
-        if(w==0){String[] choices={"Single","Batch","Book"};new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_capture_mode)).setItems(UiText.labels(choices),(x,y)->prefs.edit().putString("mode",choices[y]).apply()).show();}
+        if(w==6){boolean[] checked={prefs.getBoolean("edge_fingers",false),prefs.getBoolean("demoire",false)};new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_automatic_cleanup_paperscan_pro)).setMultiChoiceItems(new String[]{UiText.get(R.string.ui_detect_fingers_at_paper_edges), UiText.get(R.string.ui_reduce_color_moire)},checked,(x,y,b)->checked[y]=b).setView(scanPreferenceHelp(R.string.ui_review_the_preview_edge_detection_can_confuse_colored_illustrations_with_fi)).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_apply),(x,y)->prefs.edit().putBoolean("edge_fingers",checked[0]).putBoolean("demoire",checked[1]).apply()).show();return;}
+        if(w==0){String[] choices={"Photo","Single","Batch","Book"};String[] labels=new String[choices.length];for(int i=0;i<choices.length;i++)labels[i]=CaptureModes.label(choices[i]);new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_capture_mode)).setItems(labels,(x,y)->prefs.edit().putString("mode",choices[y]).apply()).show();}
         else if(w==1){String[] choices={"Default","PaperScan Pro"};new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_default_filter)).setSingleChoiceItems(UiText.labels(choices),prefs.getInt("filter",1),(x,y)->{prefs.edit().putInt("filter",y).apply();x.dismiss();}).show();}
         else if(w==2){String[] choices={"Original proportions","A4","Letter"};new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_pdf_page_size)).setSingleChoiceItems(UiText.labels(choices),prefs.getInt("paper",0),(x,y)->{prefs.edit().putInt("paper",y).apply();x.dismiss();}).show();}
         else if(w==3)ScanNaming.configure(this);
         else{ArrayList<String> names=new ArrayList<>();ArrayList<Long> ids=new ArrayList<>();names.add(UiText.get(R.string.ui_all_documents));ids.add(0L);try(Cursor c=store.db().rawQuery("SELECT id FROM folders ORDER BY name COLLATE NOCASE",null)){while(c.moveToNext()){ids.add(c.getLong(0));names.add(folderPath(c.getLong(0)));}}new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_default_library_folder)).setItems(names.toArray(new String[0]),(x,y)->prefs.edit().putLong("folder",ids.get(y)).apply()).show();}
     }).show();}
+    private TextView scanPreferenceHelp(int textResource){
+        // AlertDialog replaces a choice list when setMessage is also used.
+        // A custom explanation keeps both the choices and their help visible.
+        TextView help=new TextView(this);help.setText(UiText.get(textResource));
+        help.setTextSize(14);help.setTextColor(AppTheme.ink());help.setPadding(dp(24),dp(8),dp(24),dp(12));
+        return help;
+    }
     private void galleryPreferences(){
         android.content.SharedPreferences prefs=getSharedPreferences("scan_defaults",0);boolean[] values={prefs.getBoolean("gallery_originals",false),prefs.getBoolean("gallery_processed",false)};
-        new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_save_photos_to_gallery)).setMultiChoiceItems(new String[]{UiText.get(R.string.ui_keep_original_photos), UiText.get(R.string.ui_save_processed_scan_images)},values,(d,w,b)->values[w]=b).setMessage(UiText.get(R.string.ui_photos_are_saved_in_pictures_paperflow_after_a_successful_scan_export_galle)).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_save),(d,w)->{prefs.edit().putBoolean("gallery_originals",values[0]).putBoolean("gallery_processed",values[1]).apply();if((values[0]||values[1])&&android.os.Build.VERSION.SDK_INT<29&&androidx.core.content.ContextCompat.checkSelfPermission(this,android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE},731);}).show();
+        new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_save_photos_to_gallery)).setMultiChoiceItems(new String[]{UiText.get(R.string.ui_keep_original_photos), UiText.get(R.string.ui_save_processed_scan_images)},values,(d,w,b)->values[w]=b).setView(scanPreferenceHelp(R.string.ui_photos_are_saved_in_pictures_paperflow_after_a_successful_scan_export_galle)).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_save),(d,w)->{prefs.edit().putBoolean("gallery_originals",values[0]).putBoolean("gallery_processed",values[1]).apply();if((values[0]||values[1])&&android.os.Build.VERSION.SDK_INT<29&&androidx.core.content.ContextCompat.checkSelfPermission(this,android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE},731);}).show();
     }
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants){super.onRequestPermissionsResult(request,permissions,grants);if(request==731&&(grants.length==0||grants[0]!=android.content.pm.PackageManager.PERMISSION_GRANTED)){getSharedPreferences("scan_defaults",0).edit().putBoolean("gallery_originals",false).putBoolean("gallery_processed",false).apply();Toast.makeText(this,UiText.get(R.string.ui_gallery_copies_remain_off_because_storage_access_was_not_allowed),Toast.LENGTH_LONG).show();}}
     private void startScan(String mode) {
         Intent intent = new Intent(this, CameraCaptureActivity.class); intent.putExtra("capture_mode", mode); captureLauncher.launch(intent);
     }
-    @Override protected void onResume(){super.onResume();FolderLock.watch(this,()->{selectedDocuments.clear();if(content!=null){if("All Documents".equals(section))renderAllDocuments();else if("Home".equals(section))renderHome();}});if(content!=null){if("All Documents".equals(section))renderAllDocuments();else if("Home".equals(section))renderHome();}}
+    private boolean resumedOnce;
+    @Override protected void onResume(){super.onResume();FolderLock.watch(this,()->{selectedDocuments.clear();if(content!=null){if("All Documents".equals(section))renderAllDocuments();else if("Home".equals(section))renderHome();else if("Settings".equals(section))FolderLock.closeDialogs(this);}});if(resumedOnce&&content!=null){if("All Documents".equals(section))renderAllDocuments();else if("Home".equals(section))renderHome();}resumedOnce=true;}
     @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); handleDocumentIntent(intent); }
     @Override protected void onSaveInstanceState(Bundle state){super.onSaveInstanceState(state);state.putString("section",section);state.putLong("library_folder",folderId);state.putBoolean("library_trash",trashView);state.putBoolean("library_favorites",favoritesOnly);state.putString("library_query",searchQuery);state.putBoolean("library_visible",libraryVisible);state.putString("append_path",pendingAppendPath);state.putString("append_name",pendingAppendName);state.putString("append_password",pendingAppendPassword);if(wordExport!=null)state.putString("word_export",wordExport.getAbsolutePath());}
     private void clearPendingAppend(){pendingAppendPath=null;pendingAppendName=null;pendingAppendPassword="";}
@@ -586,7 +614,7 @@ public class MainActivity extends AppCompatActivity {
         try{if(!new File(path).getCanonicalPath().startsWith(new File(getFilesDir(),"documents").getCanonicalPath()+File.separator))return;}catch(java.io.IOException invalid){return;}
         String origin=intent.getStringExtra("origin_path");ArrayList<String> origins=intent.getStringArrayListExtra("origin_paths");if(origins==null)origins=new ArrayList<>();if(origin!=null)origins.add(origin);for(String item:origins)if(!FolderLock.ensureDocument(this,item,()->handleDocumentIntent(intent)))return;
         intent.removeExtra("document_action");
-        if(action.equals("Register")){registerDerivedDocument(path,name==null?"Document":name,intent.getIntExtra("pages",-1),origins);renderHome();String next=intent.getStringExtra("after_save_action");if("To Word".equals(next))beginWordConversion(path,name);else if("Sign".equals(next)){Intent viewer=new Intent(this,PdfViewerActivity.class).putExtra("path",path).putExtra("name",name).putExtra("start_sign",true);startActivity(viewer);}else openPdf(path);}
+        if(action.equals("Register")){registerDerivedDocument(path,name==null?"Document":name,intent.getIntExtra("pages",-1),origins);if(intent.getBooleanExtra("signed_revision",false))store.signedRevision(origin,path);renderHome();String next=intent.getStringExtra("after_save_action");if("To Word".equals(next))beginWordConversion(path,name);else if("Sign".equals(next)){Intent viewer=new Intent(this,PdfViewerActivity.class).putExtra("path",path).putExtra("name",name).putExtra("start_sign",true);startActivity(viewer);}else openPdf(path);}
         else if(action.equals("Rename")){ContentValues values=new ContentValues();values.put("name",name);store.db().update("docs",values,"path=?",new String[]{path});renderHome();openPdf(path);}
         else if(action.equals("Tags"))editTags(path);
         else if(action.equals("To Word")){String password=intent.getStringExtra("pdf_password");intent.removeExtra("pdf_password");beginWordConversion(path,name==null?"Document":name,password==null?"":password);}
@@ -657,6 +685,8 @@ public class MainActivity extends AppCompatActivity {
         navigationItems.add(t); return t;
     }
     private void selectNavigation(String name) {
+        libraryGeneration.incrementAndGet();
+        if(!name.equals(section))selectedDocuments.clear();
         section=name;
         if(mainScroll!=null)mainScroll.post(()->mainScroll.scrollTo(0,0));
         if(cameraRow!=null)cameraRow.setVisibility(name.equals("Home")||name.equals("All Documents")?View.VISIBLE:View.GONE);

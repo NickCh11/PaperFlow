@@ -1,0 +1,223 @@
+package com.paperflow.imageprocessing
+
+import com.paperflow.imageprocessing.quad.convexHull
+import com.paperflow.imageprocessing.quad.findQuadFromContourOrientation
+import com.paperflow.imageprocessing.quad.minAreaRect
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
+import org.junit.Assert.*
+import org.junit.Test
+
+class DocumentGeometryTest {
+    @Test fun undersampledAndCollapsedContoursCannotBecomeCropCorners() {
+        for (count in 0 until 20) {
+            assertNull("Only $count contour samples", findQuadFromContourOrientation(List(count) { org.opencv.core.Point(it.toDouble(), 0.0) }))
+        }
+        assertNull(findQuadFromContourOrientation(List(64) { org.opencv.core.Point(10.0, 10.0) }))
+        assertNull(findQuadFromContourOrientation(List(64) { org.opencv.core.Point(it.toDouble(), 10.0) }))
+    }
+
+    @Test fun minimumSideLengthCanRejectAContourWithoutLeavingPartialCorners() {
+        val rectangle = buildList {
+            for (i in 0 until 40) add(org.opencv.core.Point(i.toDouble(), 0.0))
+            for (i in 0 until 60) add(org.opencv.core.Point(40.0, i.toDouble()))
+            for (i in 0 until 40) add(org.opencv.core.Point(40.0 - i, 60.0))
+            for (i in 0 until 60) add(org.opencv.core.Point(0.0, 60.0 - i))
+        }
+        assertEquals(4, findQuadFromContourOrientation(rectangle)!!.size)
+        // No side meets this intentionally strict fraction of the measured perimeter.
+        assertNull(findQuadFromContourOrientation(rectangle, minSideLengthRatio = .6))
+    }
+
+    @Test fun anInterruptedPageEdgeDoesNotReplaceAnotherSideWithAParallelSegment() {
+        val outline = listOf(Point(0, 0), Point(200, 0), Point(200, 20), Point(300, 20), Point(300, 0), Point(500, 0), Point(500, 100), Point(0, 100))
+        val contour = buildList {
+            for (i in outline.indices) {
+                val from = outline[i]; val to = outline[(i + 1) % outline.size]
+                val samples = maxOf(abs(to.x - from.x), abs(to.y - from.y)).toInt()
+                for (step in 0 until samples) add(org.opencv.core.Point(from.x + (to.x - from.x) * step / samples, from.y + (to.y - from.y) * step / samples))
+            }
+        }
+        val corners = findQuadFromContourOrientation(contour)
+        assertNotNull("A notch must not displace one of the four outer page sides", corners)
+        // Line fitting can average the shallow notch; allow 5% of page height.
+        // Choosing two parallel top segments instead of another side fails this bound.
+        for (expected in listOf(Point(0, 0), Point(500, 0), Point(500, 100), Point(0, 100))) {
+            assertTrue("Missing outer corner $expected; detected $corners", corners!!.any { Math.hypot(it.x - expected.x, it.y - expected.y) < 5.0 })
+        }
+    }
+
+    @Test fun unresolvableContourIntersectionsReturnNoQuadInsteadOfUnstableCorners() {
+        fun rectangle(offset: Double): List<org.opencv.core.Point> = buildList {
+            val edge = 32768.0
+            for (i in 0 until 32) add(org.opencv.core.Point(offset + i * 1024.0, offset))
+            for (i in 0 until 32) add(org.opencv.core.Point(offset + edge, offset + i * 1024.0))
+            for (i in 0 until 32) add(org.opencv.core.Point(offset + edge - i * 1024.0, offset + edge))
+            for (i in 0 until 32) add(org.opencv.core.Point(offset, offset + edge - i * 1024.0))
+        }
+        assertEquals(4, findQuadFromContourOrientation(rectangle(0.0))!!.size)
+        // These points remain distinct, but adding a unit direction to their
+        // fitted centers cannot be represented accurately by a Double.
+        assertNull(findQuadFromContourOrientation(rectangle(Math.scalb(1.0, 60))))
+    }
+
+    @Test fun nonfiniteAndOverflowingCropCornersAreNeverAcceptedAsConvex() {
+        val valid = listOf(Point(0, 0), Point(100, 0), Point(100, 200), Point(0, 200))
+        for (corner in valid.indices) for (value in listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)) {
+            for (axis in 0..1) {
+                val points = valid.toMutableList()
+                points[corner] = if (axis == 0) Point(value, points[corner].y) else Point(points[corner].x, value)
+                assertFalse("Invalid corner $corner/$axis/$value", Quad(points[0], points[1], points[2], points[3]).isConvex())
+            }
+        }
+        assertFalse(Quad(Point(0, 0), Point(Double.MAX_VALUE, 0.0), Point(Double.MAX_VALUE, Double.MAX_VALUE), Point(0.0, Double.MAX_VALUE)).isConvex())
+        assertTrue(Quad(valid[0], valid[1], valid[2], valid[3]).isConvex())
+    }
+
+    @Test fun quadRotationsPreserveThePageCornersAndSideLengths() {
+        val quad = Quad(Point(10, 15), Point(70, 15), Point(70, 50), Point(10, 50))
+        val size = ImageSize(100, 80)
+        val expected = listOf(
+            quad,
+            Quad(Point(30, 10), Point(65, 10), Point(65, 70), Point(30, 70)),
+            Quad(Point(30, 30), Point(90, 30), Point(90, 65), Point(30, 65)),
+            Quad(Point(15, 30), Point(50, 30), Point(50, 90), Point(15, 90))
+        )
+        for (turns in 0..7) {
+            val rotated = quad.rotate90(turns, size)
+            assertEquals(expected[turns % 4], rotated)
+            assertTrue(rotated.isConvex())
+            assertEquals(190.0, rotated.edges().sumOf { it.norm() }, 1e-9)
+        }
+        assertEquals(5.0, Line(Point(0, 0), Point(3, 4)).norm(), 0.0)
+    }
+
+    @Test fun shuffledCornersAndNonuniformScalingRetainTheirGeometry() {
+        val points = listOf(Point(10, 20), Point(90, 20), Point(90, 60), Point(10, 60))
+        val expected = Quad(points[0], points[1], points[2], points[3])
+        for (seed in 0..20) assertEquals(expected, createQuad(points.shuffled(kotlin.random.Random(seed))))
+        assertThrows(IllegalArgumentException::class.java) { createQuad(points.take(3)) }
+        val scaled = expected.scaledTo(100, 80, 200, 240)
+        assertEquals(Quad(Point(20, 60), Point(180, 60), Point(180, 180), Point(20, 180)), scaled)
+        assertEquals(expected, scaled.scaledTo(200.0, 240.0, 100.0, 80.0))
+        assertTrue(isInsideImage(Point(0, 0), ImageSize(100, 80)))
+        assertTrue(isInsideImage(Point(100, 80), ImageSize(100, 80)))
+        for (outside in listOf(Point(-1, 40), Point(101, 40), Point(40, -1), Point(40, 81)))
+            assertFalse(isInsideImage(outside, ImageSize(100, 80)))
+        assertFalse(Quad(Point(0, 0), Point(10, 0), Point(0, 10), Point(10, 10)).isConvex())
+    }
+
+    @Test fun hullRejectsInteriorDuplicateAndCollinearPoints() {
+        val corners = listOf(Point(0, 0), Point(10, 0), Point(10, 20), Point(0, 20))
+        assertEquals(corners.toSet(), convexHull(corners.reversed() + corners + listOf(Point(5, 5), Point(5, 0))).toSet())
+        assertEquals(listOf(Point(0, 0), Point(4, 4)), convexHull((0..4).map { Point(it, it) }))
+        assertTrue(convexHull(emptyList()).isEmpty())
+        assertNull(minAreaRect(listOf(Point(0, 0), Point(1, 1))))
+        assertEquals(1, minAreaRect(List(3) { Point(1, 1) })!!.size)
+    }
+
+    @Test fun minimumRectanglePreservesKnownRotatedAreaAndCanClipToImage() {
+        for (angle in listOf(0, 17, 45, 89)) {
+            val theta = Math.toRadians(angle.toDouble())
+            val polygon = listOf(Point(0, 0), Point(20, 0), Point(20, 10), Point(0, 10)).map {
+                Point(40 + it.x * cos(theta) - it.y * sin(theta), 40 + it.x * sin(theta) + it.y * cos(theta))
+            }
+            val center = Point(polygon.sumOf { it.x } / 4, polygon.sumOf { it.y } / 4)
+            val rect = minAreaRect(polygon + center)!!
+            val twiceArea = rect.indices.sumOf { i -> val a = rect[i]; val b = rect[(i + 1) % 4]; a.x * b.y - b.x * a.y }
+            assertEquals(200.0, abs(twiceArea) / 2, 1e-6)
+        }
+        val clipped = minAreaRect(listOf(Point(-5, -8), Point(30, -8), Point(30, 40), Point(-5, 40)), 20, 25)!!
+        assertTrue(clipped.all { it.x in 0.0..19.0 && it.y in 0.0..24.0 })
+        assertEquals(19.0, clipped.maxOf { it.x }, 0.0)
+        assertEquals(24.0, clipped.maxOf { it.y }, 0.0)
+    }
+
+    @Test fun rectangleClippingRequiresBothImageDimensions() {
+        val polygon = listOf(Point(-5,-8),Point(30,-8),Point(30,40),Point(-5,40))
+        val unconstrained = minAreaRect(polygon)
+        assertEquals(unconstrained,minAreaRect(polygon,imgWidth=20))
+        assertEquals(unconstrained,minAreaRect(polygon,imgHeight=25))
+        assertTrue(unconstrained!!.any { it.x < 0 || it.y < 0 })
+    }
+
+    @Test fun rectangleWithUnrepresentableAreaReturnsNoCandidate() {
+        val scale = 1e200
+        assertNull(minAreaRect(listOf(Point(-scale,-scale),Point(scale,-scale),Point(scale,scale),Point(-scale,scale))))
+    }
+
+    @Test fun paperSnappingRespectsOrientationSizeAndRatioTolerances() {
+        for (format in PaperFormats.all) {
+            assertEquals(format, EstimatedDimensions.Physical(format.widthMm * 1.01, format.heightMm * 1.01).snapToStandardFormat())
+            assertEquals(EstimatedDimensions.Physical(format.heightMm, format.widthMm), EstimatedDimensions.Physical(format.heightMm * 1.01, format.widthMm * 1.01).snapToStandardFormat())
+        }
+        val postcard = EstimatedDimensions.Physical(100.0, 150.0)
+        assertSame(postcard, postcard.snapToStandardFormat())
+        val ratio = EstimatedDimensions.Ratio(2.0, 3.0)
+        assertSame(ratio, ratio.snapToStandardFormat())
+        assertEquals(1.5, ratio.aspectRatio, 0.0)
+        assertEquals(1.5, postcard.aspectRatio, 0.0)
+    }
+
+    @Test fun parallelDocumentUsesStableMeasuredSideLengths() {
+        val quad = Quad(Point(10, 20), Point(210, 20), Point(210, 320), Point(10, 320))
+        val dimensions = estimateRealDimensions(quad, 1000, 1000, null)
+        assertEquals(EstimatedDimensions.Ratio(200.0, 300.0), dimensions)
+        assertNull(cameraIntrinsics(null, 10f)); assertNull(cameraIntrinsics(5f, null))
+        assertEquals(500f, cameraIntrinsics(5f, 10f)!!.focalLengthInPixels(1000), 0f)
+    }
+
+    @Test fun oneParallelPairUsesStableSideLengthsInEitherOrientation() {
+        val trapezoid = Quad(Point(100,100),Point(400,100),Point(350,500),Point(150,500))
+        val rotated = trapezoid.rotate90(1,ImageSize(1000,1000))
+        val side = Math.hypot(50.0,400.0)
+        for (optics in listOf(null,OpticalMeasures(CameraIntrinsics(5f,10f),1000f))) {
+            assertEquals(EstimatedDimensions.Ratio(250.0,side),estimateRealDimensions(trapezoid,1000,1000,optics))
+            assertEquals(EstimatedDimensions.Ratio(side,250.0),estimateRealDimensions(rotated,1000,1000,optics))
+        }
+    }
+
+    @Test fun grazingViewDoesNotClaimReliablePhysicalDimensions() {
+        val quad = projectedDocument(89.0)
+        val dimensions = estimateRealDimensions(quad,1000,1000,OpticalMeasures(CameraIntrinsics(5f,10f),1000f))
+        assertTrue("An almost edge-on page must not claim calibrated millimeter dimensions",dimensions is EstimatedDimensions.Ratio)
+        assertTrue(dimensions.aspectRatio.isFinite())
+        assertEquals(1.5,dimensions.aspectRatio,1e-5)
+    }
+
+    @Test fun incompatibleVanishingPointsUseFiniteSideLengthsWithoutCalibration() {
+        val quad = Quad(Point(100,100),Point(400,150),Point(350,500),Point(150,450))
+        assertTrue(quad.isConvex())
+        val dimensions = estimateRealDimensions(quad,1000,1000,null)
+        val width = (Math.hypot(300.0,50.0)+Math.hypot(200.0,50.0))/2
+        assertEquals(EstimatedDimensions.Ratio(width,Math.hypot(50.0,350.0)),dimensions)
+    }
+
+    private fun projectedDocument(tiltDegrees: Double = 24.0): Quad {
+        // Independently project a 200 x 300 mm plane through a pinhole camera.
+        val ax = Math.toRadians(tiltDegrees); val ay = Math.toRadians(31.0)
+        fun project(x: Double, y: Double): Point {
+            val yy = y * cos(ax); val zz = y * sin(ax)
+            val xx = x * cos(ay) + zz * sin(ay); val z = -x * sin(ay) + zz * cos(ay) + 1000
+            return Point(500 + 500 * xx / z, 500 + 500 * yy / z)
+        }
+        return Quad(project(-100.0, -150.0), project(100.0, -150.0), project(100.0, 150.0), project(-100.0, 150.0))
+    }
+
+    @Test fun perspectiveReconstructionRecoversKnownAspectAndScalesWithDistance() {
+        val quad = projectedDocument()
+        val inferred = estimateRealDimensions(quad, 1000, 1000, null)
+        val known = estimateRealDimensions(quad, 1000, 1000, OpticalMeasures(CameraIntrinsics(5f, 10f), null))
+        assertEquals(1.5, inferred.aspectRatio, 1e-6); assertEquals(1.5, known.aspectRatio, 1e-6)
+        val near = estimateRealDimensions(quad, 1000, 1000, OpticalMeasures(CameraIntrinsics(5f, 10f), 1000f)) as EstimatedDimensions.Physical
+        val far = estimateRealDimensions(quad, 1000, 1000, OpticalMeasures(CameraIntrinsics(5f, 10f), 2000f)) as EstimatedDimensions.Physical
+        assertEquals(200.0, near.widthMm, 3.0); assertEquals(300.0, near.heightMm, 4.0)
+        assertEquals(near.widthMm * 2, far.widthMm, 1e-6)
+        assertEquals(near.heightMm * 2, far.heightMm, 1e-6)
+        val unstable = estimateRealDimensions(quad, 1000, 1000, OpticalMeasures(CameraIntrinsics(50f, 10f), 1000f))
+        assertTrue(unstable is EstimatedDimensions.Ratio)
+        val averageWidth = (norm(quad.topLeft, quad.topRight) + norm(quad.bottomLeft, quad.bottomRight)) / 2
+        assertEquals(averageWidth, (unstable as EstimatedDimensions.Ratio).width, 0.0)
+    }
+}

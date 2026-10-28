@@ -12,7 +12,7 @@ import java.util.*;
 final class PdfKeywordSearch {
     static final class Hit {final int page;final ArrayList<RectF> areas;Hit(int page,ArrayList<RectF> areas){this.page=page;this.areas=areas;}}
     static final class Result {final ArrayList<Hit> hits=new ArrayList<>();int pagesNeedingOcr;}
-    static final class Glyph {final String text;final RectF box,reading;Glyph(String text,RectF box){this(text,box,box);}Glyph(String text,RectF box,RectF reading){this.text=text;this.box=box;this.reading=reading;}}
+    static final class Glyph {final String text;final RectF box,reading;final boolean wordStart;Glyph(String text,RectF box){this(text,box,box,false);}Glyph(String text,RectF box,RectF reading){this(text,box,reading,false);}Glyph(String text,RectF box,RectF reading,boolean wordStart){this.text=text;this.box=box;this.reading=reading;this.wordStart=wordStart;}}
     interface Progress {void page(int done,int total);}
     static Result search(Context context,PDDocument doc,String query,boolean wholeWord,Progress progress)throws Exception {
         if(!doc.getCurrentAccessPermission().canExtractContent())throw new IOException(UiText.get(R.string.ui_this_pdf_does_not_allow_text_extraction));
@@ -23,7 +23,7 @@ final class PdfKeywordSearch {
             if(glyphs.isEmpty()){
                 if(com.paperflow.scanengine.LocalOcr.activeLanguages(context).isEmpty())result.pagesNeedingOcr++;
                 else {PDPage page=doc.getPage(index);PDRectangle box=page.getCropBox();boolean turn=Math.abs(page.getRotation())%180==90;float width=turn?box.getHeight():box.getWidth(),height=turn?box.getWidth():box.getHeight();Bitmap image=new com.tom_roush.pdfbox.rendering.PDFRenderer(doc).renderImage(index,Math.min(2200/width,3000/height));
-                    try{for(com.paperflow.imageprocessing.OcrTextBox word:com.paperflow.scanengine.LocalOcr.recognize(context,image)){com.paperflow.imageprocessing.ImageRect r=word.getBox();glyphs.add(new Glyph(word.getText(),new RectF(r.getLeft()/(float)image.getWidth(),r.getTop()/(float)image.getHeight(),r.getRight()/(float)image.getWidth(),r.getBottom()/(float)image.getHeight())));}}finally{image.recycle();}}
+                    try{for(com.paperflow.imageprocessing.OcrTextBox word:com.paperflow.scanengine.LocalOcr.recognize(context,image)){com.paperflow.imageprocessing.ImageRect r=word.getBox();RectF area=new RectF(r.getLeft()/(float)image.getWidth(),r.getTop()/(float)image.getHeight(),r.getRight()/(float)image.getWidth(),r.getBottom()/(float)image.getHeight());glyphs.add(new Glyph(word.getText(),area,area,true));}}finally{image.recycle();}}
             }
             result.hits.addAll(find(index,glyphs,needle,wholeWord));if(result.hits.size()>10000)throw new IOException(UiText.get(R.string.ui_too_many_matches_use_a_more_specific_phrase));progress.page(index+1,doc.getNumberOfPages());
         }return result;
@@ -34,7 +34,7 @@ final class PdfKeywordSearch {
     }
     static ArrayList<Hit> find(int page,ArrayList<Glyph> glyphs,String needle,boolean wholeWord){
         StringBuilder text=new StringBuilder();ArrayList<Integer> map=new ArrayList<>();
-        for(int i=0;i<glyphs.size();i++){Glyph glyph=glyphs.get(i);String value=DocumentStore.normalize(glyph.text).replaceAll("\\s+"," ");if(i>0){RectF previous=glyphs.get(i-1).reading;boolean line=Math.abs(glyph.reading.centerY()-previous.centerY())>Math.max(glyph.reading.height(),previous.height())*.8f;if(line||glyph.reading.left-previous.right>Math.max(glyph.reading.height(),previous.height())*.2f){text.append(' ');map.add(-1);}}for(int j=0;j<value.length();j++){text.append(value.charAt(j));map.add(i);}}
+        for(int i=0;i<glyphs.size();i++){Glyph glyph=glyphs.get(i);String value=DocumentStore.normalize(glyph.text).replaceAll("\\s+"," ");if(i>0){RectF previous=glyphs.get(i-1).reading;boolean line=Math.abs(glyph.reading.centerY()-previous.centerY())>Math.max(glyph.reading.height(),previous.height())*.8f;if(glyph.wordStart||line||glyph.reading.left-previous.right>Math.max(glyph.reading.height(),previous.height())*.2f){text.append(' ');map.add(-1);}}for(int j=0;j<value.length();j++){text.append(value.charAt(j));map.add(i);}}
         ArrayList<Hit> hits=new ArrayList<>();int from=0,at;
         while((at=text.indexOf(needle,from))>=0){int end=at+needle.length();from=end;
             if(wholeWord&&(at>0&&Character.isLetterOrDigit(text.codePointBefore(at))||end<text.length()&&Character.isLetterOrDigit(text.codePointAt(end))))continue;

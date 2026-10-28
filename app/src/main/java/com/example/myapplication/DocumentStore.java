@@ -9,8 +9,10 @@ import android.database.sqlite.SQLiteOpenHelper;
 /** One schema and registration path for the library and document tools. */
 final class DocumentStore extends SQLiteOpenHelper {
     private final Context context;
-    DocumentStore(Context context){super(context.getApplicationContext(),"paperflow.db",null,7);this.context=context.getApplicationContext();}
-    @Override public void onCreate(SQLiteDatabase db){db.execSQL("CREATE TABLE docs (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, path TEXT NOT NULL, pages INTEGER NOT NULL, created INTEGER NOT NULL, favorite INTEGER NOT NULL DEFAULT 0, last_opened INTEGER NOT NULL DEFAULT 0, tags TEXT NOT NULL DEFAULT '')");addLibrarySchema(db);addProtectionSchema(db);}
+    DocumentStore(Context context){super(context.getApplicationContext(),"paperflow.db",null,9);this.context=context.getApplicationContext();}
+    @Override public void onCreate(SQLiteDatabase db){db.execSQL("CREATE TABLE docs (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, path TEXT NOT NULL, pages INTEGER NOT NULL, created INTEGER NOT NULL, favorite INTEGER NOT NULL DEFAULT 0, last_opened INTEGER NOT NULL DEFAULT 0, tags TEXT NOT NULL DEFAULT '')");addLibrarySchema(db);addProtectionSchema(db);addRevisionSchema(db);addRecentIndexes(db);}
+    private void addRevisionSchema(SQLiteDatabase db){db.execSQL("CREATE TABLE document_revisions (source_path TEXT PRIMARY KEY, latest_path TEXT NOT NULL)");}
+    private void addRecentIndexes(SQLiteDatabase db){db.execSQL("CREATE INDEX IF NOT EXISTS docs_path ON docs(path)");db.execSQL("CREATE INDEX IF NOT EXISTS document_revisions_latest ON document_revisions(latest_path)");}
     private void addProtectionSchema(SQLiteDatabase db){db.execSQL("CREATE TABLE document_guards (path TEXT NOT NULL, folder_id INTEGER NOT NULL, PRIMARY KEY(path,folder_id))");db.execSQL("CREATE INDEX document_guards_folder ON document_guards(folder_id)");}
     private void addLibrarySchema(SQLiteDatabase db){
         db.execSQL("ALTER TABLE docs ADD COLUMN folder_id INTEGER NOT NULL DEFAULT 0");
@@ -27,8 +29,19 @@ final class DocumentStore extends SQLiteOpenHelper {
         if(oldVersion<5)db.execSQL("ALTER TABLE docs ADD COLUMN tags TEXT NOT NULL DEFAULT ''");
         if(oldVersion<6)addLibrarySchema(db);
         if(oldVersion<7)addProtectionSchema(db);
+        if(oldVersion<8)addRevisionSchema(db);
+        if(oldVersion<9)addRecentIndexes(db);
     }
     SQLiteDatabase db(){return getWritableDatabase();}
+    static String recentRevisionSql(){return "NOT EXISTS (SELECT 1 FROM document_revisions r JOIN docs latest ON latest.path=r.latest_path WHERE r.source_path=docs.path AND latest.deleted_at=0)";}
+    void signedRevision(String source,String output){
+        if(source==null||source.equals(output))return;
+        db().beginTransaction();try{
+            ContentValues advance=new ContentValues();advance.put("latest_path",output);db().update("document_revisions",advance,"latest_path=?",new String[]{source});
+            ContentValues row=new ContentValues();row.put("source_path",source);row.put("latest_path",output);db().insertWithOnConflict("document_revisions",null,row,SQLiteDatabase.CONFLICT_REPLACE);
+            db().setTransactionSuccessful();
+        }finally{db().endTransaction();}
+    }
     static void inheritProtection(Context context,String path,java.util.Collection<String> origins){
         try(DocumentStore store=new DocumentStore(context)){
             store.db().beginTransaction();try{

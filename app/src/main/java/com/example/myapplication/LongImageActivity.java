@@ -121,7 +121,7 @@ public class LongImageActivity extends BackHandlingActivity {
     @Override protected void onResume(){super.onResume();String origin=getIntent().getStringExtra("path");if(origin!=null)FolderLock.guard(this,origin);if(session!=null)deliver();}
     private void back(){if(session.busy){session.cancel();return;}finish();}
     @Override public void handleBackPressed(){back();}
-    @Override protected void onSaveInstanceState(Bundle state){if(passwordInput!=null&&passwordDialog!=null)session.passwordDraft=passwordInput.getText().toString();session.save(state);state.putInt("list_position",pages.getFirstVisiblePosition());View first=pages.getChildAt(0);state.putInt("list_top",first==null?0:first.getTop());super.onSaveInstanceState(state);}
+    @Override protected void onSaveInstanceState(Bundle state){if(passwordInput!=null&&passwordDialog!=null)session.passwordDraft=passwordInput.getText().toString();session.saveState(state);state.putInt("list_position",pages.getFirstVisiblePosition());View first=pages.getChildAt(0);state.putInt("list_top",first==null?0:first.getTop());super.onSaveInstanceState(state);}
     @Override protected void onDestroy(){destroyed=true;if(passwordDialog!=null)passwordDialog.dismiss();if(progressDialog!=null)progressDialog.dismiss();if(pageDialog!=null)pageDialog.dismiss();pages.setAdapter(null);super.onDestroy();}
     private TextView text(String value,int size,int color){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);t.setGravity(Gravity.CENTER_VERTICAL);return t;}
     private GradientDrawable round(int color,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;}
@@ -131,10 +131,10 @@ public class LongImageActivity extends BackHandlingActivity {
         public View getView(int position,View convert,android.view.ViewGroup parent){PageView view=convert instanceof PageView?(PageView)convert:new PageView();view.page=getItem(position);view.setContentDescription(UiText.format(R.string.ui_preview_page_value, (view.page+1)));session.requestPreview(view.page);return view;}
     }
     private class PageView extends View {
-        int page;final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+        int page;final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);final RectF previewBounds=new RectF();
         PageView(){super(LongImageActivity.this);}
         @Override protected void onMeasure(int widthSpec,int heightSpec){int w=MeasureSpec.getSize(widthSpec);float[] d=session.dimensions.get(page);setMeasuredDimension(w,Math.max(1,Math.round(w*d[1]/d[0]))+dp(5));}
-        @Override protected void onDraw(Canvas c){c.drawColor(0xFFF6F6F6);paint.setColor(Color.WHITE);c.drawRect(0,0,getWidth(),getHeight()-dp(5),paint);Bitmap image=session.previews.get(page);if(image!=null&&!image.isRecycled())c.drawBitmap(image,null,new RectF(0,0,getWidth(),getHeight()-dp(5)),paint);else{paint.setColor(MUTED);paint.setTextSize(dp(14));c.drawText(UiText.format(R.string.ui_page_value_2, (page+1)),dp(16),dp(32),paint);}}
+        @Override protected void onDraw(Canvas c){c.drawColor(0xFFF6F6F6);paint.setColor(Color.WHITE);c.drawRect(0,0,getWidth(),getHeight()-dp(5),paint);Bitmap image=session.previews.get(page);if(image!=null&&!image.isRecycled()){previewBounds.set(0,0,getWidth(),getHeight()-dp(5));c.drawBitmap(image,null,previewBounds,paint);}else{paint.setColor(MUTED);paint.setTextSize(dp(14));c.drawText(UiText.format(R.string.ui_page_value_2, (page+1)),dp(16),dp(32),paint);}}
     }
 
     public static class LongSession extends AndroidViewModel {
@@ -208,7 +208,7 @@ public class LongImageActivity extends BackHandlingActivity {
                 }
             });
         }
-        void save(Bundle state){state.putString("long_password",password);state.putString("long_password_draft",passwordDraft);state.putInt("long_quality",quality);state.putIntegerArrayList("long_selected",new ArrayList<>(selected));state.putString("long_output",output==null?null:output.getAbsolutePath());state.putString("long_output_key",outputKey);state.putString("long_device_source",deviceSaveSource==null?null:deviceSaveSource.getAbsolutePath());if(queuedSaveUri!=null)state.putString("long_queued_uri",queuedSaveUri.toString());state.putStringArrayList("long_shared",new ArrayList<>(shared));state.putBoolean("long_page_dialog",pageDialogOpen);if(pageDraft!=null)state.putIntegerArrayList("long_page_draft",new ArrayList<>(pageDraft));}
+        void saveState(Bundle state){state.putString("long_password",password);state.putString("long_password_draft",passwordDraft);state.putInt("long_quality",quality);state.putIntegerArrayList("long_selected",new ArrayList<>(selected));state.putString("long_output",output==null?null:output.getAbsolutePath());state.putString("long_output_key",outputKey);state.putString("long_device_source",deviceSaveSource==null?null:deviceSaveSource.getAbsolutePath());if(queuedSaveUri!=null)state.putString("long_queued_uri",queuedSaveUri.toString());state.putStringArrayList("long_shared",new ArrayList<>(shared));state.putBoolean("long_page_dialog",pageDialogOpen);if(pageDraft!=null)state.putIntegerArrayList("long_page_draft",new ArrayList<>(pageDraft));}
         private void clearPreviews(){for(Bitmap bitmap:previews.values())bitmap.recycle();previews.clear();}
         @Override protected void onCleared(){cleared=true;if(job!=null)job.cancelled=true;clearPreviews();worker.execute(()->{if(output!=null&&!shared.contains(output.getAbsolutePath()))output.delete();if(registerPdf!=null)registerPdf.delete();});worker.shutdown();}
     }

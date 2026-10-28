@@ -1,0 +1,141 @@
+# Rechecked audit fixes — offline-translator
+
+The eight findings from the architecture audit were rechecked against
+`feature/offline-translator` at `1c9eeaf265481018c7795169bf0d13dc5d1a0adb` before
+editing. This is a different snapshot from the original `main` audit
+(`f072efff6f1252c47f552e3be5f791f998360126`). In particular, the feature branch
+has SQLite schema 9 and a different offline language runtime and multi-page
+translation flow. The original audit is retained separately; these changes do
+not assert that the entire feature branch has been audited.
+
+| Finding | Recheck on the feature branch | Correction |
+| --- | --- | --- |
+| F01: eager PDF thumbnails | Still rendered and retained every page before showing options; watermark held two sets. | Metadata is read first. The UI shows windows of 30 pages, renders only requested previews, and shares a 4 MiB byte-budgeted thumbnail cache. Selection and reorder state still cover all pages. |
+| F02: main-thread trim lock | `onTrimMemory` still called synchronized native cleanup directly. | A coalescing background cleanup request waits for inference off the main thread; inference/close still use the same monitor. |
+| F03: exported document commands | Exported MainActivity still dispatched `document_action` extras. | MainActivity is non-exported. A new public DocumentEntryActivity forwards only sanitized external import URIs/MIME/read grants or a launcher action. It drops internal commands and rejects forged URIs to the app's private FileProvider. |
+| F04: unbounded library | Home/library still queried full rows and created every document card; indexing and thumbnails shared a queue. | Document queries and folder-visibility filtering run on a separate worker with explicit projection and 30-row windows. Thumbnails have a bounded queue/cache and generation checks; initial duplicate rendering is avoided. |
+| F05: watermark bitmap race | Worker still appended to Activity-owned bitmap lists while onDestroy iterated them. | Preview results are worker-local until a main-thread handoff guarded by a thumbnail epoch. Stale results are released; workers no longer append to the Activity's owned bitmap lists. |
+| F06: captured translation inputs | Imported images gained tracking, but camera captures still transferred ownership without final cleanup. | Explicitly track validated camera/import input ownership, including recreation. On session completion, delete only owned temporary inputs and retain all active Book-draft paths. |
+| F07: default backups | Both backup XML files still contained defaults/comments. The actual model directory is now `offline-language-packs`. | Cloud/device-transfer rules exclude models, temporary captures/sessions and non-portable Keystore-encrypted cloud settings. Documents, retained originals, DB and folder-lock preferences remain together under normal Android backup eligibility. API 31+ cloud backup requires encryption capability. |
+| F08: lifecycle disk IO | Annotation/text snapshots still wrote synchronously during onSaveInstanceState. | Stable per-session paths and a serial atomic snapshot writer move JSON serialization/file IO off-main. Annotation copies are immutable at handoff; restoration reads follow queued writes on a worker. Normal finish deletes the session snapshot. Text sharing also writes its export off-main. |
+
+## Behavioral details
+
+- Paging is explicit: Previous/Next document or page windows. It does not limit
+  the PDF's page count, export selection, or reorder state to 30 pages.
+- Thumbnail eviction drops the cache reference rather than recycling a bitmap
+  that a currently attached Android View may still draw. Removed windows release
+  their View references; active UI plus cache memory remains bounded.
+- The existing `MainActivity` remains the internal routing target, so internal
+  editing/signing/registration flows do not need to grant public command access.
+- Backup remains enabled for durable user data. Models can be downloaded again;
+  cloud credentials must be re-entered after transfer because their Android
+  Keystore key is device-bound. Temporary Book drafts are local, not transferred.
+- Snapshots recover the last completed atomic write after process interruption.
+  The UI never waits for disk durability in a lifecycle callback. Snapshots are
+  temporary cache data, capped at 32 MiB, and can be removed by Android. This does
+  not promise recovery of a write killed before its first successful commit.
+- Cleanup is deliberately conservative if Book-draft ownership cannot be read.
+  No broad startup deletion of captures or drafts has been added.
+- Existing small folder/navigation actions still use the current architecture;
+  this is not a full conversion to asynchronous repositories or RecyclerView.
+
+## Validation
+
+Regression coverage added:
+
+- JVM: coalescing/non-blocking cleanup, rejected submission recovery, pagination
+  boundaries and reachability, owned-input cleanup, traversal/external-file and
+  active-draft protection.
+- Android: sanitized import boundary and exported component metadata; memory
+  trim while the inference monitor is held; backup policy; atomic snapshot
+  ordering/failure recovery; a 65-document paged library; a 61-page watermark
+  options flow with selection retained after paging/recreation; translation
+  cleanup with an active Book draft; annotation snapshot recreation.
+
+Device checks use a new isolated API 29 emulator. The existing user emulator
+and its app data are not modified. The local debug build reuses the offline
+runtime libraries from the already-installed debug APK and checks the expected
+runtime API symbol. These checks concern the changed UI/lifecycle/storage code;
+they do not validate the native runtime's numerical behavior or provenance as a
+fresh source build. Native source code is unchanged. CI should rebuild/use its
+pinned runtime artifacts for release verification.
+
+Validation passed: 50 JVM tests (none skipped), 9 new Android regression tests,
+2 existing folder-protection tests and 5 existing PDF/translation tests on the
+isolated emulator. Debug app/test APK compilation and localization validation
+passed. Android Lint reports zero errors and 96 warnings across the modules
+(86 app, 10 scanengine); this change does not resolve all lint warnings. An
+external launch of the now-private MainActivity was rejected by Android.
+
+Physical-camera, biometric hardware, ARM, production memory/energy
+benchmarks and actual cloud-backup transport still require their normal device
+acceptance checks.
+
+## PR #1 follow-up
+
+The first GitHub run passed builds, native runtime compilation, JVM tests and
+lint. Both device matrices failed the same two checks: the locale formatter
+test supplied only string arguments and missed integer placeholders; OCR
+whole-word search concatenated recognized word tokens whose boxes overlap.
+The formatter test now supplies integer/string samples, and OCR search retains
+explicit token boundaries without changing embedded PDF character handling.
+
+All three Greptile findings were confirmed and corrected: library selection
+survives pagination but clears on folder/filter/navigation changes; PDF page
+windows survive recreation; previews use a separate serial executor that reuses
+open documents per window, drops pending stale work and closes documents on that
+executor when leaving the window. Export does not wait for thumbnail work.
+
+Follow-up validation: 13 targeted API 29 device tests passed, including both
+previous failures, window restoration, selection preservation, overlapping OCR
+boxes and export with a deliberately blocked preview worker. The 50 JVM tests,
+28 CI-tool tests, 22 localization-tool tests and debug builds passed; Lint had
+zero errors. The next GitHub run must verify the complete API 29/37 suites.
+
+SonarQube Cloud now has a separate workflow triggered on every PR. Onboarding,
+repository variables and the encrypted Actions secret were completed, with
+`feature/offline-translator` selected as the Sonar main branch by the owner.
+The real target commit was scanned before the first GitHub PR analysis. Cloud
+analysis and PR decoration are verified; the first PR quality gate failed on
+reported security/reliability issues and absent coverage data. The thresholds
+have not been weakened. See `PR_REVIEW.md` for the result and scope.
+
+
+### Sonar follow-up, 24 October 2026
+
+The PR now collects opt-in JaCoCo execution data from JVM tests and the full
+API 29/37 instrumentation matrix, and imports a merged XML report per JVM
+module. Android PR checks invokes the reusable Sonar workflow after its test
+jobs; the PR gate also requires that workflow. The existing Sonar way thresholds
+remain unchanged.
+
+Sonar findings addressed: atomic preview/library generations, explicit boxed
+map/set lookup keys (equivalent Java autoboxing was reported incorrectly),
+reused drawing objects, a static batch translation session, editor accessibility,
+and camera orientation support. Cloud credentials use an authentication-bound
+v2 key; migration and persistence run on a worker. Pending conversion arguments
+survive rotation and process recreation without persisting an API key in saved
+state. Invalidated keys can be replaced through the authenticated settings flow.
+
+Two further Greptile regressions were confirmed: a trashed card remained in bulk
+selection, and rotation during device authentication lost the conversion. Both
+have focused permanent regression tests. Book review tests now explicitly grant
+the camera permission before starting the flow, matching their required setup.
+Twenty local API 29 tests passed, including all these checks and the audit suite.
+The earlier e210d3e CI passed the complete API 29 suite and all build variants;
+API 37 reported two Book-flow failures, so no all-green CI claim is made here.
+
+
+Validation with the native runtime built by GitHub Actions for this source:
+101 complete API 29 instrumentation tests passed without skips, plus three new
+library regressions passed on a separate isolated API 29 emulator. These cover
+empty final-page recovery, stale query rejection and favorite/trash separation.
+The Cloud test verifies a real authentication-required Keystore key, encrypted
+round-trip, UI validation and legacy migration using a temporary PIN exclusively
+on an unsecured emulator. It does not change existing device locks or credentials.
+OCR download/delete tests now restore pre-existing shared OCR fixtures, making
+later language-detection tests independent of execution order. Preview concurrency
+tests cover coalesced requests, cache reuse, retry after failure and stale-result
+rejection on invalidation/destruction. Text tests verify UTF-8 save/share and queued
+snapshot restoration. The quality gate remains enforced while coverage is improved.

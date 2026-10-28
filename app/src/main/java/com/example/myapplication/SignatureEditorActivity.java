@@ -121,7 +121,7 @@ public class SignatureEditorActivity extends BackHandlingActivity {
         LinearLayout top=row();top.setBackgroundColor(AppTheme.surface());
         if(session.draw)button(top,UiText.get(R.string.ui_cancel),this::leaveDraw,72);
         else{ImageView back=new ImageView(this);back.setImageDrawable(new AppIcon("Back",INK));back.setPadding(dp(14),dp(14),dp(14),dp(14));back.setContentDescription(UiText.get(R.string.ui_back));top.addView(back,new LinearLayout.LayoutParams(dp(56),dp(56)));back.setOnClickListener(v->handleBackPressed());}
-        TextView title=label(session.draw ? UiText.get(R.string.ui_create_a_signature) : session.name,17,INK);title.setGravity(session.draw?Gravity.CENTER:Gravity.CENTER_VERTICAL|Gravity.LEFT);title.setSingleLine();title.setEllipsize(android.text.TextUtils.TruncateAt.END);title.setPadding(0,0,dp(16),0);top.addView(title,new LinearLayout.LayoutParams(0,dp(56),1));
+        TextView title=label(session.draw ? UiText.get(R.string.ui_create_a_signature) : session.name,17,INK);title.setGravity(session.draw?Gravity.CENTER:Gravity.CENTER_VERTICAL|Gravity.START);title.setSingleLine();title.setEllipsize(android.text.TextUtils.TruncateAt.END);title.setPadding(0,0,dp(16),0);top.addView(title,new LinearLayout.LayoutParams(0,dp(56),1));
         if(session.draw)button(top,UiText.get(R.string.ui_done),this::finishDrawing,68);root.addView(top,new LinearLayout.LayoutParams(-1,dp(56)));
         if(session.draw){
             DrawPad pad=new DrawPad();root.addView(pad,new LinearLayout.LayoutParams(-1,0,1));
@@ -154,7 +154,7 @@ public class SignatureEditorActivity extends BackHandlingActivity {
     }
     private void refresh(){
         if(disposed)return;
-        if(session.result!=null&&!navigating){navigating=true;Intent intent=new Intent(this,MainActivity.class);intent.putExtra("document_action","Register");intent.putExtra("path",session.result);intent.putExtra("name",session.name+" · signed");intent.putExtra("pages",session.count);intent.putExtra("origin_path",session.path);intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(intent);finish();return;}
+        if(session.result!=null&&!navigating){navigating=true;Intent intent=new Intent(this,MainActivity.class);intent.putExtra("document_action","Register");intent.putExtra("path",session.result);intent.putExtra("name",session.name+" · signed");intent.putExtra("pages",session.count);intent.putExtra("origin_path",session.path);intent.putExtra("signed_revision",true);intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(intent);finish();return;}
         if(session.error!=null){String message=session.error;session.error=null;toast(message);}
         if(session.needsPassword&&!passwordDialog){passwordDialog=true;EditText input=new EditText(this);input.setSingleLine();input.setInputType(129);input.setHint(UiText.get(R.string.ui_pdf_password));AlertDialog prompt=new ProtectedDialogs.Builder(this).setTitle(UiText.get(R.string.ui_password_protected_pdf)).setView(input).setNegativeButton(UiText.get(R.string.ui_cancel),(d,w)->finish()).setPositiveButton(UiText.get(R.string.ui_open),null).create();prompt.setOnShowListener(d->prompt.getButton(-1).setOnClickListener(v->{if(input.getText().length()==0){input.setError(UiText.get(R.string.ui_enter_password));return;}session.password=input.getText().toString();session.needsPassword=false;prompt.dismiss();session.render();}));prompt.setOnDismissListener(d->passwordDialog=false);prompt.show();}
         if(status!=null){status.setText(session.busy ? UiText.get(R.string.ui_processing) : "");status.setVisibility(session.busy?View.VISIBLE:View.GONE);pageNavigation.setVisibility(session.count>1?View.VISIBLE:View.GONE);counter.setText(session.count==0 ? "" : UiText.format(R.string.ui_value_value_65c5dbb0, (session.page+1), session.count));setControlsEnabled(footer,!session.busy);setControlsEnabled(pageNavigation,!session.busy);preview.invalidate();}
@@ -203,7 +203,11 @@ public class SignatureEditorActivity extends BackHandlingActivity {
     private void editMark(){
         if(session.selected<0)return;new ProtectedDialogs.Builder(this).setTitle(UiText.get(R.string.ui_edit_signature)).setItems(new String[]{UiText.get(R.string.ui_rotate_left), UiText.get(R.string.ui_rotate_right), UiText.get(R.string.ui_smaller), UiText.get(R.string.ui_larger), UiText.get(R.string.ui_delete), UiText.get(R.string.ui_replace), UiText.get(R.string.ui_apply_to_all_pages), UiText.get(R.string.ui_apply_to_selected_pages)},(d,w)->{if(session.selected<0)return;Mark mark=session.marks.get(session.selected);switch(w){case 0:mark.angle=(mark.angle+270)%360;break;case 1:mark.angle=(mark.angle+90)%360;break;case 2:mark.width=Math.max(.06f,mark.width*.85f);break;case 3:mark.width=Math.min(.85f,mark.width*1.15f);break;case 4:removeSelected();return;case 5:removeSelected();showLibrary(false);return;case 6:bulkMark(mark,true);return;case 7:bulkMark(mark,false);return;}preview.constrain(mark);preview.invalidate();}).show();
     }
-    private void bulkMark(Mark original,boolean all){String[] labels=new String[session.count];boolean[] chosen=new boolean[session.count];for(int i=0;i<labels.length;i++){labels[i]=UiText.format(R.string.ui_page_value_67f70d13, (i+1));chosen[i]=all||i==original.page;}new ProtectedDialogs.Builder(this).setTitle(UiText.get(R.string.ui_apply_signature_stamp)).setMultiChoiceItems(labels,chosen,(d,w,value)->chosen[w]=value).setMessage(UiText.get(R.string.ui_copies_keep_the_same_relative_position_and_width_existing_marks_are_kept_re)).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_apply),(d,w)->{int count=0;for(boolean value:chosen)if(value)count++;if(session.marks.size()+count>1000){toast(UiText.get(R.string.ui_use_at_most_1000_marks_per_document));return;}for(int i=0;i<chosen.length;i++)if(chosen[i]&&i!=original.page){Mark copy=new Mark(original.file,i,original.bitmap);copy.x=original.x;copy.y=original.y;copy.width=original.width;copy.angle=original.angle;session.marks.add(copy);}preview.invalidate();toast(UiText.get(R.string.ui_signature_stamp_applied_to_selected_pages));}).show();}
+    private TextView bulkCopyHelp(){
+        TextView help=label(UiText.get(R.string.ui_copies_keep_the_same_relative_position_and_width_existing_marks_are_kept_re),13,MUTED);
+        help.setPadding(dp(20),dp(8),dp(20),dp(8));return help;
+    }
+    private void bulkMark(Mark original,boolean all){String[] labels=new String[session.count];boolean[] chosen=new boolean[session.count];for(int i=0;i<labels.length;i++){labels[i]=UiText.format(R.string.ui_page_value_67f70d13, (i+1));chosen[i]=all||i==original.page;}new ProtectedDialogs.Builder(this).setTitle(UiText.get(R.string.ui_apply_signature_stamp)).setMultiChoiceItems(labels,chosen,(d,w,value)->chosen[w]=value).setView(bulkCopyHelp()).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_apply),(d,w)->{int count=0;for(int i=0;i<chosen.length;i++)if(chosen[i]&&i!=original.page)count++;if(session.marks.size()+count>1000){toast(UiText.get(R.string.ui_use_at_most_1000_marks_per_document));return;}for(int i=0;i<chosen.length;i++)if(chosen[i]&&i!=original.page){Mark copy=new Mark(original.file,i,original.bitmap);copy.x=original.x;copy.y=original.y;copy.width=original.width;copy.angle=original.angle;session.marks.add(copy);}preview.invalidate();toast(UiText.get(R.string.ui_signature_stamp_applied_to_selected_pages));}).show();}
     private void removeSelected(){if(session.selected>=0){Mark removed=session.marks.remove(session.selected);if(removed.bitmap!=null&&session.marks.stream().noneMatch(mark->mark.bitmap==removed.bitmap))removed.bitmap.recycle();session.selected=-1;buildFooter();preview.invalidate();}}
     private void more(){
         new ProtectedDialogs.Builder(this).setTitle(UiText.get(R.string.ui_more)).setItems(new String[]{UiText.get(R.string.ui_manage_signatures), UiText.get(R.string.ui_delete), UiText.get(R.string.ui_choose_page), UiText.get(R.string.ui_date_format), UiText.get(R.string.ui_save_signed_copy), UiText.get(R.string.ui_apply_selected_mark_to_all_pages), UiText.get(R.string.ui_apply_selected_mark_to_chosen_pages)},(dialog,which)->{
@@ -240,7 +244,7 @@ public class SignatureEditorActivity extends BackHandlingActivity {
     }
     private class DrawPad extends View {
         Stroke current;boolean limitNotified;final Paint hint=new Paint(Paint.ANTI_ALIAS_FLAG);
-        DrawPad(){super(SignatureEditorActivity.this);setContentDescription(UiText.get(R.string.ui_signature_drawing_area));}
+        DrawPad(){super(SignatureEditorActivity.this);setClickable(true);setContentDescription(UiText.get(R.string.ui_signature_drawing_area));}
         @Override protected void onDraw(Canvas canvas){hint.setColor(0xffeceeef);hint.setTextSize(dp(54));hint.setTextAlign(Paint.Align.CENTER);if(session.strokes.isEmpty())canvas.drawText(UiText.get(R.string.ui_sign_here),getWidth()/2f,getHeight()/2f,hint);drawStrokes(canvas,getWidth(),getHeight());}
         @Override public boolean onTouchEvent(MotionEvent event){
             float x=Math.max(0,Math.min(1,event.getX()/Math.max(1,getWidth()))),y=Math.max(0,Math.min(1,event.getY()/Math.max(1,getHeight())));
@@ -248,24 +252,57 @@ public class SignatureEditorActivity extends BackHandlingActivity {
             int total=0;for(Stroke stroke:session.strokes)total+=stroke.points.size()/2;
             if(current!=null&&current.points.size()<8192&&total<32768){current.points.add(x);current.points.add(y);}
             else if(!limitNotified){limitNotified=true;toast(UiText.get(R.string.ui_signature_limit_reached_use_undo_or_clear_to_continue));}
-            if(event.getActionMasked()==MotionEvent.ACTION_UP||event.getActionMasked()==MotionEvent.ACTION_CANCEL)current=null;
+            if(event.getActionMasked()==MotionEvent.ACTION_UP){current=null;performClick();}
+            else if(event.getActionMasked()==MotionEvent.ACTION_CANCEL)current=null;
             invalidate();return true;
         }
+        @Override public boolean performClick(){super.performClick();return true;}
     }
     private void drawStrokes(Canvas canvas,int width,int height){Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);paint.setStyle(Paint.Style.STROKE);paint.setStrokeCap(Paint.Cap.ROUND);paint.setStrokeJoin(Paint.Join.ROUND);paint.setStrokeWidth(Math.max(2,width*.0027f));for(Stroke stroke:session.strokes){if(stroke.points.size()<2)continue;paint.setColor(stroke.color);Path path=new Path();path.moveTo(stroke.points.get(0)*width,stroke.points.get(1)*height);if(stroke.points.size()==2)path.lineTo(stroke.points.get(0)*width+.1f,stroke.points.get(1)*height+.1f);for(int i=2;i+1<stroke.points.size();i+=2)path.lineTo(stroke.points.get(i)*width,stroke.points.get(i+1)*height);canvas.drawPath(path,paint);}}
     private class PlacementView extends View {
         final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);float lastX,lastY;int gesture; // 1 drag, 2 resize
-        PlacementView(){super(SignatureEditorActivity.this);setContentDescription(UiText.get(R.string.ui_signature_page_preview_drag_to_position_use_corner_handles_to_resize_rotate));}
-        RectF pageRect(){Bitmap bitmap=session.pageBitmap;if(bitmap==null)return new RectF();float fit=Math.min(Math.max(1,getWidth()-dp(16))/(float)bitmap.getWidth(),Math.max(1,getHeight()-dp(12))/(float)bitmap.getHeight());float w=bitmap.getWidth()*fit,h=bitmap.getHeight()*fit;return new RectF((getWidth()-w)/2,dp(6),(getWidth()+w)/2,dp(6)+h);}
-        float height(Mark mark){RectF page=pageRect();if(page.height()==0)return .1f;boolean turn=mark.angle%180!=0;float ratio=turn?mark.bitmap.getWidth()/(float)mark.bitmap.getHeight():mark.bitmap.getHeight()/(float)mark.bitmap.getWidth();return mark.width*page.width()*ratio/page.height();}
-        RectF rect(Mark mark){RectF page=pageRect();return new RectF(page.left+mark.x*page.width(),page.top+mark.y*page.height(),page.left+(mark.x+mark.width)*page.width(),page.top+(mark.y+height(mark))*page.height());}
-        void constrain(Mark mark){float h=height(mark);if(h>.94f){mark.width*=.94f/h;h=height(mark);}mark.x=Math.max(0,Math.min(1-mark.width,mark.x));mark.y=Math.max(0,Math.min(1-h,mark.y));}
-        @Override protected void onDraw(Canvas canvas){Bitmap page=session.pageBitmap;if(page==null)return;RectF paper=pageRect();canvas.drawBitmap(page,null,paper,paint);paint.setStyle(Paint.Style.FILL);paint.setColor(0xbb444747);float left=paper.left+dp(8),top=paper.top+dp(8);String pageLabel=(session.page+1)+"/"+session.count;paint.setTextSize(dp(12));paint.setTextAlign(Paint.Align.LEFT);float labelWidth=paint.measureText(pageLabel)+dp(12);canvas.drawRoundRect(left,top,left+labelWidth,top+dp(24),dp(2),dp(2),paint);paint.setColor(Color.WHITE);canvas.drawText(pageLabel,left+dp(6),top+dp(17),paint);for(int i=0;i<session.marks.size();i++){Mark mark=session.marks.get(i);if(mark.page!=session.page)continue;constrain(mark);RectF target=rect(mark);canvas.save();canvas.translate(target.centerX(),target.centerY());canvas.rotate(mark.angle);boolean turn=mark.angle%180!=0;float w=turn?target.height():target.width(),h=turn?target.width():target.height();canvas.drawBitmap(mark.bitmap,null,new RectF(-w/2,-h/2,w/2,h/2),paint);canvas.restore();if(i==session.selected){paint.setColor(BRAND);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(1));canvas.drawRect(target,paint);paint.setStyle(Paint.Style.FILL);handle(canvas,target.left,target.top,"×");handle(canvas,target.right,target.top,"⋯");handle(canvas,target.right,target.bottom,"↘");}}}
+        PlacementView(){super(SignatureEditorActivity.this);setClickable(true);setContentDescription(UiText.get(R.string.ui_signature_page_preview_drag_to_position_use_corner_handles_to_resize_rotate));}
+        final RectF drawnPage=new RectF(),drawnMark=new RectF(),drawnImage=new RectF();
+        private int labelPage=-1,labelCount=-1;
+        private String cachedPageLabel="";
+        void pageRect(RectF out){
+            Bitmap bitmap=session.pageBitmap;if(bitmap==null){out.setEmpty();return;}
+            float fit=Math.min(Math.max(1,getWidth()-dp(16))/(float)bitmap.getWidth(),Math.max(1,getHeight()-dp(12))/(float)bitmap.getHeight());
+            float w=bitmap.getWidth()*fit,h=bitmap.getHeight()*fit;out.set((getWidth()-w)/2,dp(6),(getWidth()+w)/2,dp(6)+h);
+        }
+        RectF pageRect(){RectF out=new RectF();pageRect(out);return out;}
+        float height(Mark mark,RectF page){if(page.height()==0)return .1f;boolean turn=mark.angle%180!=0;float ratio=turn?mark.bitmap.getWidth()/(float)mark.bitmap.getHeight():mark.bitmap.getHeight()/(float)mark.bitmap.getWidth();return mark.width*page.width()*ratio/page.height();}
+        void rect(Mark mark,RectF page,RectF out){out.set(page.left+mark.x*page.width(),page.top+mark.y*page.height(),page.left+(mark.x+mark.width)*page.width(),page.top+(mark.y+height(mark,page))*page.height());}
+        RectF rect(Mark mark){RectF page=pageRect(),out=new RectF();rect(mark,page,out);return out;}
+        void constrain(Mark mark,RectF page){float h=height(mark,page);if(h>.94f){mark.width*=.94f/h;h=height(mark,page);}mark.x=Math.max(0,Math.min(1-mark.width,mark.x));mark.y=Math.max(0,Math.min(1-h,mark.y));}
+        void constrain(Mark mark){constrain(mark,pageRect());}
+        String pageLabel(){if(labelPage!=session.page||labelCount!=session.count){labelPage=session.page;labelCount=session.count;cachedPageLabel=(labelPage+1)+"/"+labelCount;}return cachedPageLabel;}
+        @Override protected void onDraw(Canvas canvas){
+            Bitmap page=session.pageBitmap;if(page==null)return;pageRect(drawnPage);canvas.drawBitmap(page,null,drawnPage,paint);
+            paint.setStyle(Paint.Style.FILL);paint.setColor(0xbb444747);float left=drawnPage.left+dp(8),top=drawnPage.top+dp(8);
+            String pageLabel=pageLabel();paint.setTextSize(dp(12));paint.setTextAlign(Paint.Align.LEFT);float labelWidth=paint.measureText(pageLabel)+dp(12);
+            canvas.drawRoundRect(left,top,left+labelWidth,top+dp(24),dp(2),dp(2),paint);paint.setColor(Color.WHITE);canvas.drawText(pageLabel,left+dp(6),top+dp(17),paint);
+            for(int i=0;i<session.marks.size();i++){
+                Mark mark=session.marks.get(i);if(mark.page!=session.page)continue;constrain(mark,drawnPage);rect(mark,drawnPage,drawnMark);
+                canvas.save();canvas.translate(drawnMark.centerX(),drawnMark.centerY());canvas.rotate(mark.angle);boolean turn=mark.angle%180!=0;
+                float w=turn?drawnMark.height():drawnMark.width(),h=turn?drawnMark.width():drawnMark.height();drawnImage.set(-w/2,-h/2,w/2,h/2);
+                canvas.drawBitmap(mark.bitmap,null,drawnImage,paint);canvas.restore();
+                if(i==session.selected){paint.setColor(BRAND);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(1));canvas.drawRect(drawnMark,paint);paint.setStyle(Paint.Style.FILL);handle(canvas,drawnMark.left,drawnMark.top,"×");handle(canvas,drawnMark.right,drawnMark.top,"⋯");handle(canvas,drawnMark.right,drawnMark.bottom,"↘");}
+            }
+        }
         void handle(Canvas canvas,float x,float y,String text){paint.setColor(AppTheme.accent());canvas.drawCircle(x,y,dp(12),paint);paint.setColor(AppTheme.onAccent());paint.setStyle(Paint.Style.STROKE);canvas.drawCircle(x,y,dp(12),paint);paint.setStyle(Paint.Style.FILL);paint.setTextSize(dp(18));paint.setTextAlign(Paint.Align.CENTER);canvas.drawText(text,x,y+dp(6),paint);}
-        boolean near(float x,float y,float a,float b){return Math.hypot(x-a,y-b)<dp(24);}
-        @Override public boolean onTouchEvent(MotionEvent event){if(session.busy||session.pageBitmap==null)return true;float x=event.getX(),y=event.getY();RectF page=pageRect();if(event.getActionMasked()==MotionEvent.ACTION_DOWN){gesture=0;if(session.selected>=0){Mark mark=session.marks.get(session.selected);RectF r=rect(mark);if(near(x,y,r.left,r.top)){removeSelected();return true;}if(near(x,y,r.right,r.top)){editMark();return true;}if(near(x,y,r.right,r.bottom))gesture=2;}
+        int touchedHandle(float x,float y,RectF rect){
+            double nearest=dp(24);int handle=0;
+            double distance=Math.hypot(x-rect.left,y-rect.top);if(distance<nearest){nearest=distance;handle=1;}
+            distance=Math.hypot(x-rect.right,y-rect.top);if(distance<nearest){nearest=distance;handle=2;}
+            distance=Math.hypot(x-rect.right,y-rect.bottom);if(distance<nearest)handle=3;
+            return handle;
+        }
+        @Override public boolean onTouchEvent(MotionEvent event){if(session.busy||session.pageBitmap==null)return true;float x=event.getX(),y=event.getY();RectF page=pageRect();if(event.getActionMasked()==MotionEvent.ACTION_DOWN){gesture=0;if(session.selected>=0){Mark mark=session.marks.get(session.selected);int handle=touchedHandle(x,y,rect(mark));if(handle==1){removeSelected();return true;}if(handle==2){editMark();return true;}if(handle==3)gesture=2;}
             if(gesture==0){session.selected=-1;for(int i=session.marks.size()-1;i>=0;i--){Mark m=session.marks.get(i);if(m.page==session.page&&rect(m).contains(x,y)){session.selected=i;gesture=1;break;}}buildFooter();}lastX=x;lastY=y;invalidate();}
-            else if(event.getActionMasked()==MotionEvent.ACTION_MOVE&&session.selected>=0){Mark mark=session.marks.get(session.selected);if(gesture==1){mark.x+=(x-lastX)/page.width();mark.y+=(y-lastY)/page.height();}else if(gesture==2)mark.width=Math.max(.05f,Math.min(.95f,mark.width+(x-lastX)/page.width()));constrain(mark);lastX=x;lastY=y;invalidate();}return true;}
+            else if(event.getActionMasked()==MotionEvent.ACTION_MOVE&&session.selected>=0){Mark mark=session.marks.get(session.selected);if(gesture==1){mark.x+=(x-lastX)/page.width();mark.y+=(y-lastY)/page.height();}else if(gesture==2)mark.width=Math.max(.05f,Math.min(.95f,mark.width+(x-lastX)/page.width()));constrain(mark);lastX=x;lastY=y;invalidate();}
+            else if(event.getActionMasked()==MotionEvent.ACTION_UP)performClick();return true;}
+        @Override public boolean performClick(){super.performClick();return true;}
     }
     private LinearLayout row(){LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);return row;}
     private TextView label(String text,int size,int color){TextView view=new TextView(this);view.setText(text);view.setTextSize(size);view.setTextColor(color);return view;}

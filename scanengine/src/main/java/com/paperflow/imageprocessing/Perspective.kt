@@ -192,9 +192,12 @@ fun estimateRealDimensions(
         val centerX = (quad.topLeft.x + quad.topRight.x + quad.bottomLeft.x + quad.bottomRight.x) / 4.0
         val centerY = (quad.topLeft.y + quad.topRight.y + quad.bottomLeft.y + quad.bottomRight.y) / 4.0
         val centerRay = ray(Point(centerX, centerY)).let { it * (1.0 / it.norm()) }
-        val cosAngle = centerRay.dotProduct(n).absoluteValue
+        val projection = centerRay.dotProduct(n).absoluteValue
+        val cosAngle = projection / n.norm()
         if (cosAngle < 0.1) null  // document too tilted, unreliable
-        else subjectDistance * cosAngle
+        // Keep the unnormalized projection here: corner3D divides by the
+        // same plane normal, so its magnitude cancels from physical lengths.
+        else subjectDistance * projection
     } else null
 
     // Intersect ray with document plane: X = t·r where t = d / (n·r)

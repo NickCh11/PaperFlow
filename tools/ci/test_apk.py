@@ -26,7 +26,7 @@ class ApkArchitectureTests(unittest.TestCase):
     def test_rejects_missing_translation_or_ocr_engine(self):
         with tempfile.TemporaryDirectory() as directory:
             apk = Path(directory, "app.apk")
-            for missing in ("libbergamot_jni.so", "libtesseract.so"):
+            for missing in ("libpaperflow_runtime.so", "libc++_shared.so"):
                 self.make_apk(apk, "armeabi-v7a", missing=missing)
                 with self.assertRaisesRegex(ValueError, "Missing native engines"):
                     check(apk, "armeabi-v7a")
@@ -55,7 +55,7 @@ class ApkArchitectureTests(unittest.TestCase):
                         for name in source.namelist():
                             output.writestr(name, source.read(name))
             self.assertEqual(3 * len(REQUIRED), check(apk, "all"))
-            self.make_apk(parts[0], "arm64-v8a", missing="libbergamot_jni.so")
+            self.make_apk(parts[0], "arm64-v8a", missing="libpaperflow_runtime.so")
             with zipfile.ZipFile(apk, "w") as output:
                 for part in parts:
                     with zipfile.ZipFile(part) as source:
