@@ -55,7 +55,7 @@ public class MainWordWorkflowTest {
     <T extends View>T find(View root,Class<T> type){if(type.isInstance(root))return type.cast(root);if(root instanceof ViewGroup)for(int i=0;i<((ViewGroup)root).getChildCount();i++){T found=find(((ViewGroup)root).getChildAt(i),type);if(found!=null)return found;}return null;}
     View routeRoot(){for(View root:android.view.inspector.WindowInspector.getGlobalWindowViews())if(root!=activity.getWindow().getDecorView()&&root.isShown()&&root.hasWindowFocus()&&find(root,RadioGroup.class)!=null)return root;return null;}
     void routeButton(int id){main(()->{View root=routeRoot();assertNotNull(root);Button button=root.findViewById(id);assertNotNull(button);assertTrue(button.performClick());return null;});inst.waitForIdleSync();}
-    void convert(int route){main(()->{RadioGroup group=find(routeRoot(),RadioGroup.class);assertNotNull(group);RadioButton selected=group.findViewById(group.getCheckedRadioButtonId());assertEquals(WordConversion.LAYOUT,selected.getTag());for(int i=0;i<group.getChildCount();i++){RadioButton option=(RadioButton)group.getChildAt(i);if(Integer.valueOf(route).equals(option.getTag())){option.performClick();assertTrue(option.isChecked());assertEquals(option.getId(),group.getCheckedRadioButtonId());return null;}}throw new AssertionError("Missing Word route "+route);});routeButton(android.R.id.button1);}
+    void convert(int route){main(()->{RadioGroup group=find(routeRoot(),RadioGroup.class);assertNotNull(group);RadioButton selected=group.findViewById(group.getCheckedRadioButtonId());assertEquals(WordConversion.AUTO,selected.getTag());for(int i=0;i<group.getChildCount();i++){RadioButton option=(RadioButton)group.getChildAt(i);if(Integer.valueOf(route).equals(option.getTag())){option.performClick();assertTrue(option.isChecked());assertEquals(option.getId(),group.getCheckedRadioButtonId());return null;}}throw new AssertionError("Missing Word route "+route);});routeButton(android.R.id.button1);}
     Dialog dialog(String field){return (Dialog)field(activity,field);}
     void awaitDialog(String field,int id){UiTestWait.until(()->{Dialog dialog=dialog(field);if(dialog==null||!dialog.isShowing()||!dialog.getWindow().getDecorView().hasWindowFocus())return false;Button button=dialog.findViewById(id);return button!=null&&button.isShown()&&button.isEnabled();},"Word dialog did not attach: "+field);}
     void dialogButton(String field,int id){awaitDialog(field,id);main(()->{Button button=dialog(field).findViewById(id);assertTrue(button.performClick());return null;});inst.waitForIdleSync();}
@@ -68,6 +68,15 @@ public class MainWordWorkflowTest {
     void stopped(){UiTestWait.until(()->!task.running&&task.error.getValue()==null&&field(activity,"wordProgressDialog")==null,"Word conversion did not stop cleanly");}
 
     @Test public void cancellingTheRouteChooserStartsNoConversion()throws Exception{open(false,"");routeButton(android.R.id.button2);assertFalse(task.running);assertNull(task.job);assertTrue(history().isEmpty());unchanged();}
+    @Test public void missingOcrAutomaticallyOpensLanguagesAndKeepsThePdf()throws Exception{
+        SharedPreferences languages=context.getSharedPreferences("local-languages",0);Set<String> previous=new HashSet<>(languages.getStringSet("ocr-enabled",Collections.emptySet()));
+        try{
+            assertTrue(languages.edit().putStringSet("ocr-enabled",Collections.emptySet()).commit());open(false,"");intercept();convert(WordConversion.LOCAL);
+            UiTestWait.until(()->!outgoing.isEmpty()&&!task.running,"Missing OCR did not open Languages");
+            assertEquals(1,outgoing.size());assertEquals(new ComponentName(context,LanguageManagerActivity.class),outgoing.get(0).getComponent());assertEquals("ocr",outgoing.get(0).getStringExtra("kind"));assertNull(task.result.getValue());assertNull(task.error.getValue());unchanged();
+            scenario.recreate();inst.waitForIdleSync();assertEquals("Cancelling/returning must not reopen Languages",1,outgoing.size());
+        }finally{languages.edit().putStringSet("ocr-enabled",previous).commit();}
+    }
     @Test public void nativeTextConversionProducesMultipageWordAndAHistoryEntry()throws Exception{
         open(false,"");convert(WordConversion.NATIVE);WordConversion.Result result=converted();assertEquals(2,result.pages);assertEquals(2,result.nativePages);assertEquals(0,result.ocrPages);String document=xml(result.file);assertTrue(document.contains("Workflow page 1 &amp; value"));assertTrue(document.contains("Workflow page 2 &amp; value"));assertTrue(document.contains("w:type=\"page\""));assertEquals(1,history().size());assertEquals(result.file.getPath(),history().get(0).getString("source_result"));dialogButton("wordResultDialog",android.R.id.button2);assertNull(main(()->task.result.getValue()));unchanged();
     }

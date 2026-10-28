@@ -43,10 +43,24 @@ public class ScanEditorCaptureResultTest {
     }
     @Test public void retakeReplacesOnlyTheSelectedPageAndDeletesUnusedOwnedCaptures()throws Exception{
         File blue=image(Color.BLUE,true),unused=image(Color.RED,true);
-        scenario.onActivity(a->{@SuppressWarnings("unchecked") List<Integer> rotations=(List<Integer>)field(a,"rotations");rotations.set(0,180);@SuppressWarnings("unchecked") List<float[]> crops=(List<float[]>)field(a,"crops");crops.set(0,new float[]{.1f,.1f,.8f,.1f,.8f,.8f,.1f,.8f});});
+        scenario.onActivity(a->{@SuppressWarnings("unchecked") List<Integer> rotations=(List<Integer>)field(a,"rotations");rotations.set(0,180);@SuppressWarnings("unchecked") List<float[]> crops=(List<float[]>)field(a,"crops");crops.set(0,new float[]{.1f,.1f,.8f,.1f,.8f,.8f,.1f,.8f});((List<Integer>)field(a,"brightness")).set(0,30);((List<Integer>)field(a,"contrast")).set(0,40);});
         returnFromCamera(0,Activity.RESULT_OK,result(blue,unused));UiTestWait.until(()->pages().get(0).equals(Uri.fromFile(blue).toString()),"Retake did not replace the selected page");ready();
-        scenario.onActivity(a->{assertEquals(1,pages().size());assertEquals(-1,field(a,"retakeIndex"));assertEquals(0,((List<?>)field(a,"rotations")).get(0));assertArrayEquals(new float[]{0,0,1,0,1,1,0,1},(float[])((List<?>)field(a,"crops")).get(0),0);assertTrue(((Set<?>)field(a,"detectedPages")).contains(Uri.fromFile(blue)+"#0"));});
+        scenario.onActivity(a->{assertEquals(1,pages().size());assertEquals(-1,field(a,"retakeIndex"));assertEquals(0,((List<?>)field(a,"rotations")).get(0));assertEquals(0,((List<?>)field(a,"brightness")).get(0));assertEquals(0,((List<?>)field(a,"contrast")).get(0));assertArrayEquals(new float[]{0,0,1,0,1,1,0,1},(float[])((List<?>)field(a,"crops")).get(0),0);assertTrue(((Set<?>)field(a,"detectedPages")).contains(Uri.fromFile(blue)+"#0"));});
         assertTrue("Retake must not delete an external editor input",original.isFile());assertTrue(blue.isFile());assertFalse("Unused extra capture must not leak",unused.exists());
+    }
+    @Test public void visibleRetakeWorksInCropAndFilterPreviewAndCancellationKeepsBothPages()throws Exception{
+        File companion=image(Color.BLUE,true);returnFromCamera(-1,Activity.RESULT_OK,result(companion));ready();inst.removeMonitor(monitor);monitor=null;
+        List<String> before=new ArrayList<>(pages());AtomicReference<Intent> launched=new AtomicReference<>();
+        monitor=new Instrumentation.ActivityMonitor(){@Override public Instrumentation.ActivityResult onStartActivity(Intent intent){launched.set(intent);return new Instrumentation.ActivityResult(Activity.RESULT_CANCELED,null);}};inst.addMonitor(monitor);
+        for(boolean crop:new boolean[]{true,false}){
+            scenario.onActivity(a->{set("cropStage",crop);try{java.lang.reflect.Method render=ScanEditorActivity.class.getDeclaredMethod("render");render.setAccessible(true);render.invoke(a);}catch(Exception error){throw new AssertionError(error);}});ready();
+            scenario.onActivity(a->{android.widget.TextView retake=findRetake(a.getWindow().getDecorView());assertNotNull("Retake must be visible without opening a menu",retake);assertTrue(retake.isShown());assertTrue(retake.isEnabled());assertTrue(retake.performClick());});inst.waitForIdleSync();
+            assertNotNull(launched.get());assertEquals("Single",launched.get().getStringExtra("capture_mode"));assertEquals(before,pages());assertTrue(companion.isFile());scenario.onActivity(a->assertEquals(-1,field(a,"retakeIndex")));launched.set(null);
+        }
+    }
+    private android.widget.TextView findRetake(View view){
+        if(view instanceof android.widget.TextView&&context.getString(R.string.ui_retake_this_page).contentEquals(((android.widget.TextView)view).getText()))return (android.widget.TextView)view;
+        if(view instanceof ViewGroup)for(int i=0;i<((ViewGroup)view).getChildCount();i++){android.widget.TextView found=findRetake(((ViewGroup)view).getChildAt(i));if(found!=null)return found;}return null;
     }
     @Test public void cancelledRetakeClearsItsIndexAndKeepsTheOriginalPage(){
         returnFromCamera(0,Activity.RESULT_CANCELED,null);scenario.onActivity(a->{assertEquals(-1,field(a,"retakeIndex"));assertEquals(Collections.singletonList(Uri.fromFile(original).toString()),pages());assertEquals(false,field(a,"cropStage"));});assertTrue(original.isFile());

@@ -44,7 +44,27 @@ public class PdfViewerUiTest {
     <T>T main(Callable<T> action){scenario.onActivity(a->activity=a);AtomicReference<T> result=new AtomicReference<>();inst.runOnMainSync(()->{try{result.set(action.call());}catch(Exception error){throw new AssertionError(error);}});return result.get();}
     void open(boolean blank)throws Exception{
         try(PDDocument doc=new PDDocument()){for(int i=0;i<2;i++){PDPage page=new PDPage(new PDRectangle(160,240));doc.addPage(page);if(!blank)try(PDPageContentStream stream=new PDPageContentStream(doc,page)){stream.beginText();stream.setFont(PDType1Font.HELVETICA,12);stream.newLineAtOffset(12,180);stream.showText("Reader UI page "+(i+1));stream.endText();}}doc.save(source);}
-        scenario=ActivityScenario.launch(new Intent(context,PdfViewerActivity.class).putExtra("path",source.getPath()).putExtra("name","Reader controls"));scenario.onActivity(a->activity=a);ready();inst.addMonitor(monitor);
+        launchReader();
+    }
+    void launchReader(){scenario=ActivityScenario.launch(new Intent(context,PdfViewerActivity.class).putExtra("path",source.getPath()).putExtra("name","Reader controls"));scenario.onActivity(a->activity=a);ready();inst.addMonitor(monitor);}
+    void extractPages(Integer... pages){main(()->{java.lang.reflect.Method method=PdfViewerActivity.class.getDeclaredMethod("extractText",ArrayList.class);method.setAccessible(true);method.invoke(activity,new ArrayList<>(Arrays.asList(pages)));return null;});}
+    @Test public void scannedTextExtractionOpensLanguagesWhenOcrIsMissing()throws Exception{
+        SharedPreferences preferences=context.getSharedPreferences("local-languages",0);Set<String> selected=new HashSet<>(preferences.getStringSet("ocr-enabled",Collections.emptySet()));
+        try{preferences.edit().putStringSet("ocr-enabled",Collections.emptySet()).commit();open(true);byte[] original=Files.readAllBytes(source.toPath());extractPages(0,1);
+            UiTestWait.until(()->!outgoing.isEmpty(),"Scanned text extraction did not request an OCR language");assertEquals(new ComponentName(context,LanguageManagerActivity.class),last().getComponent());assertEquals("ocr",last().getStringExtra("kind"));assertNull(field(activity,"textExport"));assertEquals(1,outgoing.size());assertArrayEquals(original,Files.readAllBytes(source.toPath()));
+        }finally{preferences.edit().putStringSet("ocr-enabled",selected).commit();}
+    }
+    @Test public void scannedTextExtractionReadsBothRotationsAndPreservesThePdf()throws Exception{
+        SharedPreferences preferences=context.getSharedPreferences("local-languages",0);Set<String> selected=new HashSet<>(preferences.getStringSet("ocr-enabled",Collections.emptySet()));File exported=null;
+        try{preferences.edit().putStringSet("ocr-enabled",Collections.singleton("en")).commit();Bitmap image=Bitmap.createBitmap(1000,600,Bitmap.Config.ARGB_8888);
+            try(PDDocument pdf=new PDDocument()){Canvas canvas=new Canvas(image);canvas.drawColor(Color.WHITE);Paint paint=new Paint(3);paint.setColor(Color.BLACK);paint.setTextSize(62);canvas.drawText("PAPERFLOW DOCUMENT 12345",30,200,paint);
+                for(int rotation:new int[]{0,90}){PDPage page=new PDPage(new PDRectangle(600,360));page.setRotation(rotation);pdf.addPage(page);try(PDPageContentStream stream=new PDPageContentStream(pdf,page)){stream.drawImage(com.tom_roush.pdfbox.pdmodel.graphics.image.LosslessFactory.createFromImage(pdf,image),0,0,600,360);}}pdf.save(source);
+            }finally{image.recycle();}
+            byte[] original=Files.readAllBytes(source.toPath());launchReader();extractPages(0,1);UiTestWait.until(()->field(activity,"textExport")!=null,"Scanned page text was not exported");exported=(File)field(activity,"textExport");String text=new String(Files.readAllBytes(exported.toPath()),java.nio.charset.StandardCharsets.UTF_8).toUpperCase(Locale.ROOT);assertEquals(text,2,text.split("PAPERFLOW",-1).length-1);assertEquals(text,2,text.split("12345",-1).length-1);assertTrue(outgoing.isEmpty());assertArrayEquals(original,Files.readAllBytes(source.toPath()));
+        }finally{preferences.edit().putStringSet("ocr-enabled",selected).commit();if(exported!=null)exported.delete();}
+    }
+    @Test public void unavailableSourceDuringTextExtractionDoesNotExportOrOpenLanguages()throws Exception{
+        open(false);byte[] original=Files.readAllBytes(source.toPath());assertTrue(source.delete());try{extractPages(0);((ExecutorService)field(activity,"worker")).submit(()->{}).get(15,TimeUnit.SECONDS);inst.waitForIdleSync();assertNull(field(activity,"textExport"));assertTrue(outgoing.isEmpty());assertFalse(activity.isFinishing());}finally{Files.write(source.toPath(),original);}
     }
     List<?> slots(){return (List<?>)field(activity,"slots");}
     void ready(){UiTestWait.until(()->slots().size()==2&&field(slots().get(0),"bitmap")!=null,"Reader UI did not render");inst.waitForIdleSync();}

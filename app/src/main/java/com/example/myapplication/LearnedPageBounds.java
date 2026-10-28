@@ -9,10 +9,10 @@ final class LearnedPageBounds {
         PageDetectorModel.Prediction prediction=PageDetectorModel.predict(bitmap,416,416);
         return prediction==null?null:quad(prediction.page,prediction.width,prediction.height,bitmap);
     }
-    /** Book follows a detected spine; absent/implausible spine produces one whole-page result. */
+    /** Explicit Double always produces two pages; a visible spine refines the split. */
     static List<float[]> book(Bitmap bitmap,boolean doublePage)throws Exception{
         PageDetectorModel.Prediction prediction=PageDetectorModel.predict(bitmap,416,416);
-        if(prediction==null)return Collections.singletonList(full());
+        if(prediction==null)return bookFallback(bitmap,full(),doublePage);
         int w=prediction.width,h=prediction.height;byte[] page=PageResponseGeometry.filled(prediction.page,w,h);
         float[] whole=orFull(PageBoundaryDetector.refine(bitmap,prediction));
         if(!doublePage)return Collections.singletonList(whole);
@@ -20,7 +20,7 @@ final class LearnedPageBounds {
         // add visible neutral paper inside the independently measured outer spread only.
         addPaperSupport(bitmap,page,whole,w,h);
         DocumentEdgeLines.Line selected=BookSpineDetector.find(bitmap,new PageDetectorModel.Prediction(w,h,page,prediction.corners,prediction.confidence));
-        if(selected==null)return Collections.singletonList(whole);
+        if(selected==null)return bookFallback(bitmap,whole,true);
         boolean rotated=Math.abs(selected.x2-selected.x1)>=Math.abs(selected.y2-selected.y1);
         if(rotated){page=rotate(page,w,h);selected=new DocumentEdgeLines.Line(h-1-selected.y1,selected.x1,h-1-selected.y2,selected.x2);int swap=w;w=h;h=swap;}
         byte[] left=new byte[w*h],right=new byte[w*h];
@@ -30,11 +30,25 @@ final class LearnedPageBounds {
             if(Math.abs(side)<=1.5&&probability>64){left[i]=page[i];right[i]=page[i];}
         }
         float[] a=quad(left,w,h,bitmap),b=quad(right,w,h,bitmap);
-        if(a==null||b==null||!separated(a,b,selected,w,h))return Collections.singletonList(whole);
+        if(a==null||b==null||!separated(a,b,selected,w,h))return bookFallback(bitmap,whole,true);
         if(a[0]+a[2]+a[4]+a[6]>b[0]+b[2]+b[4]+b[6]){float[] swap=a;a=b;b=swap;}
         if(rotated){a=restore(a);b=restore(b);}
         return Arrays.asList(a,b);
     }
+    /** Keep the selected capture mode when automatic spine detection is uncertain. */
+    static List<float[]> bookFallback(Bitmap image,float[] detected,boolean doublePage){
+        float[] p=detected!=null&&PageBoundaryDetector.valid(detected)?detected:full();
+        if(!doublePage)return Collections.singletonList(p);
+        double width=(edge(image,p,0,1)+edge(image,p,3,2))*.5;
+        double height=(edge(image,p,0,3)+edge(image,p,1,2))*.5;
+        if(width>=height){
+            float tx=(p[0]+p[2])*.5f,ty=(p[1]+p[3])*.5f,bx=(p[6]+p[4])*.5f,by=(p[7]+p[5])*.5f;
+            return Arrays.asList(new float[]{p[0],p[1],tx,ty,bx,by,p[6],p[7]},new float[]{tx,ty,p[2],p[3],p[4],p[5],bx,by});
+        }
+        float lx=(p[0]+p[6])*.5f,ly=(p[1]+p[7])*.5f,rx=(p[2]+p[4])*.5f,ry=(p[3]+p[5])*.5f;
+        return Arrays.asList(new float[]{p[0],p[1],p[2],p[3],rx,ry,lx,ly},new float[]{lx,ly,rx,ry,p[4],p[5],p[6],p[7]});
+    }
+    private static double edge(Bitmap image,float[] points,int a,int b){return Math.hypot((points[a*2]-points[b*2])*image.getWidth(),(points[a*2+1]-points[b*2+1])*image.getHeight());}
     private static void addPaperSupport(Bitmap source,byte[] page,float[] whole,int w,int h){
         Bitmap small=Bitmap.createScaledBitmap(source,w,h,true);int[] pixels=new int[w*h];small.getPixels(pixels,0,w,0,0,w,h);if(small!=source)small.recycle();
         for(int y=0;y<h;y++)for(int x=0;x<w;x++){int c=pixels[y*w+x],r=(c>>16)&255,g=(c>>8)&255,b=c&255;if(Math.min(r,Math.min(g,b))<100||Math.max(r,Math.max(g,b))-Math.min(r,Math.min(g,b))>40)continue;

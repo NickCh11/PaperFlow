@@ -54,9 +54,10 @@ public class OfflineLanguageIntegrationTest {
             inst.runOnMainSync(()->((Button)initial.getChildAt(1)).performClick());
             long deadline=SystemClock.elapsedRealtime()+90000;while(session.busy&&SystemClock.elapsedRealtime()<deadline)Thread.sleep(100);
             assertFalse("Download timed out for "+code+" ("+pack.getLong("size")+" bytes); last status: "+session.status.getValue(),session.busy);inst.waitForIdleSync();assertTrue("Downloaded pack missing",LanguageModels.installed(context(),"ocr",pack));
-            LinearLayout downloaded=row(activity,title);CheckBox checkbox=(CheckBox)downloaded.getChildAt(0);assertTrue(checkbox.isEnabled());assertFalse("Download must not enable OCR implicitly",checkbox.isChecked());
-            inst.runOnMainSync(checkbox::performClick);assertTrue(selected().contains(code));inst.runOnMainSync(activity::finish);activity=launch();
+            LinearLayout downloaded=row(activity,title);CheckBox checkbox=(CheckBox)downloaded.getChildAt(0);assertTrue(checkbox.isEnabled());assertTrue("A complete download must enable OCR automatically",checkbox.isChecked());
+            assertTrue(selected().contains(code));inst.runOnMainSync(checkbox::performClick);assertFalse(selected().contains(code));inst.runOnMainSync(checkbox::performClick);assertTrue(selected().contains(code));inst.runOnMainSync(activity::finish);activity=launch();
             LinearLayout reopened=row(activity,title);assertTrue("Selection persists after reopening",((CheckBox)reopened.getChildAt(0)).isChecked());
+            Bitmap screen=inst.getUiAutomation().takeScreenshot();if(screen!=null)try(FileOutputStream out=new FileOutputStream(report("language-screen.png"))){screen.compress(Bitmap.CompressFormat.PNG,100,out);}finally{screen.recycle();}
             inst.runOnMainSync(()->((Button)reopened.getChildAt(1)).performClick());inst.waitForIdleSync();
             java.util.concurrent.atomic.AtomicBoolean clicked=new java.util.concurrent.atomic.AtomicBoolean();
             inst.runOnMainSync(()->{for(android.view.View root:android.view.inspector.WindowInspector.getGlobalWindowViews()){Button positive=root.findViewById(android.R.id.button1);if(positive!=null&&positive.isShown()&&"Delete".contentEquals(positive.getText())){clicked.set(positive.performClick());break;}}});
@@ -156,11 +157,11 @@ public class OfflineLanguageIntegrationTest {
     static String normalized(String text){return text.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]+"," ").trim();}
     Bitmap sample(String[] lines){Bitmap bitmap=Bitmap.createBitmap(1800,1000,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(bitmap);canvas.drawColor(Color.WHITE);Paint paint=new Paint(3);paint.setColor(Color.BLACK);paint.setTextSize(52);for(int i=0;i<lines.length;i++)canvas.drawText(lines[i],80,140+i*120,paint);return bitmap;}
     @Test public void offlineOcrTextBecomesSearchableWithoutChangingThePdfImage()throws Exception{
-        for(String code:new String[]{"el","en"})LanguageModels.download(context(),"ocr",entry(code),()->false,(done,total)->{});
         PDFBoxResourceLoader.init(context());Set<String> original=selected();
         Bitmap bitmap=sample(new String[]{"Ελληνικά και English στο ίδιο έγγραφο.","Invoice 12345. Τιμολόγιο 12345."});
         Bitmap blank=Bitmap.createBitmap(800,600,Bitmap.Config.ARGB_8888);blank.eraseColor(Color.WHITE);
         try{
+            for(String code:new String[]{"el","en"})LanguageModels.download(context(),"ocr",entry(code),()->false,(done,total)->{});
             select("en","el");String actual=LocalOcr.text(context(),bitmap);assertFalse(actual.trim().isEmpty());
             try(PDDocument doc=new PDDocument()){
                 select();SearchablePdf.append(context(),doc,bitmap,900,500);

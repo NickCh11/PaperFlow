@@ -79,6 +79,41 @@ public class WordConversionRoutesTest {
         }}finally{source.delete();}
     }
 
+    @Test public void pageImagesDoNotReadOcrSettingsAndKeepRotatedPageDimensions()throws Exception{
+        File source=pdf(false,1);
+        try{
+            try(PDDocument pdf=PDDocument.load(source)){pdf.getPage(0).setRotation(90);File rotated=File.createTempFile("word-rotated-",".pdf",context.getCacheDir());try{pdf.save(rotated);java.nio.file.Files.copy(rotated.toPath(),source.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);}finally{rotated.delete();}}
+            Context noOcr=new android.content.ContextWrapper(context){@Override public android.content.SharedPreferences getSharedPreferences(String name,int mode){throw new AssertionError("Page images must not consult OCR settings");}};
+            WordConversion.Result result=WordConversion.convert(noOcr,source.getPath(),"",WordConversion.APPEARANCE,new WordConversion.Job(),(d,t,m)->{});
+            try{String xml=document(result.file);assertFalse(xml.contains("<w:txbxContent>"));assertTrue(xml.contains("w:w=\"3600\" w:h=\"2400\""));try(ZipFile zip=new ZipFile(result.file)){assertNotNull(zip.getEntry("word/media/page1.jpg"));}}finally{result.file.delete();}
+        }finally{source.delete();}
+    }
+
+    @Test public void scannedPagesProduceEditableTextOnlyWhenOcrIsRequested()throws Exception{
+        android.content.SharedPreferences preferences=context.getSharedPreferences("local-languages",0);
+        Set<String> previous=new HashSet<>(preferences.getStringSet("ocr-enabled",Collections.emptySet()));
+        File source=File.createTempFile("word-scan-",".pdf",context.getCacheDir());
+        Bitmap scan=Bitmap.createBitmap(1600,1000,Bitmap.Config.ARGB_8888);
+        try{
+            android.graphics.Canvas canvas=new android.graphics.Canvas(scan);canvas.drawColor(android.graphics.Color.WHITE);
+            android.graphics.Paint paint=new android.graphics.Paint(3);paint.setColor(android.graphics.Color.BLACK);paint.setTextSize(64);
+            canvas.drawText("PaperFlow document conversion",90,200,paint);canvas.drawText("This is a scanned book page.",90,350,paint);
+            try(PDDocument doc=new PDDocument()){PDPage page=new PDPage(new PDRectangle(480,300));doc.addPage(page);try(PDPageContentStream stream=new PDPageContentStream(doc,page)){stream.drawImage(com.tom_roush.pdfbox.pdmodel.graphics.image.JPEGFactory.createFromImage(doc,scan),0,0,480,300);}doc.save(source);}
+            preferences.edit().putStringSet("ocr-enabled",new HashSet<>(Collections.singletonList("en"))).commit();
+            assertFalse("English OCR fixture must be installed",com.paperflow.scanengine.LocalOcr.activeLanguages(context).isEmpty());
+            byte[] original=Files.readAllBytes(source.toPath());
+            assertThrows(IllegalStateException.class,()->WordConversion.convert(context,source.getPath(),"",WordConversion.NATIVE,new WordConversion.Job(),(d,t,m)->{}));
+            for(int route:new int[]{WordConversion.AUTO,WordConversion.LOCAL,WordConversion.LAYOUT,WordConversion.APPEARANCE}){
+                WordConversion.Result result=WordConversion.convert(context,source.getPath(),"",route,new WordConversion.Job(),(d,t,m)->{});
+                try{String xml=document(result.file);assertEquals(1,result.pages);
+                    if(route==WordConversion.AUTO||route==WordConversion.LOCAL){assertEquals(1,result.ocrPages);assertTrue(xml,xml.toUpperCase(Locale.ROOT).contains("PAPERFLOW"));assertFalse(xml.contains("<w:txbxContent>"));try(ZipFile zip=new ZipFile(result.file)){assertNull(zip.getEntry("word/media/page1.jpg"));}}
+                    else{assertEquals(route==WordConversion.LAYOUT,xml.contains("<w:txbxContent>"));try(ZipFile zip=new ZipFile(result.file)){assertNotNull(zip.getEntry("word/media/page1.jpg"));}}
+                }finally{result.file.delete();}
+            }
+            assertArrayEquals(original,Files.readAllBytes(source.toPath()));
+        }finally{scan.recycle();source.delete();preferences.edit().putStringSet("ocr-enabled",previous).commit();}
+    }
+
     @Test public void emptyOrUnreadableInputFailsWithoutCreatingAnOutput()throws Exception{
         File noPages=pdf(false,0),blank=pdf(false,1),malformed=File.createTempFile("word-bad-",".pdf",context.getCacheDir());Files.write(malformed.toPath(),new byte[]{1,2,3});
         File directory=new File(context.getFilesDir(),"documents");directory.mkdirs();Set<String> before=new HashSet<>(Arrays.asList(Objects.requireNonNull(directory.list())));

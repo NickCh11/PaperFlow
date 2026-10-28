@@ -53,7 +53,7 @@ public class OfflineWordRecognitionTest {
     @Test public void missingEnabledLanguagesAndTheRemovedCloudRouteCannotStartRecognition()throws Exception{
         OfflineRuntime.get(context);SharedPreferences preferences=context.getSharedPreferences("local-languages",0);Set<String> before=new HashSet<>(preferences.getStringSet("ocr-enabled",Collections.emptySet()));File source=scannedPdf();
         try{preferences.edit().putStringSet("ocr-enabled",Collections.emptySet()).commit();
-            IllegalStateException missing=assertThrows(IllegalStateException.class,()->WordConversion.convert(context,source.getPath(),"",WordConversion.LOCAL,new WordConversion.Job(),(d,t,m)->{}));assertEquals(UiText.get(R.string.ui_download_and_enable_ocr_languages_in_ocr_languages_first),missing.getMessage());
+            LanguageAccess.Missing missing=assertThrows(LanguageAccess.Missing.class,()->WordConversion.convert(context,source.getPath(),"",WordConversion.LOCAL,new WordConversion.Job(),(d,t,m)->{}));assertEquals("ocr",missing.kind);assertEquals("",missing.code);assertEquals(UiText.get(R.string.ui_language_pack_required),missing.getMessage());
             assertThrows(IllegalArgumentException.class,()->WordConversion.convert(context,source.getPath(),"",3,new WordConversion.Job(),(d,t,m)->{}));assertTrue(source.isFile());
         }finally{preferences.edit().putStringSet("ocr-enabled",before).commit();source.delete();}
     }
@@ -93,7 +93,7 @@ public class OfflineWordRecognitionTest {
             scenario.onActivity(a->{try{java.lang.reflect.Method method=MainActivity.class.getDeclaredMethod("beginWordConversion",String.class,String.class);method.setAccessible(true);method.invoke(a,"/fixture/scan.pdf","Scan");}catch(Exception error){throw new AssertionError(error);}
                 RadioGroup choices=null;for(View root:android.view.inspector.WindowInspector.getGlobalWindowViews()){RadioGroup found=group(root);if(found!=null)choices=found;}assertNotNull(choices);assertEquals(5,choices.getChildCount());Set<Integer> ids=new HashSet<>();
                 for(int i=0;i<choices.getChildCount();i++){RadioButton button=(RadioButton)choices.getChildAt(i);ids.add((Integer)button.getTag());String label=button.getText().toString().toLowerCase(Locale.ROOT);assertFalse(label.contains("google"));assertFalse(label.contains("tesseract"));}
-                assertEquals(new HashSet<>(Arrays.asList(0,1,2,4,5)),ids);assertEquals(WordConversion.LAYOUT,((View)choices.findViewById(choices.getCheckedRadioButtonId())).getTag());
+                assertEquals(new HashSet<>(Arrays.asList(0,1,2,4,5)),ids);assertEquals(WordConversion.AUTO,((View)choices.findViewById(choices.getCheckedRadioButtonId())).getTag());
             });
         }
     }

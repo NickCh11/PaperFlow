@@ -12,6 +12,12 @@ import java.util.*;
 final class PdfLayout {
     static class Word {String text;float x,y,w,h;boolean bold;Word(String s,float x,float y,float w,float h,boolean b){text=s;this.x=x;this.y=y;this.w=w;this.h=h;bold=b;}}
     static class Page {float width,height;final ArrayList<Word> words=new ArrayList<>();boolean ocr;}
+    /** Page geometry only: image exports must never initialize OCR or extract text. */
+    static Page appearance(PDDocument document,int index)throws IOException{
+        if(!document.getCurrentAccessPermission().canExtractContent())throw new IOException(UiText.get(R.string.ui_this_pdf_does_not_allow_text_extraction));
+        PDPage page=document.getPage(index);PDRectangle box=page.getCropBox();int rotation=(page.getRotation()%360+360)%360;
+        Page result=new Page();result.width=rotation%180==0?box.getWidth():box.getHeight();result.height=rotation%180==0?box.getHeight():box.getWidth();return result;
+    }
     static Page read(Context context,PDDocument document,int index)throws Exception{
         if(!document.getCurrentAccessPermission().canExtractContent())throw new IOException(UiText.get(R.string.ui_this_pdf_does_not_allow_text_extraction));PDPage page=document.getPage(index);PDRectangle box=page.getCropBox();int rotation=(page.getRotation()%360+360)%360;Page result=new Page();result.width=rotation%180==0?box.getWidth():box.getHeight();result.height=rotation%180==0?box.getHeight():box.getWidth();
         try{page.setRotation(0);PDFTextStripper stripper=new PDFTextStripper(){@Override protected void writeString(String text,List<TextPosition> positions)throws IOException{
@@ -21,7 +27,7 @@ final class PdfLayout {
                 value.append(s);RectF r=new RectF(x,y-h,x+w,y+h*.15f);if(bounds==null)bounds=r;else bounds.union(r);bold|=position.getFont().getName().toLowerCase(Locale.ROOT).contains("bold");previous=position;
             }if(value.length()>0&&bounds!=null)add(result,value.toString(),bounds,box,rotation,bold);super.writeString(text,positions);
         }};stripper.setSortByPosition(true);stripper.setStartPage(index+1);stripper.setEndPage(index+1);stripper.getText(document);}finally{page.setRotation(rotation);}
-        if(result.words.isEmpty()&&!com.paperflow.scanengine.LocalOcr.activeLanguages(context).isEmpty()){Bitmap image=render(document,index,2200,3000);try{for(com.paperflow.imageprocessing.OcrTextBox word:com.paperflow.scanengine.LocalOcr.recognize(context,image)){com.paperflow.imageprocessing.ImageRect r=word.getBox();result.words.add(new Word(word.getText(),r.getLeft()*result.width/image.getWidth(),r.getTop()*result.height/image.getHeight(),r.getWidth()*result.width/image.getWidth(),r.getHeight()*result.height/image.getHeight(),false));}result.ocr=true;}finally{image.recycle();}}
+        if(result.words.isEmpty()){if(com.paperflow.scanengine.LocalOcr.activeLanguages(context).isEmpty())throw new LanguageAccess.Missing("ocr","");Bitmap image=render(document,index,2200,3000);try{for(com.paperflow.imageprocessing.OcrTextBox word:com.paperflow.scanengine.LocalOcr.recognize(context,image)){com.paperflow.imageprocessing.ImageRect r=word.getBox();result.words.add(new Word(word.getText(),r.getLeft()*result.width/image.getWidth(),r.getTop()*result.height/image.getHeight(),r.getWidth()*result.width/image.getWidth(),r.getHeight()*result.height/image.getHeight(),false));}result.ocr=true;}finally{image.recycle();}}
         return result;
     }
     private static void add(Page page,String value,RectF bounds,PDRectangle box,int rotation,boolean bold){RectF normalized=new RectF(bounds.left/box.getWidth(),bounds.top/box.getHeight(),bounds.right/box.getWidth(),bounds.bottom/box.getHeight());RectF r=PdfTextSelectionActivity.rotate(normalized,rotation);page.words.add(new Word(value,r.left*page.width,r.top*page.height,Math.max(.1f,r.width()*page.width),Math.max(1,r.height()*page.height),bold));}

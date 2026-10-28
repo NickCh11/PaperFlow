@@ -52,10 +52,10 @@ public class BookCaptureSessionTest {
         CameraCaptureSession original=first.get();File source=page(new File(app().getFilesDir(),"captures"),"book-test-"+UUID.randomUUID()+".jpg");
         try{
             original.worker.execute(()->original.processCaptured(source,"Book",true));awaitIdle(original);
-            onMain(()->{assertEquals("No spine must retain one page",1,original.pages.size());assertFalse("Book must stay in camera",original.returnRequested);assertNotNull(original.thumbnail);original.onCleared();});
-            assertEquals(1,store.read().pages.size());
+            onMain(()->{assertEquals("Explicit Double must retain two pages without a visible spine",2,original.pages.size());assertFalse("Book must stay in camera",original.returnRequested);assertNotNull(original.thumbnail);original.onCleared();});
+            assertEquals(2,store.read().pages.size());
             onMain(()->{CameraCaptureSession s=new CameraCaptureSession(app());s.mode="Book";restored.set(s);s.restoreBookDraft();});CameraCaptureSession next=restored.get();awaitIdle(next);
-            onMain(()->{assertEquals(1,next.pages.size());assertTrue(next.bookDoublePage);assertNotNull(next.thumbnail);next.undo();});awaitIdle(next);assertEquals(0,store.read().pages.size());
+            onMain(()->{assertEquals(2,next.pages.size());assertTrue(next.bookDoublePage);assertNotNull(next.thumbnail);next.undo();});awaitIdle(next);assertEquals(1,store.read().pages.size());onMain(next::undo);awaitIdle(next);assertEquals(0,store.read().pages.size());
             onMain(next::discardBookDraft);awaitIdle(next);assertTrue(store.read().pages.isEmpty());onMain(()->{assertTrue(next.pages.isEmpty());assertNull(next.thumbnail);next.onCleared();});
         }finally{
             source.delete();for(String path:original.pages)new File(path).delete();CameraCaptureSession knownRestored=restored.get();if(knownRestored!=null)for(String path:knownRestored.pages)new File(path).delete();store.complete();
@@ -68,6 +68,23 @@ public class BookCaptureSessionTest {
         Method transform=CameraCaptureSession.class.getDeclaredMethod("transform",File.class,String.class,float.class,boolean.class);transform.setAccessible(true);
         try{ArrayList<String> outputs=(ArrayList<String>)transform.invoke(session,source,"Book",0f,false);assertEquals(1,outputs.size());Bitmap actual=BitmapFactory.decodeFile(outputs.get(0));assertNotNull(actual);assertEquals(240,actual.getWidth());assertEquals(320,actual.getHeight());actual.recycle();}
         finally{source.delete();onMain(session::onCleared);}
+    }
+    @SuppressWarnings("unchecked") @Test public void consecutiveDoublePageCapturesStillSplitWhenTheSpineIsNotVisible()throws Exception{
+        CameraCaptureSession session=new CameraCaptureSession(app());ArrayList<String> saved=new ArrayList<>();
+        Method transform=CameraCaptureSession.class.getDeclaredMethod("transform",File.class,String.class,float.class,boolean.class);transform.setAccessible(true);
+        try{
+            for(int capture=0;capture<2;capture++){
+                int width=capture==0?240:320,height=capture==0?320:240;
+                File source=session.newFile("book-faint-spine");Bitmap image=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);image.eraseColor(Color.WHITE);
+                try(FileOutputStream out=new FileOutputStream(source)){assertTrue(image.compress(Bitmap.CompressFormat.JPEG,95,out));}finally{image.recycle();}
+                try{
+                    ArrayList<String> outputs=(ArrayList<String>)transform.invoke(session,source,"Book",0f,true);saved.addAll(outputs);
+                    assertEquals("Double capture "+(capture+1)+" must produce both pages even without a visible spine",2,outputs.size());
+                    for(String path:outputs){Bitmap result=BitmapFactory.decodeFile(path);try{assertNotNull(result);assertEquals(width>height?width/2:width,result.getWidth());assertEquals(width>height?height:height/2,result.getHeight());}finally{if(result!=null)result.recycle();}}
+                }finally{source.delete();}
+            }
+            assertEquals(4,new java.util.HashSet<>(saved).size());for(String path:saved)assertTrue(new File(path).isFile());
+        }finally{for(String path:saved)new File(path).delete();onMain(session::onCleared);}
     }
     private byte[] read(File file)throws IOException{try(InputStream input=new FileInputStream(file);ByteArrayOutputStream output=new ByteArrayOutputStream()){byte[] buffer=new byte[4096];int count;while((count=input.read(buffer))!=-1)output.write(buffer,0,count);return output.toByteArray();}}
 }

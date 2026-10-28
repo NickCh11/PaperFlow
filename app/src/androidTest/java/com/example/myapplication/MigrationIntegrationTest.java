@@ -61,10 +61,10 @@ public class MigrationIntegrationTest {
         }
     }
 
-    @Test public void bookKeepsOffCenterCreaseAndSinglePageFallback()throws Exception {
+    @Test public void bookKeepsOffCenterCreaseAndExplicitDoublePageFallback()throws Exception {
         Bitmap book=Bitmap.createBitmap(900,600,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(book);canvas.drawColor(0xff50453a);Paint paint=new Paint(3);paint.setColor(0xfff1eee5);canvas.drawRect(45,40,855,560,paint);paint.setColor(0xff504030);canvas.drawRect(376,40,386,560,paint);paint.setColor(Color.DKGRAY);paint.setStrokeWidth(2);for(int y=110;y<500;y+=35){canvas.drawLine(95,y,320,y,paint);canvas.drawLine(450,y,800,y,paint);}
         try{List<float[]> split=LearnedPageBounds.book(book,true);assertEquals("Off-center crease must retain two pages",2,split.size());assertEquals(1,LearnedPageBounds.book(book,false).size());for(float[] quad:split)assertTrue(PageBoundaryDetector.valid(quad));float leftMax=Math.max(split.get(0)[2],split.get(0)[4]),rightMin=Math.min(split.get(1)[0],split.get(1)[6]);assertEquals(381f/900,leftMax,.04);assertEquals(381f/900,rightMin,.04);}finally{book.recycle();}
-        Bitmap blank=Bitmap.createBitmap(480,320,Bitmap.Config.ARGB_8888);blank.eraseColor(Color.WHITE);try{assertEquals(1,LearnedPageBounds.book(blank,true).size());}finally{blank.recycle();}
+        Bitmap blank=Bitmap.createBitmap(480,320,Bitmap.Config.ARGB_8888);blank.eraseColor(Color.WHITE);try{assertEquals(2,LearnedPageBounds.book(blank,true).size());}finally{blank.recycle();}
     }
 
 }

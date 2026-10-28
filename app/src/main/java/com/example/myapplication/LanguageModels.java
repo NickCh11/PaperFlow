@@ -33,10 +33,18 @@ final class LanguageModels {
     static String title(JSONObject entry){return entry.optString("name",entry.optString("code"));}
     static void remove(Context context,String kind,JSONObject entry)throws Exception {
         String code=packCode(entry);OfflineRuntime.get(context).remove(code);
-        Set<String> selected=new HashSet<>(context.getSharedPreferences("local-languages",0).getStringSet("ocr-enabled",Collections.emptySet()));selected.remove(code);
-        context.getSharedPreferences("local-languages",0).edit().putStringSet("ocr-enabled",selected).apply();
+        setOcrEnabled(context,code,false);
+    }
+    static synchronized void setOcrEnabled(Context context,String code,boolean enabled){
+        android.content.SharedPreferences preferences=context.getSharedPreferences("local-languages",0);
+        Set<String> selected=new HashSet<>(preferences.getStringSet("ocr-enabled",Collections.emptySet()));
+        if(enabled)selected.add(code);else selected.remove(code);
+        preferences.edit().putStringSet("ocr-enabled",selected).apply();
     }
     static void download(Context context,String kind,JSONObject entry,BooleanSupplier cancel,Progress progress)throws Exception {
-        OfflineRuntime.get(context).download(packCode(entry),cancel,progress::update);
+        String code=packCode(entry);
+        OfflineRuntime.get(context).download(code,cancel,progress::update);
+        // Publish the selection only after the complete pack has been installed.
+        if(installed(context,"ocr",entry))setOcrEnabled(context,code,true);
     }
 }

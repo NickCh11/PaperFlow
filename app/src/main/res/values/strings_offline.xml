@@ -2,7 +2,6 @@
     <string name="ui_no_translated_pages">Translate at least one page before exporting.</string>
     <string name="ui_translation_snapshot_unavailable">The saved translation is unavailable. Translate this page again.</string>
     <string name="ui_translation_pdf">PDF (all pages, selectable text)</string>
-    <string name="ui_translation_import_images">Import images</string>
     <string name="ui_new_translation">New translation</string>
     <string name="ui_translation_previous_page">Previous page</string>
     <string name="ui_translation_next_page">Next page</string>
@@ -15,16 +14,33 @@
     <string name="ui_language_download_progress">Downloading %1$s · %2$d%%</string>
     <string name="ui_language_download_cancelled">Download cancelled</string>
     <string name="ui_language_download_cancelling">Cancelling download…</string>
-    <string name="ui_shared_language_packs_help">Download a language pack for offline translation and OCR. Common models are shared between languages. Enable OCR languages to add selectable text to scans and PDFs.</string>
+    <string name="ui_shared_language_packs_help">Download once for offline OCR and translation. OCR turns on automatically after download; uncheck a language to turn it off.</string>
     <string name="ui_photo_capture_mode">Photo</string>
     <string name="ui_page_capture_mode">Page</string>
     <string name="ui_source_language_ambiguous">Choose the source language for this short or ambiguous text.</string>
-    <string name="ui_photo_translation_offline_help">Offline translation with automatic text and language detection</string>
+    <string name="ui_photo_translation_offline_help">Translate images and PDFs offline, with automatic text and language detection</string>
     <string name="ui_photo_no_detection">Photo mode · no page detection</string>
-    <string name="ui_update_language_packs">Check for language pack updates</string>
     <string name="ui_updating_language_packs">Checking language pack updates…</string>
     <string name="ui_offline_translation_help">Choose a source language or use automatic detection, then select the target language. Photo, live camera and text translation run on this device after the required language packs are downloaded. Photo mode keeps the full frame; document modes enable paper detection.</string>
     <string name="ui_on_device_ocr" formatted="false">On-device OCR</string>
-    <string name="ui_word_routes_description" formatted="false">Automatic uses embedded PDF text where available and recognizes scanned pages on this device using the offline translator and your enabled downloaded languages. Editable layout preserves positioned text and page graphics; appearance mode preserves page images. Complex fonts and layouts may change.</string>
+    <string name="ui_word_routes_description" formatted="false">Choose simple editable text, positioned text boxes, or page images. Text modes do not keep the original fonts, tables or page layout. All OCR runs on this device using your enabled languages.</string>
     <string name="ui_no_embedded_pdf_text_use_offline_ocr" formatted="false">No embedded PDF text found. Choose on-device OCR using the offline translator.</string>
+    <string name="ui_word_route_auto">Editable text (recommended)\nUse existing PDF text; recognize scanned pages with offline OCR.</string>
+    <string name="ui_word_route_text">Copy existing PDF text\nCopy existing text. Scanned pages without text are not recognized.</string>
+    <string name="ui_word_route_ocr">Read text from scans (offline OCR)\nRecognize every page using your enabled languages. Export simple editable text.</string>
+    <string name="ui_word_route_layout">Text boxes over page background\nPlace editable text boxes over a page background. Layout is approximate; scanned text needs enabled OCR languages.</string>
+    <string name="ui_word_route_images">Pages as pictures\nKeep each page as a picture in Word. The text is not editable.</string>
+    <string name="ui_language_manager_title">Offline languages</string>
+    <string name="ui_language_manager_updates">Check for updates</string>
+    <string name="ui_document_translation">Document translation</string>
+    <string name="ui_translation_import_files">Import images or PDF</string>
+    <string name="ui_translation_opening_pdf_page">Opening PDF page %1$d of %2$d…</string>
+    <string name="ui_translation_locked_pdf">This PDF needs a password. Open an unlocked copy to translate it.</string>
+    <string name="ui_translation_unsupported_input">Could not read this file. Choose an image or a PDF.</string>
+    <string name="ui_translation_import_page_limit">Choose up to 100 pages per import.</string>
+    <string name="ui_translation_import_size_limit">Choose a file smaller than 256 MB.</string>
+    <string name="ui_translation_invalid_pdf_page">This PDF contains an invalid page size.</string>
+    <string name="ui_translation_opening_page">Opening page…</string>
+    <string name="ui_language_pack_required">Download and enable a language pack, then return to continue.</string>
+    <string name="ui_retake_this_page">Retake page</string>
 </resources>

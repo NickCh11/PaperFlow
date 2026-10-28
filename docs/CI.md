@@ -70,9 +70,11 @@ from disk; they do not kill and relaunch the Android process.
 
 Two active rulesets protect `main` and `feature/offline-translator`:
 
-- Mandatory PR checks and branch safety requires **PR gate**, **Greptile Review**,
+- Mandatory PR checks and branch safety requires **PR gate**,
   an up-to-date branch, resolved threads and a PR; deletion/force-push are blocked.
   It has no bypass actors, including administrators.
+  **Greptile Review is optional**: the app remains installed, but exhausted review
+  credits do not block merging. The PR gate still requires full CI and Sonar.
 - PR approval with maintainer exception requires one approving review, dismisses
   stale approvals and requires latest-push approval. Maintainer/Admin roles can
   bypass this review rule only through a PR. The exception depends on who merges,
