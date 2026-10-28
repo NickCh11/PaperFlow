@@ -13,6 +13,10 @@ public final class PaperFlowTestRunner extends AndroidJUnitRunner {
         if(nativeCoverage)try{NativeCoverage.prepare(getTargetContext());}
         catch(java.io.IOException|ErrnoException error){throw new IllegalStateException("Cannot configure native coverage",error);}
         if("true".equals(arguments.getString("ci"))){
+            long heap=Runtime.getRuntime().maxMemory();
+            android.util.Log.i("PaperFlowTestRunner","ART maximum heap: "+heap+" bytes");
+            if(android.os.Build.VERSION.SDK_INT==29&&heap<256L*1024*1024)
+                throw new IllegalStateException("API 29 CI heap is below 256 MiB; run tools/ci/prepare_emulator.py first");
             try{Os.setenv("OMP_THREAD_LIMIT","1",true);}
             catch(ErrnoException error){throw new IllegalStateException("Cannot configure OCR test threads",error);}
         }

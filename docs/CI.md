@@ -102,6 +102,7 @@ bash gradlew testDebugUnitTest lintDebug -PpaperflowAbi=x86_64
 python3 tools/ci/check_test_results.py app/build/test-results/testDebugUnitTest app/src/test/java
 bash gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PpaperflowAbi=x86_64
 # Start a fresh API 29+ emulator, then:
+python3 tools/ci/prepare_emulator.py
 python3 tools/ci/prepare_models.py --install
 bash gradlew :app:connectedDebugAndroidTest -PpaperflowAbi=x86_64 -Pandroid.testInstrumentationRunnerArguments.ci=true
 python3 tools/ci/check_test_results.py app/build/outputs/androidTest-results/connected app/src/androidTest/java
@@ -134,3 +135,14 @@ CI checks the generated target before booting. API 29 has 2 GB RAM and API 37 ha
 4 GB RAM; both have an 8 GB
 data partition. The language fixture installer waits for the package manager and
 collects emulator logcat on installation failures.
+
+Before any tests or fixture installation, API 29 preparation sets ART's growth
+limit to 256 MiB and maximum heap to 512 MiB. The emulator action's `heap-size`
+alone leaves a 16 MiB growth limit on some images, which can crash even
+`system_server` during background system updates. The helper temporarily roots
+only an API 29 emulator, restarts the Android framework, verifies a new system
+process and both properties, then restores unprivileged adb and waits for a
+stable package manager. Other APIs are unchanged. The CI test runner also checks
+the actual Java heap before starting the suite, so a bad configuration fails
+clearly rather than interrupting an unrelated test. Pass `--serial` and `--adb`
+to the helper when selecting a dedicated local emulator or SDK installation.
