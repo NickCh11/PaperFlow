@@ -82,7 +82,10 @@ public class PdfViewerUiTest {
     @Test public void pinchZoomClampsItsScaleAndResetsPanningAtMinimumZoom()throws Exception{
         open(false);main(()->{assertTrue(((View)field(slots().get(0),"frame")).performClick());return null;});UiTestWait.until(this::zoomReady,"Zoom preview did not render");
         main(()->{
-            View view=zoom(dialog());float width=view.getWidth();
+            View view=zoom(dialog());float width=view.getWidth();int[] clicks={0};view.setOnClickListener(v->clicks[0]++);
+            long tap=startGesture();pointer(view,tap,tap,MotionEvent.ACTION_DOWN,width*.7f,false);pointer(view,tap,tap+16,MotionEvent.ACTION_UP,width*.7f,false);assertEquals(1,clicks[0]);
+            assertTrue(view.performClick());assertEquals(2,clicks[0]);
+            long cancelled=startGesture();pointer(view,cancelled,cancelled,MotionEvent.ACTION_DOWN,width*.7f,false);pointer(view,cancelled,cancelled+16,MotionEvent.ACTION_CANCEL,width*.7f,false);assertEquals(2,clicks[0]);
             // Keep both fingers inside the preview and above Android's minimum scaling span.
             pinch(view,width*.7f,width*.95f);float scale=(Float)field(view,"scale");assertTrue("A real two-finger gesture must zoom the page",scale>1);assertTrue(scale<=5);
             for(int i=0;i<10;i++)pinch(view,width*.7f,width*.95f);assertEquals(5f,(Float)field(view,"scale"),.0001f);
@@ -93,7 +96,7 @@ public class PdfViewerUiTest {
                 float before=(Float)field(view,"scale");pinch(view,width*.95f,width*.65f);
                 assertTrue("Every inward pinch must reduce the zoom",(Float)field(view,"scale")<before);
             }
-            assertEquals(1f,(Float)field(view,"scale"),.0001f);assertEquals(0f,(Float)field(view,"dx"),0);assertEquals(0f,(Float)field(view,"dy"),0);return null;
+            assertEquals(1f,(Float)field(view,"scale"),.0001f);assertEquals(0f,(Float)field(view,"dx"),0);assertEquals(0f,(Float)field(view,"dy"),0);assertEquals("Pinching and panning must not dispatch clicks",2,clicks[0]);return null;
         });button(android.R.id.button1);
     }
     @Test public void pageTextTranslationPassesTheSelectedTextAndSourceDocument()throws Exception{
