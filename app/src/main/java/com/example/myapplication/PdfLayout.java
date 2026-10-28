@@ -12,6 +12,12 @@ import java.util.*;
 final class PdfLayout {
     static class Word {String text;float x,y,w,h;boolean bold;Word(String s,float x,float y,float w,float h,boolean b){text=s;this.x=x;this.y=y;this.w=w;this.h=h;bold=b;}}
     static class Page {float width,height;final ArrayList<Word> words=new ArrayList<>();boolean ocr;}
+    /** Page geometry only: image exports must never initialize OCR or extract text. */
+    static Page appearance(PDDocument document,int index)throws IOException{
+        if(!document.getCurrentAccessPermission().canExtractContent())throw new IOException(UiText.get(R.string.ui_this_pdf_does_not_allow_text_extraction));
+        PDPage page=document.getPage(index);PDRectangle box=page.getCropBox();int rotation=(page.getRotation()%360+360)%360;
+        Page result=new Page();result.width=rotation%180==0?box.getWidth():box.getHeight();result.height=rotation%180==0?box.getHeight():box.getWidth();return result;
+    }
     static Page read(Context context,PDDocument document,int index)throws Exception{
         if(!document.getCurrentAccessPermission().canExtractContent())throw new IOException(UiText.get(R.string.ui_this_pdf_does_not_allow_text_extraction));PDPage page=document.getPage(index);PDRectangle box=page.getCropBox();int rotation=(page.getRotation()%360+360)%360;Page result=new Page();result.width=rotation%180==0?box.getWidth():box.getHeight();result.height=rotation%180==0?box.getHeight():box.getWidth();
         try{page.setRotation(0);PDFTextStripper stripper=new PDFTextStripper(){@Override protected void writeString(String text,List<TextPosition> positions)throws IOException{
