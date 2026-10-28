@@ -8,7 +8,7 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 
 ROOT = Path(__file__).resolve().parents[2]
-TAG_RESOURCE = ROOT / "app/src/main/res/values/model_distribution.xml"
+TAG_FILE = Path("tools/ci/model_release_tag.txt")
 
 
 def inventory(root=ROOT):
@@ -30,11 +30,9 @@ def inventory(root=ROOT):
 
 
 def check_tag(root=ROOT):
-    import xml.etree.ElementTree as ET
     tag, entries = inventory(root)
-    resource = root / "app/src/main/res/values/model_distribution.xml"
-    actual = ET.parse(resource).getroot().find("string[@name='model_release_tag']")
-    if actual is None or actual.text != tag or actual.get("translatable") != "false":
+    actual = (root / TAG_FILE).read_text(encoding="utf-8").strip()
+    if actual != tag:
         raise ValueError("Model release tag is stale; run model_distribution.py --write-tag")
     return tag, entries
 
@@ -56,7 +54,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     tag, entries = inventory()
     if args.write_tag:
-        TAG_RESOURCE.write_text('<resources>\n    <string name="model_release_tag" translatable="false">' + tag + '</string>\n</resources>\n', encoding="utf-8")
+        (ROOT / TAG_FILE).write_text(tag + "\n", encoding="utf-8")
     else:
         check_tag()
     print(f"{tag}: {len(entries)} unique assets, {sum(e['size'] for e in entries.values()):,} bytes")

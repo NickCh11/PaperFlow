@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
-from model_distribution import ROOT, check_tag, inventory, mirror_url, repository
+from model_distribution import ROOT, TAG_FILE, check_tag, inventory, mirror_url, repository
 from check_model_links import check_url
 from publish_model_release import validate_assets
 
@@ -24,6 +24,10 @@ class ModelDistributionTests(unittest.TestCase):
             dest.parent.mkdir(parents=True,exist_ok=True)
             dest.write_bytes((ROOT/"translation/src/main/assets/index_v6.json").read_bytes())
             before,_=inventory(root)
+            marker=root/TAG_FILE
+            marker.parent.mkdir(parents=True,exist_ok=True)
+            marker.write_text(before+"\n",encoding="utf-8")
+            self.assertEqual(before,check_tag(root)[0])
             file=root/"translation/src/main/assets/index_v6.json"
             data=json.loads(file.read_text(encoding="utf-8"))
             file.write_bytes((json.dumps(data,indent=4)+"\n").replace("\n","\r\n").encode("utf-8"))
@@ -31,6 +35,10 @@ class ModelDistributionTests(unittest.TestCase):
             data["packs"]["ocr-ppocr-detector"]["files"][0]["url"]+="?mirror=changed";file.write_text(json.dumps(data),encoding="utf-8")
             after,_=inventory(root)
             self.assertNotEqual(before,after)
+            with self.assertRaisesRegex(ValueError,"Model release tag is stale"):
+                check_tag(root)
+            marker.write_text(after+"\n",encoding="utf-8")
+            self.assertEqual(after,check_tag(root)[0])
 
     def test_repository_cannot_inject_paths_or_credentials(self):
         self.assertEqual("owner/models",repository("owner/models"))

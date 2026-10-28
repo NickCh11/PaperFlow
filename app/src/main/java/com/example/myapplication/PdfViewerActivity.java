@@ -294,7 +294,7 @@ public class PdfViewerActivity extends AppCompatActivity {
         intent.putExtra("pdf_password", password);
         startActivity(intent);
     }
-    private class ZoomImage extends View {
+    class ZoomImage extends View {
         private Bitmap bitmap; private float scale = 1, dx, dy, lastX, lastY; private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG); private final ScaleGestureDetector detector;
         ZoomImage() { super(PdfViewerActivity.this); detector = new ScaleGestureDetector(PdfViewerActivity.this, new ScaleGestureDetector.SimpleOnScaleGestureListener() { @Override public boolean onScale(ScaleGestureDetector d) { scale = Math.max(1, Math.min(5, scale * d.getScaleFactor())); if (scale == 1) { dx = 0; dy = 0; } invalidate(); return true; } }); }
         void setBitmap(Bitmap b) { bitmap = b; invalidate(); }
