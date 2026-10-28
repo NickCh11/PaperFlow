@@ -530,13 +530,42 @@ public class MainActivity extends AppCompatActivity {
         label(content,UiText.get(R.string.ui_paperflow_local_storage),15,MUTED,false).setPadding(0,dp(16),0,0);
         settingHelp(UiText.get(R.string.ui_documents_are_saved_locally_use_save_to_cloud_to_export_copies_to_your_own));
         setting(UiText.get(R.string.ui_offline_languages),"OCR PDF",()->startActivity(new Intent(this,LanguageManagerActivity.class)));
-        setting(UiText.get(R.string.ui_lock_folders_now),"Lock",()->{FolderLock.lockAll();renderSettings();});
+        setting(UiText.get(R.string.ui_folder_protection),"Lock",this::chooseFolderProtection);
+        settingHelp(UiText.get(R.string.ui_folder_protection_settings_help));
+        setting(UiText.get(R.string.ui_lock_folders_now),"Lock",this::lockFoldersFromSettings);
         setting(UiText.get(R.string.ui_scan_and_export_preferences),"Smart Scan",this::scanPreferences);
         setting(UiText.get(R.string.ui_save_to_cloud),"Cloud",this::chooseCloudDocuments);
         setting(UiText.get(R.string.ui_trash),"Delete",()->{trashView=true;renderAllDocuments();});
         setting(UiText.get(R.string.ui_open_source_licenses),"Page Count",this::showOpenSourceLicenses);
         setting(UiText.get(R.string.ui_conversion_history),"History",()->startActivity(new Intent(this,ConversionHistoryActivity.class)));
         setting(UiText.get(R.string.ui_favorites),"Star",()->{favoritesOnly=true;folderId=0;trashView=false;renderAllDocuments();});
+    }
+    private void chooseFolderProtection(){
+        ArrayList<Long> ids=new ArrayList<>();ArrayList<String> names=new ArrayList<>();
+        try(Cursor rows=store.db().rawQuery("SELECT id,parent FROM folders ORDER BY name COLLATE NOCASE",null)){
+            while(rows.moveToNext())if(FolderLock.allowed(this,store,rows.getLong(1))){ids.add(rows.getLong(0));names.add(folderPath(rows.getLong(0)));}
+        }
+        if(ids.isEmpty()){
+            new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_folder_protection)).setMessage(UiText.get(R.string.ui_create_folder_before_protection)).setPositiveButton(android.R.string.ok,null).show();return;
+        }
+        new ProtectedDialogs.Builder(this).setTitle(UiText.get(R.string.ui_folder_protection)).setItems(names.toArray(new String[0]),(dialog,which)->{
+            long id=ids.get(which);dialog.dismiss();getWindow().getDecorView().post(()->{
+                if(isFinishing()||isDestroyed())return;
+                try(Cursor row=store.db().rawQuery("SELECT id FROM folders WHERE id=?",new String[]{Long.toString(id)})){
+                    if(!row.moveToFirst()){Toast.makeText(this,UiText.get(R.string.ui_folder_no_longer_exists),Toast.LENGTH_LONG).show();return;}
+                }
+                FolderLock.configure(this,id,this::renderSettings);
+            });
+        }).setNegativeButton(UiText.get(R.string.ui_cancel),null).show();
+    }
+    private void lockFoldersFromSettings(){
+        boolean protectedFolder=false;
+        try(Cursor rows=store.db().rawQuery("SELECT id FROM folders",null)){
+            while(rows.moveToNext())if(FolderLock.protectedFolder(this,rows.getLong(0))){protectedFolder=true;break;}
+        }
+        FolderLock.lockAll();renderSettings();
+        if(protectedFolder)Toast.makeText(this,UiText.get(R.string.ui_protected_folders_locked),Toast.LENGTH_SHORT).show();
+        else new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_folder_protection)).setMessage(UiText.get(R.string.ui_no_protected_folders)).setNegativeButton(UiText.get(R.string.ui_cancel),null).setPositiveButton(UiText.get(R.string.ui_protect_folder),(dialog,which)->getWindow().getDecorView().post(()->{if(!isFinishing()&&!isDestroyed())chooseFolderProtection();})).show();
     }
     private void setting(String label,String icon,Runnable action){
         TextView row=new TextView(this);row.setText(label);row.setTextColor(INK);row.setTextSize(15);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(16),dp(12),dp(16),dp(12));row.setMinimumHeight(dp(56));setIcon(row,icon,BRAND,22,false);
@@ -572,7 +601,7 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(this, CameraCaptureActivity.class); intent.putExtra("capture_mode", mode); captureLauncher.launch(intent);
     }
     private boolean resumedOnce;
-    @Override protected void onResume(){super.onResume();FolderLock.watch(this,()->{selectedDocuments.clear();if(content!=null){if("All Documents".equals(section))renderAllDocuments();else if("Home".equals(section))renderHome();}});if(resumedOnce&&content!=null){if("All Documents".equals(section))renderAllDocuments();else if("Home".equals(section))renderHome();}resumedOnce=true;}
+    @Override protected void onResume(){super.onResume();FolderLock.watch(this,()->{selectedDocuments.clear();if(content!=null){if("All Documents".equals(section))renderAllDocuments();else if("Home".equals(section))renderHome();else if("Settings".equals(section))FolderLock.closeDialogs(this);}});if(resumedOnce&&content!=null){if("All Documents".equals(section))renderAllDocuments();else if("Home".equals(section))renderHome();}resumedOnce=true;}
     @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); handleDocumentIntent(intent); }
     @Override protected void onSaveInstanceState(Bundle state){super.onSaveInstanceState(state);state.putString("section",section);state.putLong("library_folder",folderId);state.putBoolean("library_trash",trashView);state.putBoolean("library_favorites",favoritesOnly);state.putString("library_query",searchQuery);state.putBoolean("library_visible",libraryVisible);state.putString("append_path",pendingAppendPath);state.putString("append_name",pendingAppendName);state.putString("append_password",pendingAppendPassword);if(wordExport!=null)state.putString("word_export",wordExport.getAbsolutePath());}
     private void clearPendingAppend(){pendingAppendPath=null;pendingAppendName=null;pendingAppendPassword="";}

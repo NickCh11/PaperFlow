@@ -1929,4 +1929,8 @@
     <string name="ui_translation_target_value" translatable="false">→ %1$s</string>
     <string name="ui_brightness_value">Brightness: %1$d</string>
     <string name="ui_contrast_value">Contrast: %1$d</string>
+    <string name="ui_folder_protection_settings_help">Choose a folder to set or change its PIN. Lock folders now relocks folders that already have a PIN.</string>
+    <string name="ui_create_folder_before_protection">Create a folder in All Documents, then return here to set its PIN.</string>
+    <string name="ui_protected_folders_locked">Protected folders are now locked.</string>
+    <string name="ui_no_protected_folders">No folders have a PIN yet. Choose Protect folder to set one.</string>
 </resources>

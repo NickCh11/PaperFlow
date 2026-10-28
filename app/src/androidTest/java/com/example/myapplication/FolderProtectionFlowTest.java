@@ -54,4 +54,34 @@ public class FolderProtectionFlowTest {
             try(DocumentStore store=new DocumentStore(context)){store.db().delete("folders","id=?",new String[]{Long.toString(folder)});}
         }
     }
+    @Test public void settingsCanSetPinRelockAndRequireAuthenticationWithoutExposingLockedChildren()throws Exception{
+        Context context=inst.getTargetContext();String name="QA settings protection "+System.nanoTime();long folder,child;
+        try(DocumentStore store=new DocumentStore(context)){
+            ContentValues values=new ContentValues();values.put("name",name);folder=store.db().insertOrThrow("folders",null,values);
+            values.put("name","Private child");values.put("parent",folder);child=store.db().insertOrThrow("folders",null,values);
+        }
+        try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(new Intent(context,MainActivity.class))){
+            scenario.onActivity(activity->{try{Method method=MainActivity.class.getDeclaredMethod("renderSettings");method.setAccessible(true);method.invoke(activity);}catch(Exception error){throw new AssertionError(error);}});
+            tap(context.getString(R.string.ui_folder_protection));waitText(name);tap(name);
+            waitText(context.getString(R.string.ui_protect_folder));enterPins("735291","735291");tap(context.getString(R.string.ui_save));
+            UiTestWait.until(()->FolderLock.protectedFolder(context,folder),"Settings did not save folder PIN");
+            UiTestWait.until(()->{boolean[] gone={false};ui(()->gone[0]=text(context.getString(R.string.ui_protect_folder))==null);return gone[0];},"Settings PIN setup did not close");
+            try(DocumentStore store=new DocumentStore(context)){assertTrue(FolderLock.allowed(context,store,child));}
+            tap(context.getString(R.string.ui_lock_folders_now));
+            try(DocumentStore store=new DocumentStore(context)){assertFalse(FolderLock.allowed(context,store,folder));assertFalse(FolderLock.allowed(context,store,child));}
+            tap(context.getString(R.string.ui_folder_protection));waitText(name);
+            ui(()->assertNull("Locked child names must not be listed",text(name+" / Private child")));
+            tap(name);waitText(context.getString(R.string.ui_folder_pin));
+            enterPins("111111");tap(context.getString(R.string.ui_unlock));
+            UiTestWait.until(()->{boolean[] rejected={false};ui(()->{ArrayList<EditText> inputs=new ArrayList<>();for(View root:android.view.inspector.WindowInspector.getGlobalWindowViews())edits(root,inputs);rejected[0]=inputs.size()==1&&inputs.get(0).getError()!=null;});return rejected[0];},"Wrong PIN was not rejected");
+            try(DocumentStore store=new DocumentStore(context)){assertFalse(FolderLock.allowed(context,store,child));}
+            enterPins("735291");tap(context.getString(R.string.ui_unlock));waitText(context.getString(R.string.ui_remove_protection));
+            try(DocumentStore store=new DocumentStore(context)){assertTrue(FolderLock.allowed(context,store,child));}
+            tap(context.getString(R.string.ui_remove_protection));assertFalse(FolderLock.protectedFolder(context,folder));
+        }finally{
+            context.getSharedPreferences("folder_locks",0).edit().remove("pin_"+folder).remove("bio_"+folder).remove("fails_"+folder).remove("wait_"+folder).commit();ui(FolderLock::lockAll);
+            try(DocumentStore store=new DocumentStore(context)){store.db().delete("folders","id=? OR id=?",new String[]{Long.toString(child),Long.toString(folder)});}
+        }
+    }
+
 }
