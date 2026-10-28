@@ -166,7 +166,11 @@ class ReleaseAutomationTest(unittest.TestCase):
                 self.assertEqual(b'existing-key-fixture', key.read_bytes())
                 self.assertIn('env:PAPERFLOW_STORE_PASSWORD', args)
                 self.assertIn('env:PAPERFLOW_KEY_PASSWORD', args)
-                Path(args[args.index('--out') + 1]).write_bytes(b'signed-test-apk')
+                output = Path(args[args.index('--out') + 1])
+                output.write_bytes(b'signed-test-apk')
+                # Build Tools 36 emits an incremental-install sidecar by default.
+                if '--v4-signing-enabled' not in args or args[args.index('--v4-signing-enabled') + 1] != 'false':
+                    Path(str(output) + '.idsig').write_bytes(b'incremental-install-signature')
         badging = "package: name='com.example.myapplication' versionCode='1002002' versionName='1.2.2'"
         def output(*args):
             return badging if 'badging' in args else 'Signer #1 certificate SHA-256 digest: ' + 'c' * 64
@@ -176,6 +180,7 @@ class ReleaseAutomationTest(unittest.TestCase):
             release.sign()
         self.assertEqual(3, len(keys)); self.assertTrue(all(not key.exists() for key in keys))
         self.assertTrue((dist / release.MANIFEST).is_file())
+        self.assertEqual(release.expected_names(self.state), {p.name for p in dist.iterdir()})
         self.assertTrue(all('store-fixture-password' not in args and 'key-fixture-password' not in args for args in commands))
 
     def test_signature_failure_never_creates_a_completion_manifest(self):

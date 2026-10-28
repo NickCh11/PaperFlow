@@ -247,7 +247,8 @@ def sign():
             subprocess.run([str(tools / "zipalign"), "-c", "-P", "16", "4", str(apk)], check=True)
             subprocess.run([str(tools / "apksigner"), "sign", "--ks", str(keystore), "--ks-key-alias",
                             os.environ["PAPERFLOW_KEY_ALIAS"], "--ks-pass", "env:PAPERFLOW_STORE_PASSWORD",
-                            "--key-pass", "env:PAPERFLOW_KEY_PASSWORD", "--out", str(output), str(apk)], check=True)
+                            "--key-pass", "env:PAPERFLOW_KEY_PASSWORD", "--v4-signing-enabled", "false",
+                            "--out", str(output), str(apk)], check=True)
             verified = run(str(tools / "apksigner"), "verify", "--min-sdk-version", "26", "--verbose", "--print-certs", str(output))
             digest = re.search(r"Signer #1 certificate SHA-256 digest: ([0-9a-fA-F]{64})", verified)
             if not digest:
