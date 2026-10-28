@@ -154,7 +154,7 @@ public class PhotoTranslationUiTest {
     @Test public void previewPinchClampsZoomAndSwitchingImagesResetsPanning()throws Exception{
         translatedPreview();main(()->{
             View view=(View)field(activity,"preview");int[] clicks={0};view.setOnClickListener(v->clicks[0]++);float width=view.getWidth();assertTrue(width>0);
-            for(int i=0;i<12;i++)zoomPreview(view,width*.6f,width*.95f);assertEquals(6f,(Float)field(view,"zoom"),.001f);assertEquals(0,clicks[0]);
+            for(int i=0;i<40&&(Float)field(view,"zoom")<6;i++){float before=(Float)field(view,"zoom");zoomPreview(view,width*.6f,width*.95f);float after=(Float)field(view,"zoom");assertTrue("Every outward gesture must increase zoom until the limit",after>before);assertTrue("Zoom must stay within its upper limit",after<=6);}assertEquals(6f,(Float)field(view,"zoom"),.001f);assertEquals(0,clicks[0]);
             long now=previewGestureTime+1000;
             for(int i=0;i<3;i++){MotionEvent event=MotionEvent.obtain(now,now+i*16,i==0?MotionEvent.ACTION_DOWN:i==1?MotionEvent.ACTION_MOVE:MotionEvent.ACTION_UP,100+i*20,100+i*15,0);try{assertTrue(view.dispatchTouchEvent(event));}finally{event.recycle();}}
             assertTrue((Float)field(view,"panX")>0);assertTrue((Float)field(view,"panY")>0);assertEquals(0,clicks[0]);
