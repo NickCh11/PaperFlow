@@ -107,3 +107,9 @@ Folder protection controls app access and is not an encrypted vault.
 ## License
 
 **GPL-3.0-or-later** — see [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md).
+
+<p align="center">
+  <a href="https://ko-fi.com/nickch1">
+    <img src="docs/images/kofi-banner.svg" alt="Support PaperFlow on Ko-fi — buy NickCh1 a coffee" width="100%">
+  </a>
+</p>

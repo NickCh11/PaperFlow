@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="220" viewBox="0 0 1200 220" role="img" aria-labelledby="title desc">
+  <title id="title">Support PaperFlow on Ko-fi</title>
+  <desc id="desc">Enjoying PaperFlow? Buy NickCh1 a coffee at ko-fi.com/nickch1.</desc>
+  <defs>
+    <clipPath id="card"><rect x="1" y="1" width="1198" height="218" rx="26"/></clipPath>
+  </defs>
+  <rect x="1" y="1" width="1198" height="218" rx="26" fill="#FAF7F2" stroke="#E7D8C9" stroke-width="2"/>
+  <g clip-path="url(#card)">
+    <circle cx="1200" cy="4" r="220" fill="#F1E6DC"/>
+    <circle cx="1170" cy="235" r="130" fill="#EEDDCF"/>
+  </g>
+  <rect x="48" y="58" width="104" height="104" rx="28" fill="#984321"/>
+  <path d="M119 92h8a13 13 0 0 1 0 26h-8" fill="none" stroke="#FFF9F0" stroke-width="7"/>
+  <path d="M73 86h48v31a21 21 0 0 1-21 21h-6a21 21 0 0 1-21-21Z" fill="#FFF9F0"/>
+  <path d="M97 102c-8-10-22 3 0 17 22-14 8-27 0-17Z" fill="#D96C56"/>
+  <path d="M71 147h53" stroke="#E8A478" stroke-width="5" stroke-linecap="round"/>
+  <g font-family="Arial,Helvetica,sans-serif">
+    <text x="185" y="83" fill="#30251F" font-size="32" font-weight="700" letter-spacing="-.5">Help PaperFlow keep flowing.</text>
+    <text x="185" y="121" fill="#746356" font-size="21">A little coffee goes a long way. Thanks for your support.</text>
+    <text x="185" y="158" fill="#984321" font-size="18" font-weight="700">ko-fi.com/nickch1</text>
+    <rect x="877" y="78" width="270" height="64" rx="32" fill="#984321"/>
+    <text x="1000" y="118" text-anchor="middle" fill="#FFF9F0" font-size="22" font-weight="700">Support on Ko-fi</text>
+  </g>
+  <path d="m1101 113 13-13m-12 0h12v12" fill="none" stroke="#FFF9F0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
