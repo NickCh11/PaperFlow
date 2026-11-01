@@ -82,6 +82,13 @@ the recipe. The selected `check_builds`, `check_license_tag`,
 disable flag was cleared in memory for validation). This was not a full
 `fdroid lint`, source scanner, dependency license audit or APK build.
 
+A separate fdroidserver 2.4.5 `scan_source` run on a clean git archive of
+`f1600de` with refreshed SUSS signatures returned **0 fatal findings** on
+2026-11-01. It warned about seven binary assets: three Office test fixtures,
+UVDoc, the searchable-PDF font and the two TFLite models. This Windows scan
+does not scan resolved Maven/Cargo dependencies or prove model licensing.
+Executable-bit/type handling and all warnings need Linux confirmation.
+
 On a Linux F-Droid build environment with FLOSS JDK 25 and Android SDK 37.0,
 copy the candidate into an fdroiddata checkout's metadata directory, then run:
 
