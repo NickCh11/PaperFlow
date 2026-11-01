@@ -181,6 +181,25 @@ published v1.2.4 binary cannot be made reproducible by changing its source now.
 Mozilla explicitly states that its translation model files use MPL 2.0:
 https://github.com/mozilla/translations . Exact mirrored catalog artifacts,
 other OCR/support models, training data and transitive licenses remain to audit.
+On 2026-11-01, 365 of the catalog's 410 translation file paths were present in
+the then-current Mozilla registry; the remaining 45 need separate provenance
+review. A matching path alone does not establish byte identity. One sampled
+Greek-to-English model downloaded from the mirror matched the registry's
+uncompressed SHA-256 `0a43c3716156061494d995d0c88113e789f8d919e0c88a15bc1ad360e0482a8c`.
+This result does not verify the other model, shortlist or vocabulary files.
+
+Subsequent native builds from the same source revision on GitHub Actions and
+Ubuntu/WSL matched byte-for-byte before APK packaging for arm64-v8a (SHA-256
+`7e4a7a12e3843380242aa410403b21a466d714f923e2255852bf5c20d3b007ad`) and
+armeabi-v7a (`faf20fc5d70dddb7fbacc7d6164b789b39e4886a12e5c94c83afc3163dc4e661`).
+The x86_64 native JNI outputs also matched (SHA-256
+`982b36b9e44a34969f24b151aa7287300ed1df465e7cbfdf7ee23726f7073abc`).
+Locally, CMake 3.22.1 and 3.28.3 yielded identical ARM64 native outputs.
+Two complete unsigned ARM64 APKs built from different source directories on
+the same WSL host were also byte-identical (SHA-256
+`0dd41186a8c61fe960dbbdcdedf55653982e6c8e4b47a74443c815ac78def60f`).
+Those test APKs used the v1.2.4 source plus the remapping script; they do not
+establish full APK reproducibility across machines or include later PR assets.
 
 The repository began in October 2026. Any exception to F-Droid's young-project
 policy must be decided by its maintainers; do not claim that it has been granted.
