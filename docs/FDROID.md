@@ -73,7 +73,8 @@ adapted from the official upstream recipe and PaperFlow's successful source CI.
 It preserves the application ID and versionCode and builds JNI during the build
 phase, after source scanning. It contains no blanket scanignore/scandelete and
 does not substitute GitHub native artifacts or production signing credentials.
-The build is intentionally disabled until independently validated.
+The build remains disabled pending an unmodified F-Droid build-server run and
+the remaining model and dependency license review.
 
 Local validation used fdroidserver 2.4.5 from PyPI: its metadata parser accepted
 the recipe. The selected `check_builds`, `check_license_tag`,
@@ -105,12 +106,24 @@ Gradle 9.6.0/JDK 25 support, both NDK paths and Rust/CMake submodule dependencie
 Use fdroidserver's Gradle provisioning rather than downloading a replacement
 prebuilt JNI library. Investigate scanner findings individually.
 
-Ubuntu on WSL 2 has now been installed. On 2026-11-01, `fdroid lint` with
-fdroidserver 2.4.3 and the current fdroiddata categories passed after changing
-the candidate category from Office to OCR. An isolated F-Droid Linux build has
-not yet been completed. Successful GitHub Actions
-builds are not equivalent to this test. Do not enable automatic F-Droid updates
-or submit the candidate as a verified build before it passes.
+On 2026-11-01, Ubuntu 26.04.1 on WSL 2 with fdroidserver 2.4.3 passed
+`fdroid lint` after changing the candidate category from Office to OCR. An
+exploratory `fdroid build --test --stop --no-tarball` then passed the Linux
+source scanner and built an unsigned ARM64 APK from the pinned v1.2.4 commit.
+`aapt dump badging` confirmed application ID `com.example.myapplication`,
+versionName 1.2.4, versionCode 1002004, minSdk 26 and targetSdk 37; APK native
+libraries are arm64-v8a. Native OCR/translation was compiled from source.
+
+Two local adaptations were required: Ubuntu's fdroidserver 2.4.3 does not
+accept an NDK version list, so the temporary test recipe specified NDK 28 only
+while both NDKs were preinstalled; and its Gradle helper lacks Gradle 9.6.0,
+so the official distribution SHA-256 was temporarily added to that helper.
+The download passed checksum verification and the helper was restored afterward.
+Ubuntu's newer CMake also rejected sentencepiece; the recipe now selects the
+project's Android SDK CMake 3.22.1 explicitly. The build used the local WSL
+environment, not `--server`; it does not establish F-Droid build-server support
+or bit-for-bit reproducibility. Do not enable automatic updates or submit the
+candidate as an independently verified F-Droid build yet.
 
 ## Publishing and signatures
 

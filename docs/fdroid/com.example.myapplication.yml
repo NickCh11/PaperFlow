@@ -33,6 +33,7 @@ Builds:
       - cd translation/native && cargo fetch --locked
     build:
       - export ANDROID_SDK_ROOT=$$SDK$$
+      - export PATH="$$SDK$$/cmake/3.22.1/bin:$PATH"
       - bash tools/ci/build_language_runtime.sh arm64-v8a
     ndk:
       - 28.0.13004108
