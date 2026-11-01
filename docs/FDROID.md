@@ -119,6 +119,10 @@ accept an NDK version list, so the temporary test recipe specified NDK 28 only
 while both NDKs were preinstalled; and its Gradle helper lacks Gradle 9.6.0,
 so the official distribution SHA-256 was temporarily added to that helper.
 The download passed checksum verification and the helper was restored afterward.
+This limitation belongs to the old Ubuntu package used locally: public F-Droid
+build logs show the production Gradle helper has already built other apps with
+Gradle 9.6.0, for example:
+https://monitor.f-droid.org/builds/log/org.arkikeskus.launcher/60
 Ubuntu's newer CMake also rejected sentencepiece; the recipe now selects the
 project's Android SDK CMake 3.22.1 explicitly. The build used the local WSL
 environment, not `--server`; it does not establish F-Droid build-server support
@@ -167,6 +171,8 @@ Three ARM64 source builds using different source directories and two different
 Cargo homes on the same Ubuntu/WSL host produced identical unstripped JNI
 libraries (SHA-256 `7e4a7a12e3843380242aa410403b21a466d714f923e2255852bf5c20d3b007ad`).
 The updated build script was rerun in two of those locations and `cmp` passed.
+The updated script also compiled both the x86_64 JNI library and native test
+binary on WSL; this checked compilation, not execution of Android tests.
 This is not a comparison of complete APKs or independent build machines.
 Toolchain differences, build-server behavior, other ABIs and paths containing
 whitespace (for which remapping is skipped) remain to be checked. The already
