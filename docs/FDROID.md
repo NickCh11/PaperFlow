@@ -158,6 +158,15 @@ differs and its source of nondeterminism needs investigation. In particular,
 the local build uses CMake 3.22.1 whereas GitHub's Ubuntu runner supplies its
 own CMake; equivalence has not been established.
 
+Inspection of strings embedded in the two runtime libraries confirms a
+concrete reproducibility obstacle: Cargo paths include `/home/runner/.cargo/`
+in GitHub's library and `/root/.cargo/` in the WSL library. Both report the
+same Rust 1.88.0 and Android NDK compiler versions in their ELF comments.
+Path remapping for both Rust and C/C++ sources should be evaluated on a future
+release, along with the other possible toolchain differences. This evidence
+does not prove that paths are the only source of differences, and the already
+published v1.2.4 binary cannot be made reproducible by changing its source now.
+
 Mozilla explicitly states that its translation model files use MPL 2.0:
 https://github.com/mozilla/translations . Exact mirrored catalog artifacts,
 other OCR/support models, training data and transitive licenses remain to audit.
