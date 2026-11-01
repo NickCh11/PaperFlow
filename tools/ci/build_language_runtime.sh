@@ -17,6 +17,19 @@ case "$abi" in
   *) echo "Unsupported ABI: $abi" >&2; exit 2 ;;
 esac
 root=$(cd "$(dirname "$0")/../.." && pwd)
+cargo_home="${CARGO_HOME:-${HOME:?Home directory is required}/.cargo}"
+mkdir -p "$cargo_home"
+cargo_home=$(cd "$cargo_home" && pwd -P)
+# Rust panic messages and native assert strings otherwise embed machine-specific
+# checkout and Cargo paths. Flags are space-delimited by Cargo and cc-rs, so keep
+# existing builds working for paths containing whitespace instead of misparsing.
+if [[ "$root" != *[[:space:]]* && "$cargo_home" != *[[:space:]]* ]]; then
+  export RUSTFLAGS="${RUSTFLAGS:-} --remap-path-prefix=$root=/paperflow/source --remap-path-prefix=$cargo_home=/paperflow/cargo"
+  path_maps="-ffile-prefix-map=$root=/paperflow/source -ffile-prefix-map=$cargo_home=/paperflow/cargo"
+  export CFLAGS="${CFLAGS:-} $path_maps" CXXFLAGS="${CXXFLAGS:-} $path_maps"
+else
+  echo 'Note: path remapping skipped for paths containing whitespace; build may not be reproducible.' >&2
+fi
 export ANDROID_NDK_HOME="${ANDROID_SDK_ROOT:-${ANDROID_HOME:?Android SDK is required}}/ndk/28.0.13004108"
 export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
 export CMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
