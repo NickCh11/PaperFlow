@@ -36,8 +36,8 @@ Builds:
       - export PATH="$$SDK$$/cmake/3.22.1/bin:$PATH"
       - bash tools/ci/build_language_runtime.sh arm64-v8a
     ndk:
-      - 28.0.13004108
       - 27.2.12479018
+      - 28.0.13004108
     gradleprops:
       - paperflowAbi=arm64-v8a
       - paperflowReleaseVersion=1.2.4

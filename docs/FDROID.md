@@ -125,6 +125,13 @@ environment, not `--server`; it does not establish F-Droid build-server support
 or bit-for-bit reproducibility. Do not enable automatic updates or submit the
 candidate as an independently verified F-Droid build yet.
 
+A second WSL build set the single local `ndk` field to 27.2.12479018, while
+retaining NDK 28 for the Rust runtime script. It passed the source scanner and
+built successfully; the CXX1104 version mismatch and unstripped-library warnings
+disappeared. Newer fdroidserver versions support an NDK list, and its first
+entry controls `ndk.dir`; the candidate therefore lists 27 before 28. Linux
+build-server support for the list must still be verified.
+
 ## Publishing and signatures
 
 The release certificate SHA-256 is
@@ -140,6 +147,20 @@ with the unsigned WSL build using Ubuntu's apksigcopier 1.1.1 ended with
 `APK Signing Block offset < central directory offset`. This is an inconclusive
 tool error, not proof that the binaries match or differ. Investigate with an
 F-Droid-supported verifier/toolchain before claiming reproducible builds.
+
+ZIP entry comparisons confirmed actual differences in five native libraries
+in the first WSL build, where Gradle used the wrong NDK and skipped stripping.
+After selecting NDK 27 for Gradle, only `libpaperflow_runtime.so` differs in
+size/content; all other common ZIP entries have identical CRC and size. The
+signed APK also contains three JAR signature entries absent from the unsigned
+build. This is not an APK signature-verification test: the native runtime still
+differs and its source of nondeterminism needs investigation. In particular,
+the local build uses CMake 3.22.1 whereas GitHub's Ubuntu runner supplies its
+own CMake; equivalence has not been established.
+
+Mozilla explicitly states that its translation model files use MPL 2.0:
+https://github.com/mozilla/translations . Exact mirrored catalog artifacts,
+other OCR/support models, training data and transitive licenses remain to audit.
 
 The repository began in October 2026. Any exception to F-Droid's young-project
 policy must be decided by its maintainers; do not claim that it has been granted.
