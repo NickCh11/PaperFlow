@@ -1,0 +1,48 @@
+Categories:
+  - Office
+License: GPL-3.0-or-later
+AuthorName: NickCh11
+SourceCode: https://github.com/NickCh11/PaperFlow
+IssueTracker: https://github.com/NickCh11/PaperFlow/issues
+Changelog: https://github.com/NickCh11/PaperFlow/releases
+Donate: https://ko-fi.com/nickch1
+AutoName: PaperFlow
+RepoType: git
+Repo: https://github.com/NickCh11/PaperFlow.git
+
+MaintainerNotes: |-
+    Candidate recipe, not a verified F-Droid build. See docs/FDROID.md upstream.
+    Requires installed FLOSS JDK 25, SDK platform 37.0, build-tools 36.0.0,
+    and Gradle 9.6.0 support in fdroidserver. Keep disabled pending validation.
+    Do not add Binaries or AllowedAPKSigningKeys until reproducibility is proven.
+
+Builds:
+  - versionName: 1.2.4
+    versionCode: 1002004
+    disable: Candidate awaiting Linux F-Droid build and license review
+    commit: b3bf5b4b16b2611d785e787799cbd7aeb087111b
+    sudo:
+      - apt-get update
+      - apt-get install -y make g++ libc-dev libclang-dev cmake rustup ninja-build pkg-config
+    gradle:
+      - yes
+    prebuild:
+      - rustup default 1.88.0
+      - rustup target add aarch64-linux-android
+      - cargo install cargo-ndk@4.1.2 --locked
+      - cd translation/native && cargo fetch --locked
+    build:
+      - export ANDROID_SDK_ROOT=$$SDK$$
+      - bash tools/ci/build_language_runtime.sh arm64-v8a
+    ndk:
+      - 28.0.13004108
+      - 27.2.12479018
+    gradleprops:
+      - paperflowAbi=arm64-v8a
+      - paperflowReleaseVersion=1.2.4
+    output: app/build/outputs/apk/release/app-release-unsigned.apk
+
+AutoUpdateMode: None
+UpdateCheckMode: None
+CurrentVersion: 1.2.4
+CurrentVersionCode: 1002004
