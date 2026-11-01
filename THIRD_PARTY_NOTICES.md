@@ -83,6 +83,7 @@ Kotlin standard library (Apache-2.0): https://github.com/JetBrains/kotlin
 
 MediaPipe Selfie Segmenter float16 v1 model, Apache-2.0:
 https://storage.googleapis.com/mediapipe-assets/Model%20Card%20MediaPipe%20Selfie%20Segmentation.pdf
+Original model: https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite
 SHA-256: 191ac9529ae506ee0beefa6b2c945a172dab9d07d1e802a290a4e4038226658b
 Model bytes are unchanged; it runs through LiteRT for ID Photo Maker. No ML Kit SDK is packaged.
 

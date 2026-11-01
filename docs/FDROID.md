@@ -30,7 +30,7 @@ https://gitlab.com/fdroid/fdroiddata/-/blob/master/metadata/dev.davidv.translato
 | PaperFlow | Root GPL-3.0-or-later license and notices | Full transitive dependency license inventory |
 | FairScan segmentation | GPL-3.0 model repository, public train.py and linked dataset | Linked training dataset has a noncommercial license; exact model rights and F-Droid treatment need review |
 | UVDoc | MIT upstream repository includes model/best_model.pkl and training code; conversion and hashes in app/model-tools/uvdoc | Model and training-data terms separately from code |
-| Selfie segmentation | Model source/card and SHA-256 in THIRD_PARTY_NOTICES.md | Confirm license applies to the exact bundled model bytes |
+| Selfie segmentation | Bundled bytes match Google's square float16 model; its model card states Apache-2.0 | Training data and F-Droid review remain separate |
 | translator-rs / bindings | Pinned MIT package declarations; JNI integration built from source | Licenses of recursively included C/C++ submodules and Cargo dependencies |
 | slimt | Pinned upstream COPYRIGHT explicitly grants GPL-2.0-or-later and identifies Apache-2.0 and MPL-2.0 derived files; the original notice is bundled in assets | Review nested dependencies and ensure their notices accompany distribution |
 | Firefox translation models | Mozilla repository contains MPL-2.0 license | Map exact mirrored catalog artifacts to upstream model/license records |
@@ -67,6 +67,24 @@ question about the training data, not proof that the model weights have a
 noncommercial license or that they are incompatible with F-Droid. Confirm the
 exact model's provenance and applicable rights with its author and the F-Droid
 reviewers before claiming that all model licensing has been resolved.
+
+On 2026-11-01, the `assets/fairscan-segmentation-model.tflite` entry in
+[F-Droid's FairScan 2.3.0 ARM64 APK, version code 96](https://f-droid.org/repo/org.fairscan.app_96.apk)
+also had that same SHA-256. The [F-Droid package page](https://f-droid.org/en/packages/org.fairscan.app/)
+identifies this as an F-Droid-built and signed release. This is evidence of an
+existing distribution of the identical model, not an approval of PaperFlow or
+a determination about the dataset's legal effect on the model.
+
+The bundled portrait model SHA-256
+`191ac9529ae506ee0beefa6b2c945a172dab9d07d1e802a290a4e4038226658b`
+also matched the square float16 model downloaded on 2026-11-01 from Google's
+[official version 1 model](https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite).
+The `latest` model linked from its [image segmentation guide](https://developers.google.com/edge/mediapipe/solutions/vision/image_segmenter)
+also matched on that date.
+The [model card](https://storage.googleapis.com/mediapipe-assets/Model%20Card%20MediaPipe%20Selfie%20Segmentation.pdf)
+states Apache License 2.0 for the model. The digest above records the file
+actually compared. Model identity and the published
+license do not establish the availability of its training data.
 
 Regenerate the inventory without downloading any model:
 
