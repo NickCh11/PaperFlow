@@ -162,9 +162,14 @@ Inspection of strings embedded in the two runtime libraries confirms a
 concrete reproducibility obstacle: Cargo paths include `/home/runner/.cargo/`
 in GitHub's library and `/root/.cargo/` in the WSL library. Both report the
 same Rust 1.88.0 and Android NDK compiler versions in their ELF comments.
-Path remapping for both Rust and C/C++ sources should be evaluated on a future
-release, along with the other possible toolchain differences. This evidence
-does not prove that paths are the only source of differences, and the already
+The native build script now remaps both Rust and C/C++ source and Cargo paths.
+Three ARM64 source builds using different source directories and two different
+Cargo homes on the same Ubuntu/WSL host produced identical unstripped JNI
+libraries (SHA-256 `7e4a7a12e3843380242aa410403b21a466d714f923e2255852bf5c20d3b007ad`).
+The updated build script was rerun in two of those locations and `cmp` passed.
+This is not a comparison of complete APKs or independent build machines.
+Toolchain differences, build-server behavior, other ABIs and paths containing
+whitespace (for which remapping is skipped) remain to be checked. The already
 published v1.2.4 binary cannot be made reproducible by changing its source now.
 
 Mozilla explicitly states that its translation model files use MPL 2.0:
