@@ -105,8 +105,10 @@ Gradle 9.6.0/JDK 25 support, both NDK paths and Rust/CMake submodule dependencie
 Use fdroidserver's Gradle provisioning rather than downloading a replacement
 prebuilt JNI library. Investigate scanner findings individually.
 
-The current Windows host has no installed WSL distribution or Docker command;
-an isolated F-Droid Linux build has not been run here. Successful GitHub Actions
+Ubuntu on WSL 2 has now been installed. On 2026-11-01, `fdroid lint` with
+fdroidserver 2.4.3 and the current fdroiddata categories passed after changing
+the candidate category from Office to OCR. An isolated F-Droid Linux build has
+not yet been completed. Successful GitHub Actions
 builds are not equivalent to this test. Do not enable automatic F-Droid updates
 or submit the candidate as a verified build before it passes.
 
