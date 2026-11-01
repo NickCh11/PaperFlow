@@ -134,5 +134,12 @@ distribution requires a successful reproducibility comparison; normal F-Droid
 signing would require reinstalling when switching from the GitHub build.
 No byte-for-byte reproducibility result is available yet.
 
+An exploratory comparison of the GitHub v1.2.4 ARM64 APK (download SHA-256
+`14ca683a16dd295338e08b2e94ffdb18572ebc2bef24f9ce0c941e2f7b90891e`)
+with the unsigned WSL build using Ubuntu's apksigcopier 1.1.1 ended with
+`APK Signing Block offset < central directory offset`. This is an inconclusive
+tool error, not proof that the binaries match or differ. Investigate with an
+F-Droid-supported verifier/toolchain before claiming reproducible builds.
+
 The repository began in October 2026. Any exception to F-Droid's young-project
 policy must be decided by its maintainers; do not claim that it has been granted.
