@@ -1,0 +1,1 @@
+Improved book PDF processing and double-page capture. Added page retakes and offline PDF translation. Downloaded OCR languages enable automatically. Clearer Word export options.
