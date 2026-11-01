@@ -75,6 +75,13 @@ phase, after source scanning. It contains no blanket scanignore/scandelete and
 does not substitute GitHub native artifacts or production signing credentials.
 The build is intentionally disabled until independently validated.
 
+Local validation used fdroidserver 2.4.5 from PyPI: its metadata parser accepted
+the recipe. The selected `check_builds`, `check_license_tag`,
+`check_app_field_types`, `check_current_version_code` and
+`check_certificate_pinned_binaries` checks returned no warnings (the candidate
+disable flag was cleared in memory for validation). This was not a full
+`fdroid lint`, source scanner, dependency license audit or APK build.
+
 On a Linux F-Droid build environment with FLOSS JDK 25 and Android SDK 37.0,
 copy the candidate into an fdroiddata checkout's metadata directory, then run:
 
