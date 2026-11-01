@@ -1,0 +1,13 @@
+PaperFlow helps you scan, edit and organize paper documents on your Android device.
+
+• Scan documents and book spreads, crop pages and adjust their appearance.
+• Create PDFs, including searchable PDFs using offline OCR.
+• Recognize text and export it to Word documents.
+• Translate images and PDF pages on your device with downloaded language packs.
+• Retake individual pages before saving.
+
+OCR and translation require language packs downloaded from the offline-translator model host. Document images and recognized text are processed locally. Internet access is used for language downloads and update checks.
+
+Android 8.0 or later is required. PDF translation accepts up to 100 pages and 256 MiB per input. Password-protected PDFs require an unlocked copy.
+
+PaperFlow is free software under GPL-3.0-or-later. Third-party models and libraries retain their own licenses; see the project's third-party notices.

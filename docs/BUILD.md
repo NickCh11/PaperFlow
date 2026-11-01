@@ -113,3 +113,23 @@ No branch protections, approval requirements or required checks are changed.
 Native source revisions and the upstream language catalog are pinned. OCR and
 translation share downloadable core packs; private archives are maintained separately.
 See [CI](CI.md) for checks and [model distribution](MODEL_DISTRIBUTION.md) for download configuration.
+
+## F-Droid preparation
+
+Install a FLOSS JDK 25 before invoking Gradle (for example Eclipse Temurin).
+The build uses the installed JDK; Foojay resolver and vendor-specific daemon
+JDK download URLs are not required. GitHub Actions already installs Temurin 25.
+Build the native runtime from source using the Linux commands above, then run
+`./gradlew :app:assembleRelease -PpaperflowReleaseVersion=1.2.3`.
+Do not use downloaded GitHub native artifacts in an F-Droid build recipe.
+
+Store descriptions, screenshots and release notes live in
+`fastlane/metadata/android/`. This directory is data only: installing or running
+the Fastlane program is not required. Update changelogs using the release's
+Android versionCode. Metadata reaches F-Droid only after a release containing it.
+
+Packaging request: https://gitlab.com/fdroid/rfp/-/work_items/4721
+An fdroidserver build recipe and an actual build in its isolated Linux environment
+remain to be validated. Ordinary Gradle/CI success is not F-Droid approval, and
+byte-for-byte reproducibility with developer-signed APKs has not been established.
+Model/license review and the young-project inclusion exception remain pending.
