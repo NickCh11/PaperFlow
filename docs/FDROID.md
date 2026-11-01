@@ -28,7 +28,7 @@ https://gitlab.com/fdroid/fdroiddata/-/blob/master/metadata/dev.davidv.translato
 | Component | Evidence | Remaining review |
 | --- | --- | --- |
 | PaperFlow | Root GPL-3.0-or-later license and notices | Full transitive dependency license inventory |
-| FairScan segmentation | GPL-3.0 model repository, public train.py and linked dataset | Exact model release/data terms in packaging review |
+| FairScan segmentation | GPL-3.0 model repository, public train.py and linked dataset | Linked training dataset has a noncommercial license; exact model rights and F-Droid treatment need review |
 | UVDoc | MIT upstream repository includes model/best_model.pkl and training code; conversion and hashes in app/model-tools/uvdoc | Model and training-data terms separately from code |
 | Selfie segmentation | Model source/card and SHA-256 in THIRD_PARTY_NOTICES.md | Confirm license applies to the exact bundled model bytes |
 | translator-rs / bindings | Pinned MIT package declarations; JNI integration built from source | Licenses of recursively included C/C++ submodules and Cargo dependencies |
@@ -39,6 +39,7 @@ https://gitlab.com/fdroid/fdroiddata/-/blob/master/metadata/dev.davidv.translato
 Upstream evidence:
 
 - https://github.com/pynicolas/fairscan-segmentation-model
+- https://github.com/pynicolas/fairscan-dataset/tree/v2.1
 - https://github.com/tanguymagne/UVDoc
 - https://github.com/mozilla/firefox-translations-models/blob/main/LICENSE
 - https://github.com/PaddlePaddle/PaddleOCR
@@ -52,6 +53,20 @@ The catalog's presence does not mean all these features ship in PaperFlow.
 Do not attribute all files to one license based only on the app or engine license.
 Runtime model entries supply URLs and sizes, but not per-file license evidence
 or cryptographic digests. See MODEL_DISTRIBUTION.md for integrity limitations.
+
+The bundled `scanengine/src/main/assets/scanner/page-segmentation.tflite` has
+SHA-256 `96e14d7e610dd0c27b768b228fbc553b4ec119ebe68f3a3594029a25400691d2`,
+matching the digest published for the TFLite asset in the
+[FairScan v1.2.0 release](https://github.com/pynicolas/fairscan-segmentation-model/releases/tag/v1.2.0).
+That release's
+[training script](https://github.com/pynicolas/fairscan-segmentation-model/blob/78cde680c36137922218260ffdd74dcde4ee1c8b/train.py)
+selects dataset v2.1, whose
+[README](https://github.com/pynicolas/fairscan-dataset/blob/b46fd1ba3cbd1b1427ebe56541ef0311dfa6f35a/README.md)
+states CC BY-NC-SA 4.0. The model repository states GPLv3. This identifies a
+question about the training data, not proof that the model weights have a
+noncommercial license or that they are incompatible with F-Droid. Confirm the
+exact model's provenance and applicable rights with its author and the F-Droid
+reviewers before claiming that all model licensing has been resolved.
 
 Regenerate the inventory without downloading any model:
 
@@ -143,7 +158,7 @@ The release certificate SHA-256 is
 No private signing material belongs in F-Droid metadata. Upstream-signature
 distribution requires a successful reproducibility comparison; normal F-Droid
 signing would require reinstalling when switching from the GitHub build.
-No byte-for-byte reproducibility result is available yet.
+Cross-machine reproducibility of a complete APK has not yet been established.
 
 An exploratory comparison of the GitHub v1.2.4 ARM64 APK (download SHA-256
 `14ca683a16dd295338e08b2e94ffdb18572ebc2bef24f9ce0c941e2f7b90891e`)
@@ -173,8 +188,9 @@ libraries (SHA-256 `7e4a7a12e3843380242aa410403b21a466d714f923e2255852bf5c20d3b0
 The updated build script was rerun in two of those locations and `cmp` passed.
 The updated script also compiled both the x86_64 JNI library and native test
 binary on WSL; this checked compilation, not execution of Android tests.
-This is not a comparison of complete APKs or independent build machines.
-Toolchain differences, build-server behavior, other ABIs and paths containing
+These initial native comparisons were not comparisons of complete APKs or
+independent build machines; subsequent comparisons are documented below.
+Toolchain differences, build-server behavior and paths containing
 whitespace (for which remapping is skipped) remain to be checked. The already
 published v1.2.4 binary cannot be made reproducible by changing its source now.
 
