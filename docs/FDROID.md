@@ -32,7 +32,7 @@ https://gitlab.com/fdroid/fdroiddata/-/blob/master/metadata/dev.davidv.translato
 | UVDoc | MIT upstream repository includes model/best_model.pkl and training code; conversion and hashes in app/model-tools/uvdoc | Model and training-data terms separately from code |
 | Selfie segmentation | Model source/card and SHA-256 in THIRD_PARTY_NOTICES.md | Confirm license applies to the exact bundled model bytes |
 | translator-rs / bindings | Pinned MIT package declarations; JNI integration built from source | Licenses of recursively included C/C++ submodules and Cargo dependencies |
-| slimt | Pinned source includes GPL v2 license text | Confirm effective grant/version compatibility, including Marian-derived files; generic license appendix alone is not proof of an “or later” grant |
+| slimt | Pinned upstream COPYRIGHT explicitly grants GPL-2.0-or-later and identifies Apache-2.0 and MPL-2.0 derived files; the original notice is bundled in assets | Review nested dependencies and ensure their notices accompany distribution |
 | Firefox translation models | Mozilla repository contains MPL-2.0 license | Map exact mirrored catalog artifacts to upstream model/license records |
 | PaddleOCR / DocAligner | Apache-2.0 project attribution | Exact converted/quantized MNN files, support/ink models and conversion provenance |
 

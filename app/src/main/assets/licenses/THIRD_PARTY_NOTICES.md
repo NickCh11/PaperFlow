@@ -43,9 +43,13 @@ MNN runtime and contributors, Apache-2.0:
 https://github.com/alibaba/MNN
 CLD2 and contributors, Apache-2.0:
 https://github.com/CLD2Owners/cld2
-slimt and its dependencies retain their upstream license notices in the pinned
-Git sources resolved by Cargo.lock. Those include Marian-derived translation
-code and vocabulary/shortlist handling. Model licenses are independent.
+slimt, Copyright 2023 slimt Authors, GPL-2.0-or-later:
+https://github.com/DavidVentura/slimt/blob/2beb403abfff5b2f4c165a6d51362c973d037e97/COPYRIGHT
+The original COPYRIGHT and GPL-2.0 license text are included in
+assets/licenses/native/slimt. Upstream identifies Apache-2.0 ssplit-derived
+files and MPL-2.0 Bergamot/Marian-derived code. Third-party components retain
+their own notices in the pinned sources and accompanying license directory.
+Model licenses are independent.
 
 Firefox Translations models, Mozilla and contributors, MPL-2.0:
 https://github.com/mozilla/firefox-translations-models
